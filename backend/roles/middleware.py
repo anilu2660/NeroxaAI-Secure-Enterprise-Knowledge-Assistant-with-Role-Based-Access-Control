@@ -8,28 +8,22 @@ import logging
 from fastapi import Header, HTTPException, status
 from backend.roles.service import role_service
 
+from fastapi import Depends, HTTPException, status
+from backend.roles.service import role_service
+from backend.api.dependencies import get_current_user
+from backend.models.user import User
+
 logger = logging.getLogger(__name__)
-
-
-def get_current_user_role(
-    x_user_role: str = Header(default="employee", alias="X-User-Role"),
-) -> str:
-    """
-    Extract user role from HTTP request header (X-User-Role).
-    In Phase 2 auth, this will decode the JWT token.
-    """
-    return x_user_role.lower()
 
 
 def require_permission(required_permission: str):
     """
-    FastAPI Dependency Factory that checks if the requesting user's role
+    FastAPI Dependency Factory that checks if the requesting user's authenticated role
     possesses the specified permission.
-
-    Usage:
-        @router.post("/upload", dependencies=[Depends(require_permission("upload"))])
+    Role is securely extracted from the verified JWT token.
     """
-    def permission_guard(role: str = Header(default="employee", alias="X-User-Role")):
+    def permission_guard(current_user: User = Depends(get_current_user)):
+        role = current_user.role_id
         if not role_service.has_permission(role, required_permission):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -43,17 +37,15 @@ def require_permission(required_permission: str):
     return permission_guard
 
 
-def require_admin(role: str = Header(default="employee", alias="X-User-Role")) -> str:
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """
-    FastAPI Dependency Guard that restricts access strictly to Admin users.
+    FastAPI Dependency Guard that restricts access strictly to verified Admin users via JWT.
     Used for sensitive operations like role assignment, audit logs, and user management.
-
-    Usage:
-        @router.post("/assign-role", dependencies=[Depends(require_admin)])
     """
+    role = current_user.role_id
     if not role_service.is_admin(role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access DENIED. Admin role required. Action forbidden for role '{role}'.",
         )
-    return role
+    return current_user

@@ -12,6 +12,8 @@ from backend.auth.service import auth_service
 from backend.api.dependencies import get_current_user
 from backend.models.user import User
 
+from backend.utils.rate_limiter import rate_limit_guard
+
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
 
@@ -20,6 +22,7 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
     response_model=UserAuthInfo,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user",
+    dependencies=[Depends(rate_limit_guard("auth"))],
 )
 def register(
     request: RegisterRequest,
@@ -59,6 +62,7 @@ def register(
     "/login",
     response_model=TokenResponse,
     summary="User login and JWT token retrieval",
+    dependencies=[Depends(rate_limit_guard("auth"))],
 )
 def login(
     request: LoginRequest,

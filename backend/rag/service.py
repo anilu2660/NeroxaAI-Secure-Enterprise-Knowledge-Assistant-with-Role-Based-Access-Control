@@ -9,6 +9,7 @@ Orchestrates the full Retrieval-Augmented Generation pipeline:
 5. Source citation formatting
 """
 
+import asyncio
 import logging
 from backend.config import settings
 from backend.llm.service import llm_service
@@ -68,8 +69,29 @@ class RAGService:
             user_department,
         )
 
-        # Step 1: Embed the user query
-        query_embedding = self.embeddings.embed_query(query)
+        # Step 0: SECURITY GUARD - Inspect for Prompt Injection / Jailbreak Attacks
+        from backend.llm.prompts import detect_prompt_injection
+        is_injection, signature = detect_prompt_injection(query)
+        if is_injection:
+            logger.warning(
+                "Prompt Injection ATTEMPT DETECTED | query='%s' | signature='%s' | role=%s",
+                query[:50],
+                signature,
+                user_role,
+            )
+            return {
+                "query": query,
+                "answer": (
+                    "Security Alert: Your query contains input patterns that violate "
+                    "enterprise safety policies. This request has been blocked and logged."
+                ),
+                "sources": [],
+                "model": self.llm.model,
+                "chunks_retrieved": 0,
+            }
+
+        # Step 1: Scale Enhancement: Embed user query in background threadpool
+        query_embedding = await asyncio.to_thread(self.embeddings.embed_query, query)
         logger.debug("Query embedded successfully | dimension=%d", len(query_embedding))
 
         # Step 2: Retrieve relevant chunks with RBAC metadata filtering
