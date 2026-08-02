@@ -1,18 +1,31 @@
 version: "3.8"
 
 services:
-  # FastAPI Backend
+  # FastAPI Backend Service
   backend:
     build:
       context: ../backend
       dockerfile: ../docker/Dockerfile.backend
+    container_name: enterprise_rag_backend
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/enterprise_rag
+      - DEBUG=true
+      - APP_NAME=Enterprise RAG
+      - APP_VERSION=0.1.0
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/enterprise_rag}
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=enterprise_docs
+      - QDRANT_URL=${QDRANT_URL:-}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
       - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3
+      - EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+      - EMBEDDING_DIMENSION=384
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-enterprise-rag-2026}
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
+      - CORS_ORIGINS=http://localhost:3000
     depends_on:
       - db
       - qdrant
@@ -21,11 +34,12 @@ services:
     networks:
       - enterprise-rag-network
 
-  # React Frontend
+  # React Frontend Service
   frontend:
     build:
       context: ../frontend
       dockerfile: ../docker/Dockerfile.frontend
+    container_name: enterprise_rag_frontend
     ports:
       - "3000:3000"
     depends_on:
@@ -33,9 +47,10 @@ services:
     networks:
       - enterprise-rag-network
 
-  # PostgreSQL Database
+  # PostgreSQL Database Service
   db:
     image: postgres:16-alpine
+    container_name: enterprise_rag_db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -47,9 +62,10 @@ services:
     networks:
       - enterprise-rag-network
 
-  # Qdrant Vector Database
+  # Qdrant Vector Database Service
   qdrant:
     image: qdrant/qdrant:latest
+    container_name: enterprise_rag_qdrant
     ports:
       - "6333:6333"
       - "6334:6334"
@@ -58,9 +74,10 @@ services:
     networks:
       - enterprise-rag-network
 
-  # Ollama LLM
+  # Local Ollama LLM Service
   ollama:
     image: ollama/ollama:latest
+    container_name: enterprise_rag_ollama
     ports:
       - "11434:11434"
     volumes:
