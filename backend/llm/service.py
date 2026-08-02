@@ -1,6 +1,197 @@
 """
 LLM Service
 
-Handles prompt construction and communication with Ollama for
-generating responses from retrieved context.
+Handles communication with Ollama for generating responses
+from retrieved context. Supports both sync and async generation.
 """
+
+import logging
+from ollama import Client, AsyncClient
+from backend.config import settings
+from backend.llm.prompts import SYSTEM_PROMPT, build_query_prompt
+
+logger = logging.getLogger(__name__)
+
+
+class LLMService:
+    """
+    Service for interacting with the Ollama local LLM.
+
+    Manages prompt construction, LLM communication, and response parsing.
+    Uses the Ollama Python client for reliable connection handling.
+    """
+
+    def __init__(self):
+        """Initialize the LLM service with Ollama client configuration."""
+        self.model = settings.OLLAMA_MODEL
+        self.base_url = settings.OLLAMA_BASE_URL
+        self.client = Client(host=self.base_url)
+        self.async_client = AsyncClient(host=self.base_url)
+
+    def generate_response(
+        self,
+        query: str,
+        context_chunks: list[dict],
+        temperature: float = 0.7,
+        max_tokens: int = 1024,
+    ) -> dict:
+        """
+        Generate a response using Ollama based on query and retrieved context.
+
+        Args:
+            query: The user's question.
+            context_chunks: List of retrieved document chunks with metadata.
+            temperature: Controls randomness (0.0 = deterministic, 1.0 = creative).
+            max_tokens: Maximum number of tokens in the response.
+
+        Returns:
+            dict with keys:
+                - answer: str (the generated response)
+                - model: str (model name used)
+                - sources: list[dict] (source citations extracted from context)
+        """
+        user_prompt = build_query_prompt(query, context_chunks)
+
+        try:
+            response = self.client.chat(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                },
+            )
+
+            answer = response["message"]["content"]
+            sources = self._extract_sources(context_chunks)
+
+            logger.info(
+                "LLM response generated successfully | model=%s | query_length=%d",
+                self.model,
+                len(query),
+            )
+
+            return {
+                "answer": answer,
+                "model": self.model,
+                "sources": sources,
+            }
+
+        except Exception as e:
+            logger.error("LLM generation failed: %s", str(e))
+            raise RuntimeError(f"Failed to generate LLM response: {str(e)}") from e
+
+    async def agenerate_response(
+        self,
+        query: str,
+        context_chunks: list[dict],
+        temperature: float = 0.7,
+        max_tokens: int = 1024,
+    ) -> dict:
+        """
+        Async version of generate_response for use in FastAPI async endpoints.
+
+        Args:
+            query: The user's question.
+            context_chunks: List of retrieved document chunks with metadata.
+            temperature: Controls randomness.
+            max_tokens: Maximum tokens in response.
+
+        Returns:
+            dict with answer, model, and sources.
+        """
+        user_prompt = build_query_prompt(query, context_chunks)
+
+        try:
+            response = await self.async_client.chat(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                },
+            )
+
+            answer = response["message"]["content"]
+            sources = self._extract_sources(context_chunks)
+
+            logger.info(
+                "Async LLM response generated | model=%s | query_length=%d",
+                self.model,
+                len(query),
+            )
+
+            return {
+                "answer": answer,
+                "model": self.model,
+                "sources": sources,
+            }
+
+        except Exception as e:
+            logger.error("Async LLM generation failed: %s", str(e))
+            raise RuntimeError(f"Failed to generate LLM response: {str(e)}") from e
+
+    def _extract_sources(self, context_chunks: list[dict]) -> list[dict]:
+        """
+        Extract unique source citations from the context chunks.
+
+        Args:
+            context_chunks: The retrieved document chunks.
+
+        Returns:
+            List of unique source dicts with title, department, and page_number.
+        """
+        seen = set()
+        sources = []
+
+        for chunk in context_chunks:
+            title = chunk.get("title", "Unknown")
+            page = chunk.get("page_number", "N/A")
+            key = f"{title}:{page}"
+
+            if key not in seen:
+                seen.add(key)
+                sources.append({
+                    "document_title": title,
+                    "department": chunk.get("department", "General"),
+                    "page_number": page,
+                })
+
+        return sources
+
+    def check_health(self) -> dict:
+        """
+        Check if Ollama is running and the model is available.
+
+        Returns:
+            dict with status and available models.
+        """
+        try:
+            models = self.client.list()
+            model_names = [m["name"] for m in models.get("models", [])]
+            is_model_available = any(self.model in name for name in model_names)
+
+            return {
+                "status": "healthy",
+                "ollama_url": self.base_url,
+                "target_model": self.model,
+                "model_available": is_model_available,
+                "available_models": model_names,
+            }
+        except Exception as e:
+            logger.error("Ollama health check failed: %s", str(e))
+            return {
+                "status": "unhealthy",
+                "ollama_url": self.base_url,
+                "error": str(e),
+            }
+
+
+# Singleton instance for dependency injection
+llm_service = LLMService()

@@ -1,39 +1,60 @@
+# ============================================
 # Enterprise RAG Backend - Python Dependencies
+# Based on plan.md Tech Stack
+# ============================================
 
-# Web Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-multipart==0.0.6
+# -------------------
+# Web Framework (FastAPI)
+# -------------------
+fastapi
+uvicorn[standard]
+python-multipart
 
-# Database
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
-alembic==1.13.0
+# -------------------
+# Database (PostgreSQL + SQLAlchemy + Alembic)
+# -------------------
+sqlalchemy
+psycopg2-binary
+alembic
 
-# Authentication
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-bcrypt==4.1.2
+# -------------------
+# Authentication (JWT + Password Hashing)
+# -------------------
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt
 
-# Vector Database
-qdrant-client==1.7.0
+# -------------------
+# Vector Database (Qdrant)
+# -------------------
+qdrant-client
 
-# Embeddings
-sentence-transformers==2.2.2
+# -------------------
+# Embeddings (Sentence Transformers - BAAI/bge-small-en-v1.5)
+# -------------------
+sentence-transformers
 
-# LLM
-ollama==0.1.4
+# -------------------
+# LLM (Ollama - Local)
+# -------------------
+ollama
 
-# Document Processing
-pypdf==3.17.3
-python-docx==1.1.0
+# -------------------
+# Document Processing (PDF/DOCX/TXT)
+# -------------------
+pypdf
+python-docx
 
+# -------------------
 # Utilities
-python-dotenv==1.0.0
-pydantic==2.5.2
-pydantic-settings==2.1.0
+# -------------------
+python-dotenv
+pydantic
+pydantic-settings
 
+# -------------------
 # Testing
-pytest==7.4.3
-pytest-asyncio==0.23.2
-httpx==0.25.2
+# -------------------
+pytest
+pytest-asyncio
+httpx

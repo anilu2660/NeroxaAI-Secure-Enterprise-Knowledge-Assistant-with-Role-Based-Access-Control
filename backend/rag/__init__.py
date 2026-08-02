@@ -8,3 +8,14 @@ Orchestrates the full RAG pipeline:
 4. LLM response generation
 5. Source citation formatting
 """
+
+from backend.rag.service import RAGService, rag_service
+from backend.rag.schemas import QueryRequest, QueryResponse, SourceCitation
+
+__all__ = [
+    "RAGService",
+    "rag_service",
+    "QueryRequest",
+    "QueryResponse",
+    "SourceCitation",
+]

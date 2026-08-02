@@ -23,9 +23,11 @@ class Settings:
         "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/enterprise_rag"
     )
 
-    # Qdrant Vector Database
+    # Qdrant Vector Database (Supports local & Qdrant Cloud)
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
+    QDRANT_URL: str | None = os.getenv("QDRANT_URL", None)
+    QDRANT_API_KEY: str | None = os.getenv("QDRANT_API_KEY", None)
     QDRANT_COLLECTION: str = os.getenv("QDRANT_COLLECTION", "enterprise_docs")
 
     # JWT Authentication
