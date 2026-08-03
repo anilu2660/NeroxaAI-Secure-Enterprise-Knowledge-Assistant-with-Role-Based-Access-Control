@@ -1,60 +1,61 @@
 # ============================================
 # Enterprise RAG Backend - Python Dependencies
-# Based on plan.md Tech Stack
+# Pinned to exact working versions (Aug 2026)
 # ============================================
 
 # -------------------
 # Web Framework (FastAPI)
 # -------------------
-fastapi
-uvicorn[standard]
-python-multipart
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+python-multipart==0.0.32
 
 # -------------------
 # Database (PostgreSQL + SQLAlchemy + Alembic)
 # -------------------
-sqlalchemy
-psycopg2-binary
-alembic
+SQLAlchemy==2.0.51
+psycopg2-binary==2.9.12
+alembic==1.18.5
 
 # -------------------
 # Authentication (JWT + Password Hashing)
 # -------------------
-python-jose[cryptography]
-passlib[bcrypt]
-bcrypt
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+bcrypt==5.0.0
 
 # -------------------
 # Vector Database (Qdrant)
 # -------------------
-qdrant-client
+qdrant-client==1.18.0
 
 # -------------------
 # Embeddings (Sentence Transformers - BAAI/bge-small-en-v1.5)
 # -------------------
-sentence-transformers
+sentence-transformers==5.6.1
 
 # -------------------
 # LLM (Ollama - Local)
 # -------------------
-ollama
+ollama==0.6.2
 
 # -------------------
 # Document Processing (PDF/DOCX/TXT)
 # -------------------
-pypdf
-python-docx
+pypdf==6.14.2
+python-docx==1.2.0
 
 # -------------------
 # Utilities
 # -------------------
-python-dotenv
-pydantic
-pydantic-settings
+python-dotenv==1.2.2
+pydantic==2.13.4
+pydantic-settings==2.14.2
+email-validator==2.3.0
 
 # -------------------
 # Testing
 # -------------------
-pytest
-pytest-asyncio
-httpx
+pytest==9.1.1
+pytest-asyncio==1.4.0
+httpx==0.28.1

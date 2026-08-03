@@ -4,7 +4,7 @@ Audit Schemas
 Pydantic models for compliance audit log records.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 
 
@@ -35,5 +35,4 @@ class AuditLogResponse(BaseModel):
     details: dict | None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

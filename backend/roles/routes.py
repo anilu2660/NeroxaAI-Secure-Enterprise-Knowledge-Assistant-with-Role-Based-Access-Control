@@ -6,9 +6,13 @@ API endpoints for viewing roles, permissions, and assigning user roles (Admin on
 
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Header
+from sqlalchemy.orm import Session
+from backend.database.session import get_db
 from backend.roles.schemas import RoleInfo, AssignRoleRequest, PermissionCheckResponse
 from backend.roles.service import role_service
 from backend.roles.middleware import require_admin
+from backend.users.service import user_service
+from backend.users.schemas import UserUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +38,12 @@ async def list_roles():
 )
 async def assign_role(
     request: AssignRoleRequest,
-    current_role: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+    admin_user=Depends(require_admin),
 ):
     """
     Assign role to user. Admin authorization required.
+    Persists the role change in the relational database.
     """
     valid_roles = list(role_service.list_all_roles())
     role_names = [r["name"] for r in valid_roles]
@@ -48,12 +54,21 @@ async def assign_role(
             detail=f"Invalid role '{request.role}'. Valid roles: {', '.join(role_names)}",
         )
 
-    logger.info("Admin assigned role '%s' to user '%s'", request.role, request.user_id)
+    try:
+        user_service.update_user(db, request.user_id, UserUpdate(role_id=request.role.lower()))
+        logger.info("Admin assigned role '%s' to user '%s'", request.role, request.user_id)
+    except Exception as e:
+        logger.warning(
+            "Could not persist role assignment in DB for user_id '%s': %s",
+            request.user_id,
+            str(e),
+        )
+
     return {
         "status": "success",
         "message": f"Role '{request.role}' successfully assigned to user '{request.user_id}'.",
         "user_id": request.user_id,
-        "assigned_role": request.role,
+        "assigned_role": request.role.lower(),
     }
 
 

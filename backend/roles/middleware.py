@@ -5,15 +5,19 @@ FastAPI dependency functions for enforcing role and permission checks on API rou
 """
 
 import logging
-from fastapi import Header, HTTPException, status
-from backend.roles.service import role_service
-
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from backend.roles.service import role_service
 from backend.api.dependencies import get_current_user
 from backend.models.user import User
 
 logger = logging.getLogger(__name__)
+
+
+def get_current_user_role(current_user: User = Depends(get_current_user)) -> str:
+    """
+    FastAPI Dependency that extracts and returns the role string of the current user.
+    """
+    return current_user.role_id
 
 
 def require_permission(required_permission: str):

@@ -35,7 +35,11 @@ def get_current_user(
     except Exception as e:
         raise CredentialsException("Could not validate credentials.") from e
 
-    user = user_service.get_by_id(db, user_id)
+    try:
+        user = user_service.get_by_id(db, user_id)
+    except Exception as e:
+        raise CredentialsException("User account not found.") from e
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

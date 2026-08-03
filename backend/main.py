@@ -57,6 +57,17 @@ app.add_middleware(
 app.include_router(api_router)
 
 
+@app.get("/", tags=["Root"])
+async def root():
+    """Root endpoint — API entry point."""
+    return {
+        "message": f"Welcome to {settings.APP_NAME}",
+        "version": settings.APP_VERSION,
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Application health check endpoint."""

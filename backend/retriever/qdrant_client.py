@@ -45,13 +45,27 @@ class QdrantManager:
                 self._client = QdrantClient(
                     url=self.url,
                     api_key=self.api_key,
+                    prefer_grpc=False,
+                    timeout=30,
+                    check_compatibility=False,
                 )
             elif self.url:
                 logger.info("Connecting to Qdrant at %s", self.url)
-                self._client = QdrantClient(url=self.url)
+                self._client = QdrantClient(
+                    url=self.url,
+                    prefer_grpc=False,
+                    timeout=30,
+                    check_compatibility=False,
+                )
             else:
                 logger.info("Connecting to local Qdrant at %s:%d", self.host, self.port)
-                self._client = QdrantClient(host=self.host, port=self.port)
+                self._client = QdrantClient(
+                    host=self.host,
+                    port=self.port,
+                    prefer_grpc=False,
+                    timeout=30,
+                    check_compatibility=False,
+                )
         return self._client
 
     def ensure_collection_exists(self) -> bool:
@@ -167,7 +181,13 @@ class QdrantManager:
                 ),
             )
             logger.info("Deleted chunks for document_id='%s'", document_id)
+            return True
+        except Exception as e:
+            logger.error("Failed to delete points for document '%s': %s", document_id, str(e))
+            raise RuntimeError(f"Delete document chunks failed: {str(e)}") from e
+
     def share_document_with_users(self, document_id: str, user_ids: list[str]) -> bool:
+
         """
         Set or update the 'shared_with' payload array for all chunks of a document.
         Allows Admin to grant document access directly to specific employees/users.

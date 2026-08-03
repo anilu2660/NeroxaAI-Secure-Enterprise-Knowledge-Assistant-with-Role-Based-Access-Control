@@ -5,9 +5,11 @@ Loads environment variables and provides application-wide configuration.
 """
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from the same directory as this file, regardless of CWD
+load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=True)
 
 
 class Settings:
