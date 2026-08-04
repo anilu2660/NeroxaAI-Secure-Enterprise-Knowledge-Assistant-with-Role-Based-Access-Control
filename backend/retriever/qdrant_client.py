@@ -58,14 +58,18 @@ class QdrantManager:
                     check_compatibility=False,
                 )
             else:
-                logger.info("Connecting to local Qdrant at %s:%d", self.host, self.port)
-                self._client = QdrantClient(
-                    host=self.host,
-                    port=self.port,
-                    prefer_grpc=False,
-                    timeout=30,
-                    check_compatibility=False,
-                )
+                if self.host == ":memory:":
+                    logger.info("Connecting to local in-memory Qdrant")
+                    self._client = QdrantClient(location=":memory:")
+                else:
+                    logger.info("Connecting to local Qdrant at %s:%d", self.host, self.port)
+                    self._client = QdrantClient(
+                        host=self.host,
+                        port=self.port,
+                        prefer_grpc=False,
+                        timeout=30,
+                        check_compatibility=False,
+                    )
         return self._client
 
     def ensure_collection_exists(self) -> bool:

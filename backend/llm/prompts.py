@@ -73,8 +73,8 @@ def build_context_prompt(context_chunks: list[dict]) -> str:
         content = chunk.get("content", "")
 
         context_parts.append(
-            f"--- Document {i} ---\n"
-            f"Title: {title}\n"
+            f"--- Context Chunk {i} ---\n"
+            f"Source Document: {title}\n"
             f"Department: {department}\n"
             f"Page: {page}\n"
             f"Content:\n{content}\n"
@@ -100,7 +100,7 @@ def build_query_prompt(query: str, context_chunks: list[dict]) -> str:
         f"Context Documents:\n"
         f"{context}\n\n"
         f"Question: {query}\n\n"
-        f"Instructions: Answer the question based on the context above. "
-        f"Include citations in the format [Source: document_title, Page: page_number] "
-        f"for every claim you make."
+        f"Instructions: Answer the question based ONLY on the context chunks above. "
+        f"Include citations in the exact format [Source: <Source Document>, Page: <Page>] "
+        f"for every claim you make. Do not cite the 'Context Chunk' number, only the Source Document and Page."
     )

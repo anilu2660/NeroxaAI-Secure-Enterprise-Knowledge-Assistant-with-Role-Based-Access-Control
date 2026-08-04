@@ -145,12 +145,13 @@ class RetrieverService:
         )
 
         try:
-            results = self.client.search(
+            response = self.client.query_points(
                 collection_name=self.collection,
-                query_vector=query_embedding,
+                query=query_embedding,
                 query_filter=rbac_filter,
                 limit=top_k,
             )
+            results = response.points
 
             chunks = []
             for point in results:
