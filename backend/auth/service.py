@@ -37,7 +37,10 @@ class AuthService:
             hashed_password=hashed_pwd,
             full_name=request.full_name,
             department=request.department,
-            role_id=request.role.lower(),
+            # SECURITY: Always assign 'employee' on self-registration.
+            # Client-submitted role is intentionally IGNORED.
+            # Role elevation requires an authenticated Admin via /api/v1/users/{id}.
+            role_id="employee",
         )
 
         db.add(new_user)

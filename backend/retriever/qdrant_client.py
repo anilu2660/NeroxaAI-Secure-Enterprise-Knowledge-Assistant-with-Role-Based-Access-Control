@@ -15,6 +15,8 @@ from qdrant_client.models import (
     FieldCondition,
     MatchValue,
     PayloadSchemaType,
+    SparseVectorParams,
+    SparseIndexParams,
 )
 from backend.config import settings
 
@@ -74,7 +76,7 @@ class QdrantManager:
 
     def ensure_collection_exists(self) -> bool:
         """
-        Check if the target collection exists. If not, create it with Cosine distance.
+        Check if the target collection exists. If not, create it with named vectors ('dense' & 'sparse').
         Also configures payload indices for RBAC filtering fields.
         """
         try:
@@ -83,23 +85,32 @@ class QdrantManager:
 
             if self.collection_name not in collection_names:
                 logger.info(
-                    "Collection '%s' does not exist. Creating with size=%d...",
+                    "Collection '%s' does not exist. Creating with named vectors (dense size=%d, sparse)...",
                     self.collection_name,
                     self.vector_size,
                 )
                 self.client.create_collection(
                     collection_name=self.collection_name,
-                    vectors_config=VectorParams(
-                        size=self.vector_size,
-                        distance=Distance.COSINE,
-                    ),
+                    vectors_config={
+                        "dense": VectorParams(
+                            size=self.vector_size,
+                            distance=Distance.COSINE,
+                        )
+                    },
+                    sparse_vectors_config={
+                        "sparse": SparseVectorParams(
+                            index=SparseIndexParams(
+                                on_disk=False,
+                            )
+                        )
+                    },
                 )
-                logger.info("Collection '%s' created successfully.", self.collection_name)
+                logger.info("Collection '%s' created successfully with hybrid vectors schema.", self.collection_name)
 
                 # Create payload indices for fast RBAC metadata filtering
                 self._create_payload_indices()
                 return True
-            
+
             logger.debug("Collection '%s' already exists.", self.collection_name)
             return True
 

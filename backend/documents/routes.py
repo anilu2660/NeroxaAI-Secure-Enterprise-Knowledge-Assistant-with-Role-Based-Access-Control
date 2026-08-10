@@ -107,15 +107,17 @@ async def upload_document(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail=str(e),  # ValueError messages are safe — they are application-controlled
         ) from e
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Document ingestion failed: %s", str(e))
+        # SECURITY: Log full error internally but return a generic message to the client.
+        # Never expose stack traces, internal paths, or library details externally.
+        logger.error("Document ingestion failed: %s", str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process and ingest document: {str(e)}",
+            detail="Document processing failed. Please try again or contact your administrator.",
         ) from e
 
 

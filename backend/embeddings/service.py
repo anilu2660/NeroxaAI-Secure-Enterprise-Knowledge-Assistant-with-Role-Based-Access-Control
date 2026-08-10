@@ -69,7 +69,8 @@ class EmbeddingService:
                 texts,
                 batch_size=batch_size,
                 normalize_embeddings=True,
-                show_progress_bar=True,
+                # SECURITY: Only show progress bar in debug mode to avoid log noise in production.
+                show_progress_bar=settings.DEBUG,
             )
             return embeddings.tolist()
         except Exception as e:

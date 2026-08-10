@@ -7,6 +7,7 @@ and Qdrant vector indexing with metadata payloads.
 
 import asyncio
 import uuid
+import re
 import logging
 from sqlalchemy.orm import Session
 from qdrant_client.models import PointStruct
@@ -51,7 +52,13 @@ class DocumentService:
         6. Commit RDBMS record to 'indexed' status (2PC Saga pattern)
         """
         document_id = str(uuid.uuid4())
-        logger.info("Ingesting document '%s' (id=%s, dept=%s)", filename, document_id, department)
+
+        # SECURITY: Sanitize filename to prevent path traversal and special char injection.
+        # Strip path separators, null bytes, and non-safe characters before any use.
+        safe_filename = re.sub(r"[^\w\s.\-]", "", filename.replace("/", "").replace("\\", "")).strip()
+        safe_filename = safe_filename[:255] or "unnamed_document"
+
+        logger.info("Ingesting document '%s' (id=%s, dept=%s)", safe_filename, document_id, department)
 
         # 1. Parse File
         pages = self.parser.parse_file(filename, file_bytes)
@@ -59,7 +66,7 @@ class DocumentService:
         # 2. Chunk Text
         chunks = self.chunker.chunk_pages(
             pages=pages,
-            document_title=filename,
+            document_title=safe_filename,
             department=department,
             document_id=document_id,
             owner=owner,
@@ -71,18 +78,23 @@ class DocumentService:
                 "If this is a scanned image PDF, please OCR it before uploading."
             )
 
-        # 3. Scale Enhancement: Offload CPU-bound embedding generation to thread pool
+        # 3. Scale Enhancement: Offload CPU-bound dense + sparse embedding generation
         chunk_texts = [c["content"] for c in chunks]
-        vectors = await asyncio.to_thread(self.embeddings.embed_documents, chunk_texts)
+        dense_vectors = await asyncio.to_thread(self.embeddings.embed_documents, chunk_texts)
+        from backend.embeddings.sparse import bm25_encoder
+        sparse_vectors = await asyncio.to_thread(bm25_encoder.encode_batch, chunk_texts)
 
-        # 4. Prepare Qdrant Points
+        # 4. Prepare Qdrant Points with named vectors (dense & sparse)
         points = []
-        for i, (chunk, vector) in enumerate(zip(chunks, vectors)):
+        for i, (chunk, dense_vec, sparse_vec) in enumerate(zip(chunks, dense_vectors, sparse_vectors)):
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{document_id}_{i}"))
             points.append(
                 PointStruct(
                     id=point_id,
-                    vector=vector,
+                    vector={
+                        "dense": dense_vec,
+                        "sparse": sparse_vec,
+                    },
                     payload=chunk,
                 )
             )
@@ -94,10 +106,10 @@ class DocumentService:
                 from backend.models.document import Document
                 doc_record = Document(
                     id=document_id,
-                    title=filename,
-                    filename=filename,
+                    title=safe_filename,
+                    filename=safe_filename,
                     file_size=len(file_bytes),
-                    mime_type="application/pdf" if filename.lower().endswith(".pdf") else "text/plain",
+                    mime_type="application/pdf" if safe_filename.lower().endswith(".pdf") else "text/plain",
                     department=department,
                     owner_id=owner_id or "admin",
                     qdrant_document_id=document_id,
@@ -141,7 +153,7 @@ class DocumentService:
 
         return {
             "document_id": document_id,
-            "title": filename,
+            "title": safe_filename,
             "department": department,
             "chunks_created": len(points),
             "status": "ingested",

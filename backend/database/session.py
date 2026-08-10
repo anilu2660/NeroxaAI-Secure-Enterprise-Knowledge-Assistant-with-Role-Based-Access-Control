@@ -5,6 +5,7 @@ Configures SQLAlchemy engine, session maker, and provides session dependencies
 for FastAPI routes.
 """
 
+import os
 import logging
 from typing import Generator
 from sqlalchemy import create_engine
@@ -19,9 +20,11 @@ is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 connect_args = {"check_same_thread": False} if is_sqlite else {}
 
 # Create SQLAlchemy engine
+# SECURITY: echo=True logs all SQL queries including those with user data.
+# Use echo="warning" to only log warnings/errors, never full query text.
 engine = create_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
+    echo="warning" if not settings.DEBUG else False,
     pool_pre_ping=True,
     connect_args=connect_args,
 )
@@ -80,21 +83,32 @@ def seed_initial_data(db: Session) -> None:
         db.commit()
 
         # 2. Seed Default Admin User
-        admin_email = "upadhyayanuj526@gmail.com"
-        admin_user = db.query(User).filter(User.email == admin_email).first()
-        if not admin_user:
-            admin_user = User(
-                email=admin_email,
-                hashed_password=hash_password("Anujup2660@"),
-                full_name="Enterprise Admin",
-                department="General",
-                role_id="admin",
-                is_active=True,
-                is_superuser=True,
+        # SECURITY: Credentials loaded from environment variables — NEVER hardcoded.
+        # Set ADMIN_EMAIL and ADMIN_PASSWORD in your .env file.
+        admin_email = os.getenv("ADMIN_EMAIL")
+        admin_password = os.getenv("ADMIN_PASSWORD")
+
+        if not admin_email or not admin_password:
+            logger.warning(
+                "ADMIN_EMAIL or ADMIN_PASSWORD not set in environment. "
+                "Skipping default admin seed. Set these env vars to create the initial admin."
             )
-            db.add(admin_user)
-            db.commit()
-            logger.info("Default Admin account created: %s (password: Anujup2660@)", admin_email)
+        else:
+            admin_user = db.query(User).filter(User.email == admin_email).first()
+            if not admin_user:
+                admin_user = User(
+                    email=admin_email,
+                    hashed_password=hash_password(admin_password),
+                    full_name="Enterprise Admin",
+                    department="General",
+                    role_id="admin",
+                    is_active=True,
+                    is_superuser=True,
+                )
+                db.add(admin_user)
+                db.commit()
+                # SECURITY: Never log the password — only log that the account was created.
+                logger.info("Default Admin account seeded for: %s", admin_email)
 
     except Exception as e:
         db.rollback()

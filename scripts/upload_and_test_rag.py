@@ -80,7 +80,11 @@ def main():
 
     print("\n--- 3. Testing RAG Queries on Uploaded Finance Policy Document ---")
     test_queries = [
-        "An employee requests a second imprest advance before accounting for the first one, wants ₹2,500 in cash, and plans to submit the expense report two weeks after completing the trip. According to the Finance Policy, identify every policy violation and explain the correct procedure."
+        "Who has overall responsibility for management of University financial resources?",
+        "What must a certifying officer verify before recommending an invoice for payment?",
+        "What is the difference between the University's Finance Committee, Board of Management, and Board of Governors in financial administration?",
+        "Does the policy specify the University's total annual budget?",
+        "Who has overall responsibility for University financial resources AND what are the cash limits for imprest advances?"
     ]
 
     for i, q in enumerate(test_queries, 1):

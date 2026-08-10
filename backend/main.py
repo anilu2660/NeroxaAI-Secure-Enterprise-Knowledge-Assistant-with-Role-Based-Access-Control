@@ -42,15 +42,22 @@ app = FastAPI(
     description="Secure Enterprise Knowledge Assistant with Role-Based Access Control",
     version=settings.APP_VERSION,
     lifespan=lifespan,
+    # SECURITY: Disable interactive API docs in production to prevent surface exposure.
+    # Docs are only available when DEBUG=true (local dev).
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
 )
 
 # Configure CORS
+# SECURITY: Explicitly scope allowed methods and headers.
+# Wildcards with allow_credentials=True is a CORS misconfiguration.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 # Mount master API router

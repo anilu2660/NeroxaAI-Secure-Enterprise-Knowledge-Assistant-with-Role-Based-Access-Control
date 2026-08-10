@@ -14,8 +14,10 @@ class QueryRequest(BaseModel):
 
     query: str = Field(
         ...,
-        min_length=1,
-        max_length=2000,
+        min_length=3,
+        # SECURITY: 500 chars is sufficient for any enterprise query.
+        # 2000-char queries + large top_k = expensive LLM context + potential DoS.
+        max_length=500,
         description="The user's question to search the knowledge base.",
         examples=["What is our company's leave policy?"],
     )
@@ -24,21 +26,15 @@ class QueryRequest(BaseModel):
         description="Optional department filter to narrow search scope.",
         examples=["HR", "Finance", "Engineering"],
     )
-    user_role: str = Field(
-        default="employee",
-        description="User role for RBAC filtering (admin, hr, finance, engineering, sales, employee).",
-        examples=["admin", "hr", "engineering"],
-    )
-    user_department: str = Field(
-        default="General",
-        description="User's primary department.",
-        examples=["HR", "Finance", "Engineering"],
-    )
+    # SECURITY NOTE: user_role and user_department are intentionally NOT accepted
+    # from the client. They are always extracted from the verified JWT token server-side.
     top_k: int = Field(
-        default=6,
+        default=5,
         ge=1,
-        le=20,
-        description="Number of top relevant chunks to retrieve.",
+        # SECURITY: Cap at 10 to prevent resource exhaustion.
+        # Each chunk adds ~500 chars to the LLM context window.
+        le=10,
+        description="Number of top relevant chunks to retrieve (max 10).",
     )
     temperature: float = Field(
         default=0.7,

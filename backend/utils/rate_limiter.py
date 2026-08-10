@@ -71,9 +71,20 @@ def rate_limit_guard(category: str = "general"):
         @router.post("/query", dependencies=[Depends(rate_limit_guard("query"))])
     """
     def guard(request: Request):
-        # Extract client IP or X-Forwarded-For header
-        client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "127.0.0.1")
-        client_ip = client_ip.split(",")[0].strip()
+        # SECURITY: Only trust X-Forwarded-For if the direct client is a
+        # known private/proxy IP (e.g., nginx, docker gateway, LB).
+        # Public clients cannot spoof this header to bypass rate limiting.
+        direct_ip = request.client.host if request.client else "127.0.0.1"
+        forwarded_for = request.headers.get("X-Forwarded-For")
+
+        # Private IP ranges used by reverse proxies / load balancers
+        PRIVATE_PREFIXES = ("127.", "10.", "172.16.", "172.17.", "192.168.", "::1")
+        is_trusted_proxy = any(direct_ip.startswith(p) for p in PRIVATE_PREFIXES)
+
+        if forwarded_for and is_trusted_proxy:
+            client_ip = forwarded_for.split(",")[0].strip()
+        else:
+            client_ip = direct_ip
 
         limiter = general_limiter
         if category == "auth":

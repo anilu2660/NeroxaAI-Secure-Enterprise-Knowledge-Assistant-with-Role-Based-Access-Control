@@ -73,6 +73,8 @@ async def query_knowledge_base(
                 db=db,
                 event_data=AuditLogCreate(
                     event_type="query_executed",
+                    user_id=current_user.id,
+                    user_email=current_user.email,
                     user_role=user_role,
                     action=f"Executed query: '{request.query[:100]}'",
                     details={"chunks": result["chunks_retrieved"], "sources_count": len(sources)},
@@ -90,17 +92,58 @@ async def query_knowledge_base(
         )
 
     except RuntimeError as e:
-        logger.error("RAG query failed: %s", str(e))
+        # SECURITY: Log full error internally, return generic message externally.
+        # Prevents exposure of Ollama URL, model names, or internal stack traces.
+        logger.error("RAG query failed: %s", str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"RAG pipeline error: {str(e)}",
+            detail="The knowledge base is temporarily unavailable. Please try again shortly.",
         ) from e
     except Exception as e:
-        logger.error("Unexpected error in RAG query: %s", str(e))
+        logger.error("Unexpected error in RAG query: %s", str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while processing your query.",
         ) from e
+
+
+from fastapi.responses import StreamingResponse
+import json
+
+
+@router.post(
+    "/stream",
+    summary="Query the knowledge base with real-time token streaming",
+    description="Submit a query and stream AI response tokens in real-time via Server-Sent Events (SSE).",
+    dependencies=[Depends(rate_limit_guard("query"))],
+)
+async def stream_knowledge_base(
+    request: QueryRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Real-time Server-Sent Events (SSE) streaming endpoint for low perceived latency.
+    """
+    user_role = current_user.role_id
+    user_department = current_user.department
+
+    async def event_generator():
+        try:
+            async for chunk in rag_service.stream_query(
+                query=request.query,
+                user_role=user_role,
+                user_department=user_department,
+                department_filter=request.department_filter,
+                top_k=request.top_k,
+                temperature=request.temperature,
+            ):
+                yield f"data: {json.dumps(chunk)}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        except Exception as err:
+            logger.error("SSE stream error: %s", str(err), exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'error': 'Streaming failed.'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.get(

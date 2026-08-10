@@ -10,6 +10,8 @@ from backend.database.session import get_db
 from backend.users.schemas import UserResponse, UserUpdate
 from backend.users.service import user_service
 from backend.roles.middleware import require_admin
+from backend.api.dependencies import get_current_user
+from backend.models.user import User
 
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
@@ -34,15 +36,23 @@ def list_users(
 @router.get(
     "/{user_id}",
     response_model=UserResponse,
-    summary="Get user by ID",
+    summary="Get user by ID (Admin or self only)",
 )
 def get_user(
     user_id: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get user profile details by UUID.
+    SECURITY: Only accessible by Admin or the user themselves.
     """
+    from backend.roles.service import role_service
+    if not role_service.is_admin(current_user.role_id) and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access DENIED. You can only view your own profile.",
+        )
     return user_service.get_by_id(db, user_id)
 
 

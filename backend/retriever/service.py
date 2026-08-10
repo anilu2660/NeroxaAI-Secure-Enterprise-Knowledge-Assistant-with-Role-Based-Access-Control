@@ -12,6 +12,7 @@ RBAC Rules:
 """
 
 import logging
+from typing import Any
 from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchAny, PointStruct
 from backend.config import settings
@@ -122,9 +123,10 @@ class RetrieverService:
         user_department: str,
         department_filter: str | None = None,
         top_k: int = 6,
+        query_text: str | None = None,
     ) -> list[dict]:
         """
-        Search for relevant document chunks with RBAC enforcement.
+        Search for relevant document chunks with RBAC enforcement and optional Hybrid Search.
 
         Args:
             query_embedding: The embedded query vector.
@@ -132,12 +134,13 @@ class RetrieverService:
             user_department: User's department for RBAC filtering.
             department_filter: Optional department to narrow results.
             top_k: Number of top results to return.
+            query_text: Original text query for sparse BM25 encoding.
 
         Returns:
             List of dicts with keys: content, title, department, page_number, score.
         """
         self.manager.ensure_collection_exists()
-        
+
         rbac_filter = self._build_rbac_filter(
             user_role=user_role,
             user_department=user_department,
@@ -145,16 +148,72 @@ class RetrieverService:
         )
 
         try:
-            response = self.client.query_points(
-                collection_name=self.collection,
-                query=query_embedding,
-                query_filter=rbac_filter,
-                limit=top_k,
-            )
-            results = response.points
+            # 1. Attempt named vector search ('dense')
+            results = []
+            try:
+                response = self.client.query_points(
+                    collection_name=self.collection,
+                    query=query_embedding,
+                    using="dense",
+                    query_filter=rbac_filter,
+                    limit=top_k * 3 if (query_text and settings.ENABLE_HYBRID_SEARCH) else top_k,
+                    score_threshold=0.25,
+                )
+                results = response.points
+            except Exception:
+                # Fallback to unnamed vector for legacy collections
+                response = self.client.query_points(
+                    collection_name=self.collection,
+                    query=query_embedding,
+                    query_filter=rbac_filter,
+                    limit=top_k * 3 if (query_text and settings.ENABLE_HYBRID_SEARCH) else top_k,
+                    score_threshold=0.25,
+                )
+                results = response.points
+
+            # 2. If Hybrid Search is enabled and query_text is provided, perform Sparse BM25 retrieval
+            sparse_results = []
+            if query_text and settings.ENABLE_HYBRID_SEARCH:
+                try:
+                    from backend.embeddings.sparse import bm25_encoder
+                    sparse_vector = bm25_encoder.encode(query_text)
+                    if sparse_vector.indices:
+                        sparse_resp = self.client.query_points(
+                            collection_name=self.collection,
+                            query=sparse_vector,
+                            using="sparse",
+                            query_filter=rbac_filter,
+                            limit=top_k * 2,
+                        )
+                        sparse_results = sparse_resp.points
+                except Exception as sparse_err:
+                    logger.debug("Sparse search skipped or not available on collection: %s", sparse_err)
+
+            # 3. Reciprocal Rank Fusion (RRF) if sparse results are present
+            if sparse_results:
+                rrf_scores: dict[str, float] = {}
+                point_map: dict[str, Any] = {}
+
+                # Score dense results
+                for rank, point in enumerate(results, start=1):
+                    pid = str(point.id)
+                    rrf_scores[pid] = rrf_scores.get(pid, 0.0) + (1.0 / (60 + rank))
+                    point_map[pid] = point
+
+                # Score sparse results
+                for rank, point in enumerate(sparse_results, start=1):
+                    pid = str(point.id)
+                    rrf_scores[pid] = rrf_scores.get(pid, 0.0) + (1.0 / (60 + rank))
+                    point_map[pid] = point
+
+                # Sort by combined RRF score
+                sorted_pids = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)[:top_k]
+                final_points = [point_map[pid] for pid in sorted_pids]
+            else:
+                final_points = results[:top_k]
 
             chunks = []
-            for point in results:
+            for point in final_points:
                 payload = point.payload or {}
                 chunks.append({
                     "content": payload.get("content", ""),
@@ -163,30 +222,16 @@ class RetrieverService:
                     "page_number": payload.get("page_number", "N/A"),
                     "document_id": payload.get("document_id", ""),
                     "owner": payload.get("owner", ""),
-                    "score": point.score,
+                    "score": getattr(point, "score", 0.0),
                 })
 
-            # --- Debug: log every retrieved chunk for visibility during testing ---
             logger.info(
-                "Retrieved %d chunks | role=%s | filter=%s",
+                "Retrieved %d chunks (hybrid=%s) | role=%s | filter=%s",
                 len(chunks),
+                bool(sparse_results),
                 user_role,
                 department_filter,
             )
-            print(f"\nRetrieved Chunks: {len(chunks)}")
-            for idx, chunk in enumerate(chunks, 1):
-                score = chunk.get("score")
-                score_str = f"{score:.4f}" if score is not None else "N/A"
-                content_preview = chunk.get("content", "")[:300].replace("\n", " ")
-                print(
-                    f"\n--- Chunk {idx} ---\n"
-                    f"Score:    {score_str}\n"
-                    f"Document: {chunk.get('title', 'Unknown')}\n"
-                    f"Page:     {chunk.get('page_number', 'N/A')}\n"
-                    f"Content:  {content_preview}{'...' if len(chunk.get('content', '')) > 300 else ''}"
-                )
-            print()  # blank line separator after chunk list
-            # --- End debug logging ---
 
             return chunks
 
