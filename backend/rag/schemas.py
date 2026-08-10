@@ -35,7 +35,7 @@ class QueryRequest(BaseModel):
         examples=["HR", "Finance", "Engineering"],
     )
     top_k: int = Field(
-        default=5,
+        default=6,
         ge=1,
         le=20,
         description="Number of top relevant chunks to retrieve.",

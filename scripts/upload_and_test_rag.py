@@ -51,7 +51,7 @@ def main():
 
     print("\n--- 2. Uploading Presidency University Finance Policy Document ---")
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    doc_path = os.path.abspath(os.path.join(script_dir, "..", "docs", "Presidency_University_Finance_Policy.txt"))
+    doc_path = os.path.abspath(os.path.join(script_dir, "..", "docs", "finance_policy.pdf"))
     if not os.path.exists(doc_path):
         print(f"Error: Document file not found at {doc_path}")
         return
@@ -59,7 +59,7 @@ def main():
     start_time = time.time()
     print(f"Ingesting '{doc_path}' to department 'Finance'...")
     with open(doc_path, "rb") as f:
-        files = {"file": ("Presidency_University_Finance_Policy.txt", f, "text/plain")}
+        files = {"file": ("finance_policy.pdf", f, "application/pdf")}
         data = {"department": "Finance"}
         upload_res = client.post(f"{BASE_URL}/api/v1/documents/upload", files=files, data=data, headers=headers)
 
@@ -80,9 +80,7 @@ def main():
 
     print("\n--- 3. Testing RAG Queries on Uploaded Finance Policy Document ---")
     test_queries = [
-        "A department wants to start a new capital project that is expected to exceed its approved budget by 20%. Explain the complete approval workflow, who must be informed, what reports are required, and which governing bodies need to approve the additional expenditure",
-        "An employee requests a second imprest advance before accounting for the first one, wants ₹2,500 in cash, and plans to submit the expense report two weeks after completing the trip. According to the Finance Policy, identify every policy violation and explain the correct procedure.",
-        "Compare the responsibilities of the Finance Officer, Accounts Officer, Internal Auditor, Board of Management (BoM), and Board of Governors (BoG) in financial management, budgeting, auditing, payments, and expenditure control. Present the comparison in a table."
+        "An employee requests a second imprest advance before accounting for the first one, wants ₹2,500 in cash, and plans to submit the expense report two weeks after completing the trip. According to the Finance Policy, identify every policy violation and explain the correct procedure."
     ]
 
     for i, q in enumerate(test_queries, 1):
@@ -93,7 +91,7 @@ def main():
             "query": q,
             "user_role": "admin",
             "user_department": "Finance",
-            "top_k": 3
+            "top_k": 6
         }
         q_start = time.time()
         rag_res = client.post(f"{BASE_URL}/api/v1/rag/query", json=rag_payload, headers=headers)
@@ -101,9 +99,17 @@ def main():
         print(f"RAG Response Status: {rag_res.status_code} (took {q_elapsed:.2f}s)")
         if rag_res.status_code == 200:
             rag_data = rag_res.json()
-            print(f"Answer:\n{rag_data.get('answer')}\n")
-            print(f"Sources Cited: {rag_data.get('sources')}")
-            print(f"Chunks Retrieved: {rag_data.get('chunks_retrieved')}")
+            chunks_retrieved = rag_data.get("chunks_retrieved", 0)
+            print(f"\nChunks Retrieved: {chunks_retrieved}")
+            sources = rag_data.get("sources", [])
+            for j, src in enumerate(sources, 1):
+                print(
+                    f"\n--- Source {j} ---\n"
+                    f"Document: {src.get('document_title', 'N/A')}\n"
+                    f"Page:     {src.get('page_number', 'N/A')}\n"
+                    f"Dept:     {src.get('department', 'N/A')}"
+                )
+            print(f"\nAnswer:\n{rag_data.get('answer')}\n")
             print(f"Model Used: {rag_data.get('model')}")
         else:
             print(f"[-] RAG query failed: {rag_res.text}")

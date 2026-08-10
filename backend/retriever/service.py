@@ -121,7 +121,7 @@ class RetrieverService:
         user_role: str,
         user_department: str,
         department_filter: str | None = None,
-        top_k: int = 5,
+        top_k: int = 6,
     ) -> list[dict]:
         """
         Search for relevant document chunks with RBAC enforcement.
@@ -166,12 +166,28 @@ class RetrieverService:
                     "score": point.score,
                 })
 
+            # --- Debug: log every retrieved chunk for visibility during testing ---
             logger.info(
                 "Retrieved %d chunks | role=%s | filter=%s",
                 len(chunks),
                 user_role,
                 department_filter,
             )
+            print(f"\nRetrieved Chunks: {len(chunks)}")
+            for idx, chunk in enumerate(chunks, 1):
+                score = chunk.get("score")
+                score_str = f"{score:.4f}" if score is not None else "N/A"
+                content_preview = chunk.get("content", "")[:300].replace("\n", " ")
+                print(
+                    f"\n--- Chunk {idx} ---\n"
+                    f"Score:    {score_str}\n"
+                    f"Document: {chunk.get('title', 'Unknown')}\n"
+                    f"Page:     {chunk.get('page_number', 'N/A')}\n"
+                    f"Content:  {content_preview}{'...' if len(chunk.get('content', '')) > 300 else ''}"
+                )
+            print()  # blank line separator after chunk list
+            # --- End debug logging ---
+
             return chunks
 
         except Exception as e:

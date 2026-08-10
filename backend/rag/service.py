@@ -40,7 +40,7 @@ class RAGService:
         user_role: str,
         user_department: str,
         department_filter: str | None = None,
-        top_k: int = 5,
+        top_k: int = 6,
         temperature: float = 0.7,
     ) -> dict:
         """
