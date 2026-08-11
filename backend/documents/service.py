@@ -58,6 +58,51 @@ class DocumentService:
         safe_filename = re.sub(r"[^\w\s.\-]", "", filename.replace("/", "").replace("\\", "")).strip()
         safe_filename = safe_filename[:255] or "unnamed_document"
 
+        # ── DEDUPLICATION GUARD ───────────────────────────────────────────────
+        # Check whether document exists in RDBMS AND its vectors exist in Qdrant.
+        # If both exist, skip re-ingestion entirely (prevents duplicate vectors).
+        # If RDBMS record exists BUT Qdrant vectors are missing (e.g., in-memory Qdrant
+        # reset on backend restart), delete stale RDBMS record and re-ingest.
+        if db:
+            try:
+                from backend.models.document import Document
+                existing = (
+                    db.query(Document)
+                    .filter(
+                        Document.filename == safe_filename,
+                        Document.department == department,
+                        Document.status == "indexed",
+                    )
+                    .first()
+                )
+                if existing:
+                    has_vectors = await self.retriever.has_document_chunks(existing.id)
+                    if has_vectors:
+                        logger.info(
+                            "Duplicate detected: document '%s' (dept=%s) already indexed as id=%s in DB & Qdrant. Skipping ingestion.",
+                            safe_filename,
+                            department,
+                            existing.id,
+                        )
+                        return {
+                            "document_id": existing.id,
+                            "title": existing.title,
+                            "department": existing.department,
+                            "chunks_created": existing.total_chunks,
+                            "status": "already_exists",
+                        }
+                    else:
+                        logger.warning(
+                            "Document '%s' exists in DB (id=%s) but missing vectors in Qdrant (in-memory Qdrant reset). Re-indexing...",
+                            safe_filename,
+                            existing.id,
+                        )
+                        db.delete(existing)
+                        db.commit()
+            except Exception as dup_err:
+                logger.warning("Duplicate check query failed (proceeding with ingestion): %s", str(dup_err))
+        # ── END DEDUPLICATION GUARD ───────────────────────────────────────────
+
         logger.info("Ingesting document '%s' (id=%s, dept=%s)", safe_filename, document_id, department)
 
         # 1. Parse File

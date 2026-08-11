@@ -263,6 +263,13 @@ class RetrieverService:
         """
         return self.manager.delete_by_document_id(document_id)
 
+    async def has_document_chunks(self, document_id: str) -> bool:
+        """
+        Check if vector chunks exist in Qdrant for a given document_id.
+        """
+        return self.manager.has_document_chunks(document_id)
+
+
     async def check_health(self) -> dict:
         """
         Check Qdrant connectivity and collection status.

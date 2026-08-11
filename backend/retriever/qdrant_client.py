@@ -230,6 +230,37 @@ class QdrantManager:
             logger.error("Failed to share document '%s': %s", document_id, str(e))
             raise RuntimeError(f"Share document failed: {str(e)}") from e
 
+    def has_document_chunks(self, document_id: str) -> bool:
+        """
+        Check if any vector points exist in Qdrant for a given document_id.
+
+        Args:
+            document_id: UUID of the document.
+
+        Returns:
+            True if points exist in Qdrant, False otherwise.
+        """
+        try:
+            self.ensure_collection_exists()
+            res = self.client.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="document_id",
+                            match=MatchValue(value=document_id),
+                        )
+                    ]
+                ),
+                limit=1,
+            )
+            points, _ = res
+            return len(points) > 0
+        except Exception as e:
+            logger.warning("Error checking vector points for document '%s': %s", document_id, str(e))
+            return False
+
 
 # Singleton instance
 qdrant_manager = QdrantManager()
+

@@ -88,37 +88,100 @@ async def upload_document(
             db=db,
         )
 
-        # 3. Audit Log Event
-        audit_service.log_event(
-            db=db,
-            event_data=AuditLogCreate(
-                event_type="document_uploaded",
-                user_id=current_user.id,
-                user_email=current_user.email,
-                user_role=user_role,
-                action=f"Uploaded document '{file.filename}' to department '{department}'",
-                resource=result["document_id"],
-                details={"chunks": result["chunks_created"], "size": len(file_bytes)},
-            ),
-        )
+        # 3. Audit Log — differentiate fresh ingestion from duplicate skips
+        if result.get("status") == "already_exists":
+            logger.info(
+                "Upload skipped (duplicate): '%s' already indexed in dept '%s' as id=%s",
+                file.filename, department, result["document_id"],
+            )
+            audit_service.log_event(
+                db=db,
+                event_data=AuditLogCreate(
+                    event_type="document_skipped_duplicate",
+                    user_id=current_user.id,
+                    user_email=current_user.email,
+                    user_role=user_role,
+                    action=f"Upload skipped — '{file.filename}' already indexed in '{department}'",
+                    resource=result["document_id"],
+                    details={"chunks": result["chunks_created"]},
+                ),
+            )
+        else:
+            audit_service.log_event(
+                db=db,
+                event_data=AuditLogCreate(
+                    event_type="document_uploaded",
+                    user_id=current_user.id,
+                    user_email=current_user.email,
+                    user_role=user_role,
+                    action=f"Uploaded document '{file.filename}' to department '{department}'",
+                    resource=result["document_id"],
+                    details={"chunks": result["chunks_created"], "size": len(file_bytes)},
+                ),
+            )
 
         return DocumentUploadResponse(**result)
 
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),  # ValueError messages are safe — they are application-controlled
+            detail=str(e),
         ) from e
     except HTTPException:
         raise
     except Exception as e:
-        # SECURITY: Log full error internally but return a generic message to the client.
-        # Never expose stack traces, internal paths, or library details externally.
         logger.error("Document ingestion failed: %s", str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Document processing failed. Please try again or contact your administrator.",
         ) from e
+
+
+@router.get(
+    "/",
+    summary="List indexed documents",
+    description="Returns a list of all documents indexed in the knowledge base. Requires authentication.",
+)
+def list_documents(
+    department: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return all indexed documents visible to the requesting user.
+    Admins see all documents; department roles see their own department plus General.
+    Optional ?department= filter narrows results further.
+    """
+    from backend.models.document import Document
+    from backend.retriever.service import ROLE_ACCESS_MAP
+
+    user_role = current_user.role_id
+    allowed_depts = ROLE_ACCESS_MAP.get(user_role.lower())
+
+    query = db.query(Document).filter(Document.status == "indexed")
+
+    # Non-admin roles: restrict to allowed departments
+    if allowed_depts is not None:
+        query = query.filter(Document.department.in_(allowed_depts))
+
+    # Optional extra filter from caller
+    if department:
+        query = query.filter(Document.department == department)
+
+    docs = query.order_by(Document.created_at.desc()).all()
+
+    return [
+        {
+            "document_id": d.id,
+            "title": d.title,
+            "filename": d.filename,
+            "department": d.department,
+            "total_chunks": d.total_chunks,
+            "status": d.status,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        }
+        for d in docs
+    ]
 
 
 @router.post(
