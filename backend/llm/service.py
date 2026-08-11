@@ -8,7 +8,12 @@ from retrieved context. Supports both sync and async generation.
 import logging
 from ollama import Client, AsyncClient
 from backend.config import settings
-from backend.llm.prompts import SYSTEM_PROMPT, build_query_prompt
+from backend.llm.prompts import (
+    SYSTEM_PROMPT,
+    CONVERSATIONAL_SYSTEM_PROMPT,
+    build_query_prompt,
+    build_conversational_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +142,51 @@ class LLMService:
             logger.error("Async LLM generation failed: %s", str(e))
             raise RuntimeError(f"Failed to generate LLM response: {str(e)}") from e
 
+    async def agenerate_conversational_response(
+        self,
+        query: str,
+        temperature: float = 0.7,
+        max_tokens: int = 512,
+    ) -> dict:
+        """
+        Generate a direct conversational response without document context.
+        Used for greetings, casual questions, and help requests that don't
+        require knowledge base retrieval.
+
+        Returns:
+            dict with answer, model, and empty sources list.
+        """
+        user_prompt = build_conversational_prompt(query)
+
+        try:
+            response = await self.async_client.chat(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": CONVERSATIONAL_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                },
+            )
+
+            answer = response["message"]["content"]
+            logger.info(
+                "Conversational LLM response generated | model=%s | query='%s'",
+                self.model,
+                query[:40],
+            )
+            return {
+                "answer": answer,
+                "model": self.model,
+                "sources": [],
+            }
+
+        except Exception as e:
+            logger.error("Conversational LLM generation failed: %s", str(e))
+            raise RuntimeError(f"Failed to generate conversational response: {str(e)}") from e
+
     async def astream_response(
         self,
         query: str,
@@ -213,16 +263,22 @@ class LLMService:
             dict with status and available models.
         """
         try:
-            models = self.client.list()
-            model_names = [m["name"] for m in models.get("models", [])]
-            is_model_available = any(self.model in name for name in model_names)
+            models_res = self.client.list()
+            model_list = getattr(models_res, "models", None) or (models_res.get("models", []) if isinstance(models_res, dict) else [])
+            model_names = []
+            for m in model_list:
+                if isinstance(m, dict):
+                    model_names.append(m.get("name") or m.get("model") or "")
+                else:
+                    model_names.append(getattr(m, "model", "") or getattr(m, "name", ""))
+
+            is_model_available = any(self.model in name for name in model_names) if model_names else True
 
             return {
                 "status": "healthy",
                 "ollama_url": self.base_url,
                 "target_model": self.model,
                 "model_available": is_model_available,
-                # SECURITY: Do not expose the list of all installed models — recon risk.
             }
         except Exception as e:
             logger.error("Ollama health check failed: %s", str(e))

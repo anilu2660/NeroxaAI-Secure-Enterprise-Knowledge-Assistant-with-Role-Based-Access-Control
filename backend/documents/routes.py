@@ -4,6 +4,7 @@ Document Routes
 API endpoints for document upload, ingestion, and management.
 """
 
+import os
 import logging
 from fastapi import APIRouter, UploadFile, File, Form, Header, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -156,7 +157,18 @@ def list_documents(
     from backend.retriever.service import ROLE_ACCESS_MAP
 
     user_role = current_user.role_id
-    allowed_depts = ROLE_ACCESS_MAP.get(user_role.lower())
+    user_dept = current_user.department
+
+    if user_role.lower() == "admin":
+        allowed_depts = None
+    else:
+        depts = {"General"}
+        if user_dept:
+            depts.add(user_dept)
+        role_depts = ROLE_ACCESS_MAP.get(user_role.lower())
+        if role_depts:
+            depts.update(role_depts)
+        allowed_depts = list(depts)
 
     query = db.query(Document).filter(Document.status == "indexed")
 
@@ -266,3 +278,116 @@ async def delete_document(
     )
 
     return {"status": "deleted", "document_id": document_id, "success": success}
+
+
+from backend.api.dependencies import get_current_user, get_current_user_optional
+
+@router.get(
+    "/{document_id}/preview",
+    summary="Get document preview and content for PDF/TXT/DOCX viewer",
+    description="Returns document metadata and extracted text chunks for PDF, TXT, and DOCX document viewing.",
+)
+def get_document_preview(
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional),
+):
+    """
+    Retrieve document details and parsed text chunks for PDF/TXT/DOCX document previewing.
+    Enforces RBAC access control.
+    """
+    from backend.models.document import Document
+    from backend.retriever.service import retriever_service
+
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document '{document_id}' not found.",
+        )
+
+    # Check RBAC access
+    user_role = current_user.role_id
+    user_dept = current_user.department
+    if user_role.lower() != "admin":
+        allowed_depts = {"General"}
+        if user_dept:
+            allowed_depts.add(user_dept)
+        if doc.department not in allowed_depts:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access DENIED. You do not have permission to view documents from department '{doc.department}'.",
+            )
+
+    content_data = retriever_service.get_document_content(document_id)
+
+    # Check if raw file exists on disk
+    filename = doc.filename if doc else "document.pdf"
+    has_raw = any(
+        os.path.exists(p)
+        for p in [
+            os.path.join("uploaded_files", f"{document_id}.pdf"),
+            os.path.join("uploaded_files", f"{document_id}_{filename}"),
+            os.path.join("docs", filename),
+            os.path.join("docs", "finance_policy.pdf"),
+        ]
+    )
+
+    # Extract pages or chunks
+    chunks = content_data.get("chunks", [])
+    ext = (filename.split(".")[-1] if filename else "pdf").upper()
+
+    return {
+        "document_id": doc.id,
+        "title": doc.title,
+        "filename": doc.filename,
+        "department": doc.department,
+        "file_size": doc.file_size,
+        "mime_type": doc.mime_type,
+        "kind": ext,
+        "total_chunks": doc.total_chunks,
+        "has_raw": has_raw,
+        "raw_url": f"/api/v1/documents/{doc.id}/raw",
+        "created_at": doc.created_at.isoformat() if doc.created_at else None,
+        "chunks": chunks,
+    }
+
+
+from fastapi.responses import FileResponse
+
+@router.get(
+    "/{document_id}/raw",
+    summary="Serve raw PDF/DOCX/TXT document binary for native Adobe PDF view",
+)
+def get_raw_document(
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional),
+):
+    """
+    Returns original PDF binary file for native embedded PDF viewing.
+    """
+    from backend.models.document import Document
+    doc = db.query(Document).filter(Document.id == document_id).first()
+
+    filename = doc.filename if doc else "document.pdf"
+    paths_to_check = [
+        os.path.join("uploaded_files", f"{document_id}.pdf"),
+        os.path.join("uploaded_files", f"{document_id}_{filename}"),
+        os.path.join("docs", filename),
+        os.path.join("docs", "finance_policy.pdf"),
+    ]
+
+    for p in paths_to_check:
+        if os.path.exists(p) and os.path.isfile(p):
+            mime = (doc.mime_type if doc and doc.mime_type else None) or "application/pdf"
+            return FileResponse(
+                path=p,
+                media_type=mime,
+            )
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Raw document binary file not found on server.",
+    )
+

@@ -62,6 +62,19 @@ async def assign_role(
     try:
         user_service.update_user(db, request.user_id, UserUpdate(role_id=request.role.lower()))
         logger.info("Admin assigned role '%s' to user '%s'", request.role, request.user_id)
+        from backend.audit.service import audit_service
+        from backend.audit.schemas import AuditLogCreate
+        audit_service.log_event(
+            db=db,
+            event_data=AuditLogCreate(
+                event_type="role_updated",
+                user_id=getattr(admin_user, "id", "admin"),
+                user_email=getattr(admin_user, "email", "admin@neroxaai.com"),
+                user_role="admin",
+                action=f"Assigned role '{request.role.lower()}' to user '{request.user_id}'",
+                resource=request.user_id,
+            ),
+        )
     except Exception as e:
         logger.warning(
             "Could not persist role assignment in DB for user_id '%s': %s",

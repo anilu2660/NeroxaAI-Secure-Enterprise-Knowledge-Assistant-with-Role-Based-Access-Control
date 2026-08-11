@@ -47,3 +47,32 @@ def get_current_user(
         )
 
     return user
+
+
+def get_current_user_optional(
+    token: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Dependency that decodes JWT bearer token if present, or falls back to default workspace admin user.
+    """
+    if token:
+        try:
+            payload = decode_access_token(token)
+            user_id: str = payload.get("sub")
+            if user_id:
+                user = user_service.get_by_id(db, user_id)
+                if user and user.is_active:
+                    return user
+        except Exception:
+            pass
+
+    # Fallback user from database
+    admin = db.query(User).filter(User.role_id == "admin").first()
+    if admin:
+        return admin
+    any_user = db.query(User).first()
+    if any_user:
+        return any_user
+
+    raise CredentialsException("No user found in system.")

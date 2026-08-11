@@ -42,6 +42,45 @@ class RegisterRequest(BaseModel):
         return v
 
 
+class InitiateRegistrationRequest(BaseModel):
+    """Schema for initiating registration and sending Gmail SMTP + Mobile SMS OTPs."""
+
+    email: EmailStr = Field(..., description="User's email address.")
+    password: str = Field(
+        ...,
+        min_length=12,
+        description="Password (min 12 characters, must contain uppercase, lowercase, digit, special char).",
+    )
+    full_name: str = Field(..., min_length=2, description="User's full name.")
+    phone_number: str = Field(..., min_length=10, description="Mobile phone number with country code (e.g. +91 9876543210).")
+    department: str = Field(default="General", description="Department (HR, Finance, Engineering, Sales, General).")
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Enforce enterprise password complexity policy."""
+        errors = []
+        if not re.search(r"[A-Z]", v):
+            errors.append("at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            errors.append("at least one lowercase letter")
+        if not re.search(r"\d", v):
+            errors.append("at least one digit")
+        if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':,./<>?]", v):
+            errors.append("at least one special character (!@#$%^&* etc.)")
+        if errors:
+            raise ValueError(f"Password must contain: {', '.join(errors)}.")
+        return v
+
+
+class VerifyOTPRequest(BaseModel):
+    """Schema for verifying Email OTP & Mobile SMS OTP."""
+
+    session_token: str = Field(..., description="Session token received during registration initiation.")
+    email_otp: str = Field(..., min_length=6, max_length=6, description="6-digit Email OTP received via Gmail SMTP.")
+    mobile_otp: str = Field(..., min_length=6, max_length=6, description="6-digit Mobile SMS OTP.")
+
+
 class LoginRequest(BaseModel):
     """Schema for user login request."""
 

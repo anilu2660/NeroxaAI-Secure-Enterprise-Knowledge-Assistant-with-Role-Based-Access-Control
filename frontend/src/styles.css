@@ -1,0 +1,223 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * NeroxaAI design system — dark near-black enterprise aesthetic.
+ * All colors use oklch. Semantic tokens only; never hardcode colors in components.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-hairline: var(--hairline);
+  --color-grid-line: var(--grid-line);
+  --color-grid-highlight: var(--grid-highlight);
+  --color-allowed: var(--allowed);
+  --color-blocked: var(--blocked);
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --shadow-window:
+    0 50px 130px -30px oklch(0 0 0 / 0.9), 0 0 90px -20px oklch(0.75 0.01 264 / 0.14),
+    inset 0 1px 0 0 oklch(1 0 0 / 0.1);
+  --shadow-menu: 0 24px 60px -20px oklch(0 0 0 / 0.8);
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.13 0.002 264);
+  --foreground: oklch(0.97 0.002 264);
+  --card: oklch(0.17 0.003 264);
+  --card-foreground: oklch(0.97 0.002 264);
+  --popover: oklch(0.165 0.003 264);
+  --popover-foreground: oklch(0.97 0.002 264);
+  --primary: oklch(0.97 0.002 264);
+  --primary-foreground: oklch(0.15 0.002 264);
+  --secondary: oklch(0.22 0.003 264);
+  --secondary-foreground: oklch(0.95 0.002 264);
+  --muted: oklch(0.22 0.003 264);
+  --muted-foreground: oklch(0.66 0.005 264);
+  --accent: oklch(0.24 0.004 264);
+  --accent-foreground: oklch(0.97 0.002 264);
+  --destructive: oklch(0.62 0.19 25);
+  --destructive-foreground: oklch(0.98 0.002 264);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.75 0.01 264);
+  --surface: oklch(0.2 0.003 264 / 82%);
+  --surface-strong: oklch(0.17 0.003 264 / 80%);
+  --hairline: oklch(1 0 0 / 11%);
+  --grid-line: oklch(1 0 0 / 22%);
+  --grid-highlight: oklch(1 0 0 / 34%);
+  --allowed: oklch(0.78 0.14 155);
+  --blocked: oklch(0.68 0.17 22);
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+}
+
+/* ---- Continuous 3D floor grid ---- */
+
+@keyframes neroxa-floor {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 120px, 0);
+  }
+}
+
+@keyframes neroxa-dots {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 22px;
+  }
+}
+
+@utility floor-plane {
+  position: absolute;
+  inset: -55% -70% -25% -70%;
+  background-image:
+    repeating-linear-gradient(to right, var(--color-grid-line) 0 1px, transparent 1px 96px),
+    repeating-linear-gradient(to bottom, var(--color-grid-line) 0 1px, transparent 1px 96px);
+  transform-origin: 50% 100%;
+  animation: neroxa-floor 6s linear infinite;
+  will-change: transform;
+}
+
+/* brighter illuminated patch on the grid, centred under the product window */
+@utility floor-glow {
+  position: absolute;
+  inset: -55% -70% -25% -70%;
+  background-image:
+    repeating-linear-gradient(to right, var(--color-grid-highlight) 0 1px, transparent 1px 96px),
+    repeating-linear-gradient(to bottom, var(--color-grid-highlight) 0 1px, transparent 1px 96px);
+  mask-image: radial-gradient(45% 38% at 60% 42%, black 0%, transparent 75%);
+  transform-origin: 50% 100%;
+  animation: neroxa-floor 6s linear infinite;
+  will-change: transform;
+}
+
+@utility auth-dots {
+  background-image: radial-gradient(var(--color-grid-line) 1px, transparent 1px);
+  background-size: 22px 22px;
+  animation: neroxa-dots 3.5s linear infinite;
+  will-change: background-position;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floor-plane,
+  .floor-glow,
+  .auth-dots {
+    animation: none !important;
+  }
+}
+
+@keyframes neroxa-ceiling {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -96px, 0);
+  }
+}
+
+/* mirrored upper grid plane — extends the 3D environment above the horizon */
+@utility ceiling-plane {
+  position: absolute;
+  inset: -25% -70% -55% -70%;
+  background-image:
+    repeating-linear-gradient(to right, var(--color-grid-line) 0 1px, transparent 1px 96px),
+    repeating-linear-gradient(to bottom, var(--color-grid-line) 0 1px, transparent 1px 96px);
+  transform-origin: 50% 0%;
+  opacity: 0.85;
+  animation: neroxa-ceiling 6s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ceiling-plane {
+    animation: none !important;
+  }
+}
+
+/* Hide scrollbar while maintaining full scroll/slide functionality */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Sleek subtle scrollbar for dark UI */
+@utility custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(1 0 0 / 15%) transparent;
+  &::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 15%);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: oklch(1 0 0 / 30%);
+  }
+}
+

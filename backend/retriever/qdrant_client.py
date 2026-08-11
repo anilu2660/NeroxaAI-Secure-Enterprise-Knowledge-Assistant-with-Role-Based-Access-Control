@@ -60,9 +60,9 @@ class QdrantManager:
                     check_compatibility=False,
                 )
             else:
-                if self.host == ":memory:":
-                    logger.info("Connecting to local in-memory Qdrant")
-                    self._client = QdrantClient(location=":memory:")
+                if self.host == ":memory:" or self.host == "localhost" or not self.host:
+                    logger.info("Connecting to local persistent Qdrant at ./qdrant_storage")
+                    self._client = QdrantClient(path="./qdrant_storage")
                 else:
                     logger.info("Connecting to local Qdrant at %s:%d", self.host, self.port)
                     self._client = QdrantClient(
@@ -259,6 +259,39 @@ class QdrantManager:
         except Exception as e:
             logger.warning("Error checking vector points for document '%s': %s", document_id, str(e))
             return False
+
+    def get_document_content(self, document_id: str) -> dict:
+        """
+        Retrieve all text chunks and metadata for a given document_id from Qdrant.
+        Returns structured content including pages, sections, and full text for document previewers.
+        """
+        try:
+            self.ensure_collection_exists()
+            res = self.client.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="document_id",
+                            match=MatchValue(value=document_id),
+                        )
+                    ]
+                ),
+                limit=500,
+                with_payload=True,
+                with_vectors=False,
+            )
+            points, _ = res
+            chunks = [p.payload for p in points if p.payload]
+            chunks.sort(key=lambda c: (c.get("page_number", 1), c.get("chunk_index", 0)))
+            return {
+                "document_id": document_id,
+                "total_chunks": len(chunks),
+                "chunks": chunks,
+            }
+        except Exception as e:
+            logger.warning("Error getting vector content for document '%s': %s", document_id, str(e))
+            return {"document_id": document_id, "total_chunks": 0, "chunks": []}
 
 
 # Singleton instance

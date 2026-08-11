@@ -70,7 +70,16 @@ class RetrieverService:
             Qdrant Filter object or None (for admin with no extra filter).
         """
         role_lower = user_role.lower()
-        allowed_departments = ROLE_ACCESS_MAP.get(role_lower, ["General"])
+        if role_lower == "admin":
+            allowed_departments = None
+        else:
+            depts = {"General"}
+            if user_department:
+                depts.add(user_department)
+            role_depts = ROLE_ACCESS_MAP.get(role_lower)
+            if role_depts:
+                depts.update(role_depts)
+            allowed_departments = list(depts)
 
         # Admin with no department filter => no restrictions
         if allowed_departments is None and department_filter is None:
@@ -157,7 +166,7 @@ class RetrieverService:
                     using="dense",
                     query_filter=rbac_filter,
                     limit=top_k * 3 if (query_text and settings.ENABLE_HYBRID_SEARCH) else top_k,
-                    score_threshold=0.25,
+                    score_threshold=0.1,
                 )
                 results = response.points
             except Exception:
@@ -167,7 +176,7 @@ class RetrieverService:
                     query=query_embedding,
                     query_filter=rbac_filter,
                     limit=top_k * 3 if (query_text and settings.ENABLE_HYBRID_SEARCH) else top_k,
-                    score_threshold=0.25,
+                    score_threshold=0.1,
                 )
                 results = response.points
 
@@ -268,6 +277,12 @@ class RetrieverService:
         Check if vector chunks exist in Qdrant for a given document_id.
         """
         return self.manager.has_document_chunks(document_id)
+
+    def get_document_content(self, document_id: str) -> dict:
+        """
+        Retrieve document payload chunks and page text for PDF/TXT/DOCX previewers.
+        """
+        return self.manager.get_document_content(document_id)
 
 
     async def check_health(self) -> dict:

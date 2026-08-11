@@ -1,0 +1,453 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import {
+  Calendar,
+  ChevronDown,
+  ChevronFirst,
+  ChevronLast,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  Download,
+  ExternalLink,
+  Folder,
+  Database,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  Tag,
+  User,
+} from "lucide-react";
+import { RoleGuard } from "@/roles/components/RoleGuard";
+import { AuditEventsTable } from "@/audit/components/AuditEventsTable";
+import { useAuth } from "@/auth/auth-context";
+import type { AuditEvent, AuditEventQuery } from "@/api/types";
+import {
+  defaultAuditQuery,
+  getAuditFilterOptions,
+  getAuditServiceStatus,
+  listAuditEvents,
+} from "@/api/workspace-service";
+
+export const Route = createFileRoute("/_workspace/audit")({
+  head: () => ({
+    meta: [
+      { title: "Audit Logs — NeroxaAI Admin" },
+      {
+        name: "description",
+        content:
+          "Administrator audit surface for system activity, access events, document changes, and security events. No audit service is connected in this prototype, so no events are recorded.",
+      },
+      { name: "robots", content: "noindex" },
+      { property: "og:title", content: "Audit Logs — NeroxaAI Admin" },
+      {
+        property: "og:description",
+        content:
+          "Audit surface prototype — no audit service is connected, so no events are recorded.",
+      },
+    ],
+  }),
+  component: AuditRoute,
+});
+
+function AuditRoute() {
+  return (
+    <RoleGuard role="ADMIN" permission="audit:read">
+      <AuditLogsPage />
+    </RoleGuard>
+  );
+}
+
+const selectClass =
+  "h-9 w-full appearance-none rounded-xl border border-hairline bg-secondary/35 pl-8 pr-7 text-[12px] text-foreground/90 outline-none transition-colors hover:bg-accent/40 focus-visible:border-primary/60";
+
+function FilterSelect({
+  label,
+  icon: Icon,
+  value,
+  onChange,
+  allLabel,
+  options,
+}: {
+  label: string;
+  icon: typeof Tag;
+  value: string;
+  onChange: (value: string) => void;
+  allLabel: string;
+  options: string[];
+}) {
+  return (
+    <label className="relative block">
+      <span className="pointer-events-none absolute left-8 top-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <Icon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={`${selectClass} h-[46px] pt-3.5`}
+      >
+        <option value="">{allLabel}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function AuditLogsPage() {
+  const { session } = useAuth();
+  const admin = session?.user ?? null;
+
+  const [query, setQuery] = useState<AuditEventQuery>(() => defaultAuditQuery());
+  const [selected, setSelected] = useState<AuditEvent | null>(null);
+
+  const status = useQuery({ queryKey: ["audit-status"], queryFn: getAuditServiceStatus });
+  const filters = useQuery({ queryKey: ["audit-filters"], queryFn: getAuditFilterOptions });
+  const events = useQuery({
+    queryKey: ["audit-events", query],
+    queryFn: () => listAuditEvents(query),
+  });
+
+  const page = events.data ?? {
+    available: false,
+    events: [],
+    total: 0,
+    page: query.page,
+    pageSize: query.pageSize,
+    status: {
+      state: "not_connected" as const,
+      label: "Audit service not connected",
+      detail: "Audit events will appear here once the audit service is connected.",
+    },
+  };
+
+  const update = <K extends keyof AuditEventQuery>(key: K, value: AuditEventQuery[K]) =>
+    setQuery((current) => ({ ...current, [key]: value, page: 1 }));
+
+  const reset = () => setQuery(defaultAuditQuery());
+
+  const pageCount = Math.max(1, Math.ceil(page.total / page.pageSize));
+  const firstRow = page.total === 0 ? 0 : (page.page - 1) * page.pageSize + 1;
+  const lastRow = Math.min(page.total, page.page * page.pageSize);
+  const canPrev = page.total > 0 && page.page > 1;
+  const canNext = page.total > 0 && page.page < pageCount;
+
+  const rangeLabel = useMemo(() => {
+    if (!query.fromIso && !query.toIso) return "All available time";
+    return `${query.fromIso || "Earliest"} – ${query.toIso || "Latest"}`;
+  }, [query.fromIso, query.toIso]);
+
+  return (
+    <section className="space-y-3.5 pt-1">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="mt-1 grid size-11 shrink-0 place-items-center rounded-xl border border-primary/30 bg-primary/12">
+            <ShieldCheck className="size-5 text-primary" />
+          </span>
+          <div className="min-w-0">
+            <nav className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+              <Link to="/admin" className="transition-colors hover:text-foreground">
+                Admin Dashboard
+              </Link>
+              <ChevronRight className="size-3" />
+              <span className="text-foreground/80">Audit Logs</span>
+            </nav>
+            <h1 className="mt-1 font-display text-[27px] font-medium tracking-tight text-foreground">
+              Audit Logs
+            </h1>
+            <p className="mt-0.5 max-w-[660px] text-[12.5px] leading-relaxed text-muted-foreground">
+              Review system activity, administrative actions, access events, document changes, and
+              security events. Audit logs help ensure accountability, security, and compliance
+              {admin ? ` · reviewed as ${admin.name}, ${admin.department}` : ""}.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled
+          title="Unavailable — there are no real audit records to export until the audit service is connected"
+          className="flex h-10 cursor-not-allowed items-center gap-2 rounded-xl border border-hairline bg-secondary/40 px-3.5 text-[12.5px] text-muted-foreground opacity-70"
+        >
+          <Download className="size-4" />
+          Export <span className="text-muted-foreground/80">(Coming Soon)</span>
+        </button>
+      </header>
+
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-hairline bg-card/55 p-3.5 backdrop-blur-xl">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full border border-primary/25 bg-primary/[0.08]">
+            <ShieldCheck className="size-[18px] text-primary/85" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[12.5px] text-foreground">
+              Audit records are intended for administrative accountability and security review.
+            </p>
+            <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
+              {status.data
+                ? status.data.detail
+                : "Checking whether an audit event source is available…"}
+            </p>
+          </div>
+        </div>
+        <a
+          href="#"
+          className="flex shrink-0 items-center gap-1.5 text-[12px] text-primary/90 transition-colors hover:text-primary"
+        >
+          Documentation
+          <ExternalLink className="size-3.5" />
+        </a>
+      </div>
+
+      <div className="rounded-2xl border border-hairline bg-card/60 p-3 backdrop-blur-xl">
+        <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_auto] lg:items-center">
+          <label className="relative flex items-center">
+            <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+            <input
+              value={query.search}
+              onChange={(event) => update("search", event.target.value.slice(0, 120))}
+              placeholder="Search events, actions, resources..."
+              aria-label="Search audit events"
+              className="h-[46px] w-full rounded-xl border border-hairline bg-secondary/35 pl-9 pr-3 text-[12.5px] text-foreground placeholder:text-muted-foreground/80 outline-none transition-colors focus-visible:border-primary/60"
+            />
+          </label>
+
+          <div className="relative flex h-[46px] items-center gap-2 rounded-xl border border-hairline bg-secondary/35 px-3">
+            <Calendar className="size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                Date &amp; Time Range
+              </span>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  aria-label="From date"
+                  value={query.fromIso}
+                  onChange={(event) => update("fromIso", event.target.value)}
+                  className="w-full bg-transparent text-[12px] text-foreground/90 outline-none"
+                />
+                <span className="text-muted-foreground">–</span>
+                <input
+                  type="date"
+                  aria-label="To date"
+                  value={query.toIso}
+                  onChange={(event) => update("toIso", event.target.value)}
+                  className="w-full bg-transparent text-[12px] text-foreground/90 outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={reset}
+            className="flex h-[46px] items-center gap-2 rounded-xl border border-hairline bg-secondary/40 px-4 text-[12.5px] text-foreground/85 transition-colors hover:bg-accent/60"
+          >
+            <RotateCcw className="size-4" />
+            Reset
+          </button>
+        </div>
+
+        <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <FilterSelect
+            label="Event Type"
+            icon={Tag}
+            value={query.eventType}
+            onChange={(value) => update("eventType", value)}
+            allLabel="All Types"
+            options={filters.data?.eventTypes ?? []}
+          />
+          <FilterSelect
+            label="Actor / User"
+            icon={User}
+            value={query.actor}
+            onChange={(value) => update("actor", value)}
+            allLabel="All Actors"
+            options={filters.data?.actors ?? []}
+          />
+          <FilterSelect
+            label="Resource"
+            icon={Database}
+            value={query.resource}
+            onChange={(value) => update("resource", value)}
+            allLabel="All Resources"
+            options={filters.data?.resources ?? []}
+          />
+          <FilterSelect
+            label="Category"
+            icon={Folder}
+            value={query.category}
+            onChange={(value) => update("category", value)}
+            allLabel="All Categories"
+            options={filters.data?.categories ?? []}
+          />
+          <FilterSelect
+            label="Result / Status"
+            icon={CircleCheck}
+            value={query.result}
+            onChange={(value) => update("result", value)}
+            allLabel="All Results"
+            options={filters.data?.results ?? []}
+          />
+          <FilterSelect
+            label="Severity"
+            icon={ShieldCheck}
+            value={query.severity}
+            onChange={(value) => update("severity", value)}
+            allLabel="All Severity"
+            options={filters.data?.severities ?? []}
+          />
+        </div>
+
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Filter selections are prepared as audit query parameters ({rangeLabel}). They cannot match
+          any record while the audit service is unavailable.
+        </p>
+      </div>
+
+      <AuditEventsTable page={page} loading={events.isLoading} onInspect={setSelected} />
+
+      <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-hairline bg-card/55 px-3.5 py-2.5 backdrop-blur-xl">
+        <p className="text-[12px] text-muted-foreground">
+          Showing {firstRow} to {lastRow} of {page.total} results
+        </p>
+        <div className="flex items-center gap-2">
+          <label className="relative">
+            <span className="sr-only">Results per page</span>
+            <select
+              value={query.pageSize}
+              onChange={(event) =>
+                update("pageSize", Number(event.target.value) as AuditEventQuery["pageSize"])
+              }
+              className="h-9 appearance-none rounded-xl border border-hairline bg-secondary/35 pl-3 pr-7 text-[12px] text-foreground/90 outline-none hover:bg-accent/40"
+            >
+              {[25, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size} per page
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          </label>
+          <PagerButton
+            label="First page"
+            icon={ChevronFirst}
+            disabled={!canPrev}
+            onClick={() => setQuery((current) => ({ ...current, page: 1 }))}
+          />
+          <PagerButton
+            label="Previous page"
+            icon={ChevronLeft}
+            disabled={!canPrev}
+            onClick={() =>
+              setQuery((current) => ({ ...current, page: Math.max(1, current.page - 1) }))
+            }
+          />
+          <PagerButton
+            label="Next page"
+            icon={ChevronRight}
+            disabled={!canNext}
+            onClick={() => setQuery((current) => ({ ...current, page: current.page + 1 }))}
+          />
+          <PagerButton
+            label="Last page"
+            icon={ChevronLast}
+            disabled={!canNext}
+            onClick={() => setQuery((current) => ({ ...current, page: pageCount }))}
+          />
+        </div>
+      </div>
+
+      <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+        Administrative actions from User Management, Document Management, and Upload Document are
+        intended to produce audit records here once the backend audit pipeline exists. No events are
+        recorded today, so this page holds no counts, totals, or history.
+      </p>
+
+      {selected ? <AuditEventDialog event={selected} onClose={() => setSelected(null)} /> : null}
+    </section>
+  );
+}
+
+function PagerButton({
+  label,
+  icon: Icon,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  icon: typeof ChevronLeft;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="grid size-9 place-items-center rounded-xl border border-hairline bg-secondary/40 text-foreground/85 transition-colors hover:bg-accent/60 disabled:pointer-events-none disabled:opacity-35"
+    >
+      <Icon className="size-4" />
+    </button>
+  );
+}
+
+/** Detail view for a real returned event. Metadata only — never secrets. */
+function AuditEventDialog({ event, onClose }: { event: AuditEvent; onClose: () => void }) {
+  const rows: Array<[string, string]> = [
+    ["Event ID", event.id],
+    ["Timestamp", new Date(event.timestampIso).toLocaleString()],
+    ["Actor", `${event.actorName} · ${event.actorRole}`],
+    ["Action / Event", event.actionLabel],
+    ["Resource", `${event.resourceLabel} (${event.resourceType} · ${event.resourceId})`],
+    ["Category", event.category],
+    ["Result / Status", event.result],
+    ["Severity", event.severity],
+    ...Object.entries(event.metadata),
+  ];
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Audit event details"
+      className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        onClick={(clickEvent) => clickEvent.stopPropagation()}
+        className="w-full max-w-[520px] rounded-2xl border border-hairline bg-card p-4 shadow-2xl"
+      >
+        <h2 className="font-display text-[18px] font-medium tracking-tight text-foreground">
+          Audit Event Details
+        </h2>
+        <dl className="mt-3 space-y-1.5">
+          {rows.map(([label, value]) => (
+            <div
+              key={label}
+              className="flex gap-3 border-b border-hairline/60 pb-1.5 last:border-0"
+            >
+              <dt className="w-[140px] shrink-0 text-[11.5px] text-muted-foreground">{label}</dt>
+              <dd className="min-w-0 break-words text-[12.5px] text-foreground/90">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-3.5 h-9 w-full rounded-xl border border-hairline bg-secondary/40 text-[12.5px] text-foreground/85 transition-colors hover:bg-accent/60"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}

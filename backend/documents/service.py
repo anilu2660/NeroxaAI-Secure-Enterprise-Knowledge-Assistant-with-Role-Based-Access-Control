@@ -105,6 +105,16 @@ class DocumentService:
 
         logger.info("Ingesting document '%s' (id=%s, dept=%s)", safe_filename, document_id, department)
 
+        # Save binary file to uploaded_files directory for raw PDF viewing
+        try:
+            import os
+            os.makedirs("uploaded_files", exist_ok=True)
+            storage_path = os.path.join("uploaded_files", f"{document_id}.pdf")
+            with open(storage_path, "wb") as f:
+                f.write(file_bytes)
+        except Exception as storage_err:
+            logger.warning("Could not save binary file to disk: %s", str(storage_err))
+
         # 1. Parse File
         pages = self.parser.parse_file(filename, file_bytes)
 

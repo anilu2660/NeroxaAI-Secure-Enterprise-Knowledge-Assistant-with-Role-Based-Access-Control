@@ -33,8 +33,10 @@ class User(Base, TimestampMixin):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     department: Mapped[str] = mapped_column(String(100), nullable=False, default="General", index=True)
+    phone_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     role_id: Mapped[str] = mapped_column(String(50), ForeignKey("roles.id"), nullable=False, default="employee")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
