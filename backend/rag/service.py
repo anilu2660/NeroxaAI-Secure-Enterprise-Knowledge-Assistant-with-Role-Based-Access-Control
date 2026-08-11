@@ -18,14 +18,14 @@ from backend.llm.service import llm_service
 from backend.embeddings.service import embedding_service
 from backend.retriever.service import retriever_service
 from backend.retriever.reranker import reranker_service
-from backend.utils.cache import query_cache
+from backend.cache.service import semantic_cache
 
 logger = logging.getLogger(__name__)
 
 
 class RAGService:
     """
-    Orchestrates the full RAG pipeline with Hybrid Search, Reranking, and Caching.
+    Orchestrates the full RAG pipeline with Hybrid Search, Reranking, and Semantic Caching.
     """
 
     def __init__(self):
@@ -34,7 +34,8 @@ class RAGService:
         self.embeddings = embedding_service
         self.retriever = retriever_service
         self.reranker = reranker_service
-        self.cache = query_cache
+        self.cache = semantic_cache
+
 
     def _expand_query(self, query: str) -> str:
         """
@@ -133,10 +134,10 @@ class RAGService:
         """
         Execute full RAG pipeline (Cached -> Injection Check -> Hybrid Search -> Rerank -> LLM).
         """
-        # Check Cache
-        cached_result = self.cache.get(query, user_role, user_department, department_filter)
+        # Check Semantic Cache
+        cached_result = self.cache.get(query, user_role, user_department)
         if cached_result:
-            logger.info("Returning cached RAG response for query '%s'", query[:40])
+            logger.info("Returning semantic cached RAG response for query '%s'", query[:40])
             return cached_result
 
         logger.info(
@@ -205,8 +206,16 @@ class RAGService:
             "chunks_retrieved": len(context_chunks),
         }
 
-        # Store in Cache
-        self.cache.set(query, user_role, user_department, department_filter, result)
+        # Store in Semantic Cache
+        self.cache.set(
+            query=query,
+            answer=result["answer"],
+            sources=result["sources"],
+            model=result["model"],
+            chunks_retrieved=result["chunks_retrieved"],
+            user_role=user_role,
+            user_department=user_department,
+        )
         return result
 
     async def stream_query(

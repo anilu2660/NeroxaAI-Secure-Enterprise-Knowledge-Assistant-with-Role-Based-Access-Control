@@ -41,6 +41,9 @@ class User(Base, TimestampMixin):
     role_rel: Mapped["Role"] = relationship("Role", back_populates="users")
     documents: Mapped[list["Document"]] = relationship("Document", back_populates="owner_user")
     audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="user")
+    chat_sessions: Mapped[list["ChatSession"]] = relationship("ChatSession", back_populates="user")
+    feedbacks: Mapped[list["Feedback"]] = relationship("Feedback", back_populates="user")
 
     def __repr__(self) -> str:
         return f"<User email='{self.email}' role='{self.role_id}' department='{self.department}'>"
+

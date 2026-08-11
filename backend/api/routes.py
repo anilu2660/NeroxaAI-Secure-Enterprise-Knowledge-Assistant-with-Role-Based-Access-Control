@@ -12,6 +12,8 @@ from backend.roles.routes import router as role_router
 from backend.documents.routes import router as document_router
 from backend.rag.routes import router as rag_router
 from backend.audit.routes import router as audit_router
+from backend.chat.routes import router as chat_router
+from backend.feedback.routes import router as feedback_router
 
 # Master API Router
 api_router = APIRouter()
@@ -23,3 +25,6 @@ api_router.include_router(role_router)
 api_router.include_router(document_router)
 api_router.include_router(rag_router)
 api_router.include_router(audit_router)
+api_router.include_router(chat_router)
+api_router.include_router(feedback_router)
+

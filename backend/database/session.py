@@ -121,8 +121,10 @@ def init_db() -> None:
     """
     try:
         logger.info("Initializing database tables...")
+        import backend.models  # Ensures all ORM models are registered in Base.metadata
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables initialized successfully.")
+
 
         # Seed roles & default admin
         db = SessionLocal()
