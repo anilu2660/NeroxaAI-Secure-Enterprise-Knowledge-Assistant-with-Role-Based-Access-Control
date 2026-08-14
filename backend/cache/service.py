@@ -1,142 +1,134 @@
-"""
-Semantic Query Cache Service
-
-Provides semantic caching while isolating cached answers by authenticated user.
-"""
-
-import time
+import asyncio
+import hashlib
+import json
 import logging
-import numpy as np
 from typing import Any
-from backend.embeddings.service import embedding_service
+
+import numpy as np
+import redis.asyncio as redis
+
 from backend.config import settings
+from backend.embeddings.service import embedding_service
 
 logger = logging.getLogger(__name__)
 
 
 class SemanticCacheService:
-    def __init__(self, similarity_threshold: float = 0.92, ttl_seconds: int = 300):
+    def __init__(self, similarity_threshold: float = 0.90, ttl_seconds: int = 300):
         self.threshold = similarity_threshold
         self.ttl_seconds = ttl_seconds
-        self._cache: list[dict[str, Any]] = []
+        self.namespace = settings.CACHE_NAMESPACE
+        self.client = redis.from_url(
+            settings.REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True,
+            socket_connect_timeout=settings.REDIS_CONNECT_TIMEOUT_SECONDS,
+            socket_timeout=settings.REDIS_TIMEOUT_SECONDS,
+            health_check_interval=30,
+        )
 
-    def _cosine_similarity(
-        self,
-        vec_a: list[float],
-        vec_b: list[float],
-    ) -> float:
-        a = np.array(vec_a, dtype=np.float32)
-        b = np.array(vec_b, dtype=np.float32)
+    @staticmethod
+    def _cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
+        a = np.asarray(vec_a, dtype=np.float32)
+        b = np.asarray(vec_b, dtype=np.float32)
         norm_a = np.linalg.norm(a)
         norm_b = np.linalg.norm(b)
         if norm_a == 0 or norm_b == 0:
             return 0.0
         return float(np.dot(a, b) / (norm_a * norm_b))
 
-    def get(
-        self,
-        query: str,
-        user_id: str,
-        user_role: str,
-        user_department: str,
-    ) -> dict[str, Any] | None:
-        now = time.time()
-        self._cache = [
-            e
-            for e in self._cache
-            if (now - e["created_at"]) < self.ttl_seconds
-        ]
+    @staticmethod
+    def _scope_key(user_id: str, user_role: str, user_department: str) -> str:
+        scope = f"{user_id}|{user_role}|{user_department}"
+        return hashlib.sha256(scope.encode("utf-8")).hexdigest()
 
-        if not self._cache or not user_id:
-            return None
+    def _key(self, user_id: str, user_role: str, user_department: str) -> str:
+        return f"{self.namespace}:semantic:{self._scope_key(user_id, user_role, user_department)}"
 
+    async def _read_entries(self, key: str) -> list[dict[str, Any]]:
+        raw = await self.client.get(key)
+        if not raw:
+            return []
         try:
-            query_vec = embedding_service.embed_query(query)
-        except Exception as e:
-            logger.warning(
-                "Failed to embed query for cache lookup: %s",
-                str(e),
-            )
+            data = json.loads(raw)
+            return data if isinstance(data, list) else []
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("Invalid semantic cache payload encountered.")
+            return []
+
+    async def get(self, query: str, user_id: str, user_role: str, user_department: str) -> dict[str, Any] | None:
+        if not user_id:
             return None
-
-        best_score = 0.0
-        best_entry = None
-
-        for entry in self._cache:
-            if entry["user_id"] != user_id:
-                continue
-
-            if (
-                entry["department"] != user_department
-                or entry["role"] != user_role
-            ):
-                continue
-
-            sim = self._cosine_similarity(
-                query_vec,
-                entry["embedding"],
-            )
-
-            if sim > best_score:
-                best_score = sim
-                best_entry = entry
-
-        if best_entry and best_score >= self.threshold:
-            return {
-                "query": query,
-                "answer": best_entry["answer"],
-                "sources": best_entry["sources"],
-                "model": best_entry["model"],
-                "chunks_retrieved": best_entry["chunks_retrieved"],
-                "cached": True,
-                "similarity_score": round(best_score, 4),
-            }
-
+        try:
+            query_vec = await asyncio.to_thread(embedding_service.embed_query, query)
+            entries = await self._read_entries(self._key(user_id, user_role, user_department))
+            best_score = 0.0
+            best_entry = None
+            for entry in entries:
+                sim = self._cosine_similarity(query_vec, entry["embedding"])
+                if sim > best_score:
+                    best_score = sim
+                    best_entry = entry
+            if best_entry and best_score >= self.threshold:
+                return {
+                    "query": query,
+                    "answer": best_entry["answer"],
+                    "sources": best_entry["sources"],
+                    "model": best_entry["model"],
+                    "chunks_retrieved": best_entry["chunks_retrieved"],
+                    "cached": True,
+                    "similarity_score": round(best_score, 4),
+                }
+        except Exception as exc:
+            logger.warning("Semantic cache lookup failed; bypassing cache: %s", str(exc))
         return None
 
-    def set(
-        self,
-        query: str,
-        answer: str,
-        sources: list[dict],
-        model: str,
-        chunks_retrieved: int,
-        user_id: str,
-        user_role: str,
-        user_department: str,
-    ) -> None:
+    async def set(self, query: str, answer: str, sources: list[dict], model: str, chunks_retrieved: int, user_id: str, user_role: str, user_department: str) -> None:
         if not user_id:
             return
-
-        if (
-            "cannot find sufficient information" in answer.lower()
-            or "security alert" in answer.lower()
-            or "access denied" in answer.lower()
-        ):
+        lowered = answer.lower()
+        if any(marker in lowered for marker in ("cannot find sufficient information", "security alert", "access denied", "not authorized")):
             return
-
         try:
-            query_vec = embedding_service.embed_query(query)
-            self._cache.append({
+            query_vec = await asyncio.to_thread(embedding_service.embed_query, query)
+            key = self._key(user_id, user_role, user_department)
+            entries = await self._read_entries(key)
+            entries.append({
                 "query": query,
                 "embedding": query_vec,
                 "answer": answer,
                 "sources": sources,
                 "model": model,
                 "chunks_retrieved": chunks_retrieved,
-                "user_id": user_id,
-                "role": user_role,
-                "department": user_department,
-                "created_at": time.time(),
             })
-        except Exception as e:
-            logger.warning(
-                "Failed to store entry in semantic cache: %s",
-                str(e),
-            )
+            entries = entries[-settings.CACHE_MAX_ENTRIES_PER_SCOPE:]
+            await self.client.setex(key, self.ttl_seconds, json.dumps(entries))
+        except Exception as exc:
+            logger.warning("Semantic cache write failed; continuing without cache: %s", str(exc))
 
-    def clear(self):
-        self._cache.clear()
+    async def clear_scope(self, user_id: str, user_role: str, user_department: str) -> None:
+        try:
+            await self.client.delete(self._key(user_id, user_role, user_department))
+        except Exception as exc:
+            logger.warning("Semantic cache scope invalidation failed: %s", str(exc))
+
+    async def clear_all(self) -> None:
+        try:
+            pattern = f"{self.namespace}:semantic:*"
+            keys = [key async for key in self.client.scan_iter(match=pattern, count=200)]
+            if keys:
+                await self.client.delete(*keys)
+        except Exception as exc:
+            logger.warning("Semantic cache invalidation failed: %s", str(exc))
+
+    async def health_check(self) -> bool:
+        try:
+            return bool(await self.client.ping())
+        except Exception:
+            return False
+
+    async def close(self) -> None:
+        await self.client.aclose()
 
 
 semantic_cache = SemanticCacheService(
