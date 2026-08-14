@@ -17,6 +17,9 @@ class ToolRegistry:
     def get(self, name: str) -> BaseTool | None:
         return self._tools.get(name)
 
+    def names(self) -> set[str]:
+        return set(self._tools.keys())
+
     def definitions(self) -> list[ToolDefinition]:
         return [tool.definition() for tool in self._tools.values()]
 
