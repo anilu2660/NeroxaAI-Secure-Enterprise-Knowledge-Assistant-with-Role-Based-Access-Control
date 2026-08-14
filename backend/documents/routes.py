@@ -1,20 +1,22 @@
-"""
-Document Routes
-
-API endpoints for document upload, ingestion, and management.
-"""
-
-import os
 import logging
-from fastapi import APIRouter, UploadFile, File, Form, Header, Depends, HTTPException, status
+import os
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+
+from backend.api.dependencies import get_current_user
+from backend.audit.schemas import AuditLogCreate
+from backend.audit.service import audit_service
+from backend.authorization.service import authorization_service
 from backend.config import settings
 from backend.database.session import get_db
 from backend.documents.schemas import DocumentUploadResponse, ShareDocumentRequest
 from backend.documents.service import document_service
-from backend.roles.middleware import require_permission
-from backend.audit.service import audit_service
-from backend.audit.schemas import AuditLogCreate
+from backend.models.document import Document
+from backend.models.user import User
+from backend.retriever.service import retriever_service
+from backend.utils.rate_limiter import rate_limit_guard
 
 logger = logging.getLogger(__name__)
 
@@ -23,19 +25,10 @@ router = APIRouter(prefix="/api/v1/documents", tags=["Documents"])
 ALLOWED_EXTENSIONS = {"pdf", "docx", "doc", "txt"}
 
 
-from backend.utils.rate_limiter import rate_limit_guard
-
-from backend.api.dependencies import get_current_user
-from backend.models.user import User
-
 @router.post(
     "/upload",
     response_model=DocumentUploadResponse,
     summary="Upload and ingest document",
-    description=(
-        "Upload a PDF, DOCX, or TXT document. "
-        "Requires 'upload' permission (Admin, HR, Finance, Engineering, Sales)."
-    ),
     dependencies=[Depends(rate_limit_guard("upload"))],
 )
 async def upload_document(
@@ -44,35 +37,30 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Ingest enterprise document into vector database.
-    Requires 'upload' permission.
-    """
-    user_role = current_user.role_id
-    from backend.roles.service import role_service
-    if not role_service.has_permission(user_role, "upload"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access DENIED. Role '{user_role}' does not have upload permission.",
-        )
+    department = department.strip()
+    filename = (file.filename or "").strip()
+    ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
 
-    # 1. Validate File Extension
-    ext = file.filename.lower().split(".")[-1] if file.filename else ""
+    authorization_service.require_upload_permission(
+        current_user,
+        department,
+    )
+
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file format '.{ext}'. Allowed formats: {', '.join(ALLOWED_EXTENSIONS)}",
+            detail=f"Unsupported file format '.{ext}'. Allowed formats: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
 
     try:
         file_bytes = await file.read()
+
         if not file_bytes:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Uploaded file is empty.",
             )
 
-        # 2. Validate File Size
         max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
         if len(file_bytes) > max_bytes:
             raise HTTPException(
@@ -81,7 +69,7 @@ async def upload_document(
             )
 
         result = await document_service.ingest_document(
-            filename=file.filename,
+            filename=filename,
             file_bytes=file_bytes,
             department=department,
             owner=current_user.email,
@@ -89,117 +77,97 @@ async def upload_document(
             db=db,
         )
 
-        # 3. Audit Log — differentiate fresh ingestion from duplicate skips
-        if result.get("status") == "already_exists":
-            logger.info(
-                "Upload skipped (duplicate): '%s' already indexed in dept '%s' as id=%s",
-                file.filename, department, result["document_id"],
-            )
-            audit_service.log_event(
-                db=db,
-                event_data=AuditLogCreate(
-                    event_type="document_skipped_duplicate",
-                    user_id=current_user.id,
-                    user_email=current_user.email,
-                    user_role=user_role,
-                    action=f"Upload skipped — '{file.filename}' already indexed in '{department}'",
-                    resource=result["document_id"],
-                    details={"chunks": result["chunks_created"]},
-                ),
-            )
-        else:
-            audit_service.log_event(
-                db=db,
-                event_data=AuditLogCreate(
-                    event_type="document_uploaded",
-                    user_id=current_user.id,
-                    user_email=current_user.email,
-                    user_role=user_role,
-                    action=f"Uploaded document '{file.filename}' to department '{department}'",
-                    resource=result["document_id"],
-                    details={"chunks": result["chunks_created"], "size": len(file_bytes)},
-                ),
-            )
+        event_type = (
+            "document_skipped_duplicate"
+            if result.get("status") == "already_exists"
+            else "document_uploaded"
+        )
+
+        action = (
+            f"Upload skipped — '{filename}' already indexed in '{department}'"
+            if event_type == "document_skipped_duplicate"
+            else f"Uploaded document '{filename}' to department '{department}'"
+        )
+
+        audit_service.log_event(
+            db=db,
+            event_data=AuditLogCreate(
+                event_type=event_type,
+                user_id=current_user.id,
+                user_email=current_user.email,
+                user_role=current_user.role_id,
+                action=action,
+                resource=result["document_id"],
+                details={
+                    "chunks": result["chunks_created"],
+                    "size": len(file_bytes),
+                },
+            ),
+        )
 
         return DocumentUploadResponse(**result)
 
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error("Document ingestion failed: %s", str(e), exc_info=True)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception("Document ingestion failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Document processing failed. Please try again or contact your administrator.",
-        ) from e
+        ) from exc
 
 
 @router.get(
     "/",
     summary="List indexed documents",
-    description="Returns a list of all documents indexed in the knowledge base. Requires authentication.",
 )
 def list_documents(
     department: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Return all indexed documents visible to the requesting user.
-    Admins see all documents; department roles see their own department plus General.
-    Optional ?department= filter narrows results further.
-    """
-    from backend.models.document import Document
-    from backend.retriever.service import ROLE_ACCESS_MAP
-
-    user_role = current_user.role_id
-    user_dept = current_user.department
-
-    if user_role.lower() == "admin":
-        allowed_depts = None
-    else:
-        depts = {"General"}
-        if user_dept:
-            depts.add(user_dept)
-        role_depts = ROLE_ACCESS_MAP.get(user_role.lower())
-        if role_depts:
-            depts.update(role_depts)
-        allowed_depts = list(depts)
-
     query = db.query(Document).filter(Document.status == "indexed")
 
-    # Non-admin roles: restrict to allowed departments
-    if allowed_depts is not None:
-        query = query.filter(Document.department.in_(allowed_depts))
-
-    # Optional extra filter from caller
     if department:
-        query = query.filter(Document.department == department)
+        query = query.filter(Document.department == department.strip())
 
-    docs = query.order_by(Document.created_at.desc()).all()
+    documents = query.order_by(Document.created_at.desc()).all()
+
+    visible_documents = [
+        document
+        for document in documents
+        if authorization_service.can_access_document(
+            current_user,
+            document,
+        )
+    ]
 
     return [
         {
-            "document_id": d.id,
-            "title": d.title,
-            "filename": d.filename,
-            "department": d.department,
-            "total_chunks": d.total_chunks,
-            "status": d.status,
-            "created_at": d.created_at.isoformat() if d.created_at else None,
+            "document_id": document.id,
+            "title": document.title,
+            "filename": document.filename,
+            "department": document.department,
+            "total_chunks": document.total_chunks,
+            "status": document.status,
+            "created_at": (
+                document.created_at.isoformat()
+                if document.created_at
+                else None
+            ),
         }
-        for d in docs
+        for document in visible_documents
     ]
 
 
 @router.post(
     "/{document_id}/share",
-    summary="Share document with specific users or employees",
-    description="Grant explicit document access to specific users/employees. Requires 'share' permission (Admin, HR, Finance, Engineering, Sales).",
+    summary="Share document with specific users",
 )
 async def share_document(
     document_id: str,
@@ -207,27 +175,36 @@ async def share_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Share document with specific users/employees.
-    """
-    user_role = current_user.role_id
-    from backend.roles.service import role_service
-    if not role_service.has_permission(user_role, "share"):
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id)
+        .first()
+    )
+
+    if not document:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access DENIED. Role '{user_role}' does not have share permission.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
         )
 
-    success = await document_service.share_document(document_id, request.user_ids, db=db)
+    authorization_service.require_share_permission(
+        current_user,
+        document,
+    )
 
-    # Audit Log Event
+    success = await document_service.share_document(
+        document_id,
+        request.user_ids,
+        db=db,
+    )
+
     audit_service.log_event(
         db=db,
         event_data=AuditLogCreate(
             event_type="document_shared",
             user_id=current_user.id,
             user_email=current_user.email,
-            user_role=user_role,
+            user_role=current_user.role_id,
             action=f"Shared document '{document_id}' with users {request.user_ids}",
             resource=document_id,
         ),
@@ -243,117 +220,123 @@ async def share_document(
 
 @router.delete(
     "/{document_id}",
-    summary="Delete document from vector DB",
+    summary="Delete document",
 )
 async def delete_document(
     document_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Remove all vector chunks for a document from Qdrant.
-    Requires 'delete' permission (Admin).
-    """
-    user_role = current_user.role_id
-    from backend.roles.service import role_service
-    if not role_service.has_permission(user_role, "delete"):
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id)
+        .first()
+    )
+
+    if not document:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access DENIED. Role '{user_role}' does not have delete permission.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
         )
 
-    success = await document_service.delete_document(document_id, db=db)
+    authorization_service.require_delete_permission(
+        current_user,
+        document,
+    )
 
-    # Audit Log Event
+    success = await document_service.delete_document(
+        document_id,
+        db=db,
+    )
+
     audit_service.log_event(
         db=db,
         event_data=AuditLogCreate(
             event_type="document_deleted",
             user_id=current_user.id,
             user_email=current_user.email,
-            user_role=user_role,
+            user_role=current_user.role_id,
             action=f"Deleted document '{document_id}'",
             resource=document_id,
         ),
     )
 
-    return {"status": "deleted", "document_id": document_id, "success": success}
+    return {
+        "status": "deleted",
+        "document_id": document_id,
+        "success": success,
+    }
 
-
-from backend.api.dependencies import get_current_user, get_current_user_optional
 
 @router.get(
     "/{document_id}/preview",
-    summary="Get document preview and content for PDF/TXT/DOCX viewer",
-    description="Returns document metadata and extracted text chunks for PDF, TXT, and DOCX document viewing.",
+    summary="Get document preview and content",
 )
 def get_document_preview(
     document_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Retrieve document details and parsed text chunks for PDF/TXT/DOCX document previewing.
-    Enforces RBAC access control.
-    """
-    from backend.models.document import Document
-    from backend.retriever.service import retriever_service
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id)
+        .first()
+    )
 
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
+    if not document:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Document '{document_id}' not found.",
         )
 
-    # Check RBAC access
-    user_role = current_user.role_id
-    user_dept = current_user.department
-    if user_role.lower() != "admin":
-        allowed_depts = {"General"}
-        if user_dept:
-            allowed_depts.add(user_dept)
-        if doc.department not in allowed_depts:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access DENIED. You do not have permission to view documents from department '{doc.department}'.",
-            )
-
-    content_data = retriever_service.get_document_content(document_id)
-
-    # Check if raw file exists on disk
-    filename = doc.filename if doc else "document.pdf"
-    has_raw = any(
-        os.path.exists(p)
-        for p in [
-            os.path.join("uploaded_files", f"{document_id}.pdf"),
-            os.path.join("uploaded_files", f"{document_id}_{filename}"),
-            os.path.join("docs", filename),
-            os.path.join("docs", "finance_policy.pdf"),
-        ]
+    authorization_service.require_document_access(
+        current_user,
+        document,
     )
 
-    # Extract pages or chunks
+    content_data = retriever_service.get_document_content(
+        document_id,
+    )
+
+    filename = document.filename
+    paths_to_check = [
+        os.path.join("uploaded_files", f"{document_id}.pdf"),
+        os.path.join("uploaded_files", f"{document_id}_{filename}"),
+        os.path.join("docs", filename),
+    ]
+
+    has_raw = any(
+        os.path.exists(path) and os.path.isfile(path)
+        for path in paths_to_check
+    )
+
     chunks = content_data.get("chunks", [])
-    ext = (filename.split(".")[-1] if filename else "pdf").upper()
+    ext = (
+        filename.rsplit(".", 1)[-1].upper()
+        if "." in filename
+        else "PDF"
+    )
 
     return {
-        "document_id": doc.id,
-        "title": doc.title,
-        "filename": doc.filename,
-        "department": doc.department,
-        "file_size": doc.file_size,
-        "mime_type": doc.mime_type,
+        "document_id": document.id,
+        "title": document.title,
+        "filename": document.filename,
+        "department": document.department,
+        "file_size": document.file_size,
+        "mime_type": document.mime_type,
         "kind": ext,
-        "total_chunks": doc.total_chunks,
+        "total_chunks": document.total_chunks,
         "has_raw": has_raw,
-        "raw_url": f"/api/v1/documents/{doc.id}/raw",
-        "created_at": doc.created_at.isoformat() if doc.created_at else None,
+        "raw_url": f"/api/v1/documents/{document.id}/raw",
+        "created_at": (
+            document.created_at.isoformat()
+            if document.created_at
+            else None
+        ),
         "chunks": chunks,
     }
 
 
-from fastapi.responses import FileResponse
 @router.get(
     "/{document_id}/raw",
     summary="Serve raw document binary",
@@ -363,87 +346,39 @@ def get_raw_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Return the original document binary after authentication
-    and document-level RBAC authorization.
-    """
-
-    from backend.models.document import Document
-
-    doc = (
+    document = (
         db.query(Document)
         .filter(Document.id == document_id)
         .first()
     )
 
-    if not doc:
+    if not document:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found.",
         )
 
-   
-
-    user_role = current_user.role_id.lower()
-    user_department = (
-        current_user.department.strip()
-        if current_user.department
-        else None
+    authorization_service.require_document_access(
+        current_user,
+        document,
     )
 
-    # Admin can access all documents
-    if user_role != "admin":
-
-        allowed_departments = {"General"}
-
-        if user_department:
-            allowed_departments.add(user_department)
-
-        # Department-level authorization
-        if doc.department not in allowed_departments:
-
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to access this document.",
-            )
-
-
-    filename = doc.filename
-
+    filename = document.filename
     paths_to_check = [
-        os.path.join(
-            "uploaded_files",
-            f"{document_id}.pdf",
-        ),
-        os.path.join(
-            "uploaded_files",
-            f"{document_id}_{filename}",
-        ),
-        os.path.join(
-            "docs",
-            filename,
-        ),
+        os.path.join("uploaded_files", f"{document_id}.pdf"),
+        os.path.join("uploaded_files", f"{document_id}_{filename}"),
+        os.path.join("docs", filename),
     ]
 
-   
-
     for path in paths_to_check:
-
         if os.path.exists(path) and os.path.isfile(path):
-
-            mime = (
-                doc.mime_type
-                if doc.mime_type
-                else "application/octet-stream"
-            )
-
+            mime = document.mime_type or "application/octet-stream"
             return FileResponse(
                 path=path,
                 media_type=mime,
                 filename=filename,
             )
 
-  
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="Raw document binary file not found.",
