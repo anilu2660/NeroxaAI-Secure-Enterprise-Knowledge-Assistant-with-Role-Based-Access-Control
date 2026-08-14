@@ -52,4 +52,5 @@ export interface AssistantQueryResponse {
   agentSteps: AgentExecutionStep[];
   messageId: string | null;
   createdAt: string | null;
+  webSearchStatus?: string | null;
 }
