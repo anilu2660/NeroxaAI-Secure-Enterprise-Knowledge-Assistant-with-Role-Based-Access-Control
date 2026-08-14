@@ -15,21 +15,14 @@ if TYPE_CHECKING:
 
 
 class ChatSession(Base, TimestampMixin):
-    """
-    ChatSession table for managing multi-turn conversation threads.
-    """
+    """ChatSession table for managing multi-turn conversation threads."""
 
     __tablename__ = "chat_sessions"
 
-    id: Mapped[str] = mapped_column(
-        String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4()),
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="New Conversation")
 
-    # Relationships
     user: Mapped["User"] = relationship("User", back_populates="chat_sessions")
     messages: Mapped[list["ChatMessage"]] = relationship(
         "ChatMessage", back_populates="session", cascade="all, delete-orphan", order_by="ChatMessage.created_at"
@@ -40,23 +33,19 @@ class ChatSession(Base, TimestampMixin):
 
 
 class ChatMessage(Base, TimestampMixin):
-    """
-    ChatMessage table storing user prompts and assistant responses.
-    """
+    """ChatMessage table storing prompts, answers, sources and execution metadata."""
 
     __tablename__ = "chat_messages"
 
-    id: Mapped[str] = mapped_column(
-        String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4()),
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id: Mapped[str] = mapped_column(String(36), ForeignKey("chat_sessions.id"), nullable=False, index=True)
-    role: Mapped[str] = mapped_column(String(20), nullable=False)  # "user" or "assistant"
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     sources: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+    # Structured orchestrator metadata returned to the UI without changing the
+    # answer/source contract. Nullable for backwards compatibility with old chats.
+    execution_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    # Relationships
     session: Mapped["ChatSession"] = relationship("ChatSession", back_populates="messages")
 
     def __repr__(self) -> str:
