@@ -2,15 +2,17 @@
 Chat Service
 
 Business logic for managing multi-turn conversational chat sessions,
-conversation context condensation, RAG invocation, and DB persistence.
+conversation context condensation, query routing, RAG invocation, and DB persistence.
 """
 
 import logging
-from sqlalchemy.orm import Session
+
 from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
 from backend.models.chat import ChatSession, ChatMessage
 from backend.models.user import User
-from backend.rag.service import rag_service
+from backend.orchestrator.service import query_orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +24,7 @@ class ChatService:
         user: User,
         title: str = "New Conversation",
     ) -> ChatSession:
-        session = ChatSession(
-            user_id=user.id,
-            title=title,
-        )
+        session = ChatSession(user_id=user.id, title=title)
         db.add(session)
         db.commit()
         db.refresh(session)
@@ -72,11 +71,7 @@ class ChatService:
         session_id: str,
         user: User,
     ) -> bool:
-        session = self.get_session_by_id(
-            db,
-            session_id,
-            user,
-        )
+        session = self.get_session_by_id(db, session_id, user)
         db.delete(session)
         db.commit()
         return True
@@ -89,11 +84,7 @@ class ChatService:
         user_message: str,
         department_filter: str | None = None,
     ) -> ChatMessage:
-        session = self.get_session_by_id(
-            db,
-            session_id,
-            user,
-        )
+        session = self.get_session_by_id(db, session_id, user)
 
         user_msg = ChatMessage(
             session_id=session.id,
@@ -103,46 +94,36 @@ class ChatService:
         db.add(user_msg)
         db.commit()
 
-        recent_messages = session.messages[-6:]
-        history_str = ""
-
-        for message in recent_messages[:-1]:
-            history_str += (
-                f"{message.role.capitalize()}: "
-                f"{message.content}\n"
+        recent_messages = session.messages[-7:-1]
+        history_parts = []
+        for message in recent_messages:
+            history_parts.append(
+                f"{message.role.capitalize()}: {message.content}"
             )
 
-        if history_str.strip():
-            contextualized_query = (
-                f"Conversation History:\n{history_str}\n"
-                f"Follow-up Question: {user_message}\n"
-                f"Please answer the follow-up question in context of the conversation."
-            )
-        else:
-            contextualized_query = user_message
+        history_str = "\n".join(history_parts)
 
         if session.title == "New Conversation" and len(session.messages) <= 2:
             clean_title = user_message[:40] + (
-                "..."
-                if len(user_message) > 40
-                else ""
+                "..." if len(user_message) > 40 else ""
             )
             session.title = clean_title
             db.commit()
 
-        rag_result = await rag_service.query(
-            query=contextualized_query,
+        result = await query_orchestrator.process(
+            query=user_message,
             user_id=user.id,
             user_role=user.role_id,
             user_department=user.department,
+            conversation_history=history_str,
             department_filter=department_filter,
         )
 
         assistant_msg = ChatMessage(
             session_id=session.id,
             role="assistant",
-            content=rag_result["answer"],
-            sources=rag_result.get("sources", []),
+            content=result["answer"],
+            sources=result.get("sources", []),
         )
         db.add(assistant_msg)
         db.commit()
