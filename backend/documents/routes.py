@@ -354,10 +354,9 @@ def get_document_preview(
 
 
 from fastapi.responses import FileResponse
-
 @router.get(
     "/{document_id}/raw",
-    summary="Serve raw PDF/DOCX/TXT document binary for native Adobe PDF view",
+    summary="Serve raw document binary",
 )
 def get_raw_document(
     document_id: str,
@@ -365,29 +364,87 @@ def get_raw_document(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Returns original PDF binary file for native embedded PDF viewing.
+    Return the original document binary after authentication
+    and document-level RBAC authorization.
     """
+
     from backend.models.document import Document
-    doc = db.query(Document).filter(Document.id == document_id).first()
 
-    filename = doc.filename if doc else "document.pdf"
-    paths_to_check = [
-        os.path.join("uploaded_files", f"{document_id}.pdf"),
-        os.path.join("uploaded_files", f"{document_id}_{filename}"),
-        os.path.join("docs", filename),
-        os.path.join("docs", "finance_policy.pdf"),
-    ]
-
-    for p in paths_to_check:
-        if os.path.exists(p) and os.path.isfile(p):
-            mime = (doc.mime_type if doc and doc.mime_type else None) or "application/pdf"
-            return FileResponse(
-                path=p,
-                media_type=mime,
-            )
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Raw document binary file not found on server.",
+    doc = (
+        db.query(Document)
+        .filter(Document.id == document_id)
+        .first()
     )
 
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+   
+
+    user_role = current_user.role_id.lower()
+    user_department = (
+        current_user.department.strip()
+        if current_user.department
+        else None
+    )
+
+    # Admin can access all documents
+    if user_role != "admin":
+
+        allowed_departments = {"General"}
+
+        if user_department:
+            allowed_departments.add(user_department)
+
+        # Department-level authorization
+        if doc.department not in allowed_departments:
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to access this document.",
+            )
+
+
+    filename = doc.filename
+
+    paths_to_check = [
+        os.path.join(
+            "uploaded_files",
+            f"{document_id}.pdf",
+        ),
+        os.path.join(
+            "uploaded_files",
+            f"{document_id}_{filename}",
+        ),
+        os.path.join(
+            "docs",
+            filename,
+        ),
+    ]
+
+   
+
+    for path in paths_to_check:
+
+        if os.path.exists(path) and os.path.isfile(path):
+
+            mime = (
+                doc.mime_type
+                if doc.mime_type
+                else "application/octet-stream"
+            )
+
+            return FileResponse(
+                path=path,
+                media_type=mime,
+                filename=filename,
+            )
+
+  
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Raw document binary file not found.",
+    )
