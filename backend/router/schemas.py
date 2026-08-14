@@ -8,6 +8,7 @@ class QueryRoute(str, Enum):
     ENTERPRISE = "enterprise"
     WEB = "web"
     HYBRID = "hybrid"
+    TOOL = "tool"
 
 
 class QueryRoutingDecision(BaseModel):
