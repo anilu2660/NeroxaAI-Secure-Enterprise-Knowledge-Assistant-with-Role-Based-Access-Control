@@ -1,7 +1,7 @@
 """
 Semantic Query Cache Service
 
-Provides sub-50ms caching for semantically identical queries using dense embedding vector similarity.
+Provides semantic caching while isolating cached answers by authenticated user.
 """
 
 import time
@@ -15,22 +15,16 @@ logger = logging.getLogger(__name__)
 
 
 class SemanticCacheService:
-    """
-    In-Memory Semantic Query Cache.
-
-    Stores past query embedding vectors, answers, and sources.
-    Performs cosine similarity checks against incoming queries.
-    Enforces TTL expiration and RBAC scope isolation.
-    """
-
     def __init__(self, similarity_threshold: float = 0.92, ttl_seconds: int = 300):
         self.threshold = similarity_threshold
         self.ttl_seconds = ttl_seconds
-        # Structure: list of dicts with keys: query, embedding, answer, sources, model, department, role, created_at
         self._cache: list[dict[str, Any]] = []
 
-    def _cosine_similarity(self, vec_a: list[float], vec_b: list[float]) -> float:
-        """Compute cosine similarity between two 1D embedding vectors."""
+    def _cosine_similarity(
+        self,
+        vec_a: list[float],
+        vec_b: list[float],
+    ) -> float:
         a = np.array(vec_a, dtype=np.float32)
         b = np.array(vec_b, dtype=np.float32)
         norm_a = np.linalg.norm(a)
@@ -42,49 +36,52 @@ class SemanticCacheService:
     def get(
         self,
         query: str,
+        user_id: str,
         user_role: str,
         user_department: str,
     ) -> dict[str, Any] | None:
-        """
-        Check if a semantically equivalent query exists in cache for the given role/dept scope.
-
-        Returns:
-            dict with answer, sources, model, cached=True, latency_ms if hit, else None.
-        """
         now = time.time()
+        self._cache = [
+            e
+            for e in self._cache
+            if (now - e["created_at"]) < self.ttl_seconds
+        ]
 
-        # Purge expired entries
-        self._cache = [e for e in self._cache if (now - e["created_at"]) < self.ttl_seconds]
-
-        if not self._cache:
+        if not self._cache or not user_id:
             return None
 
-        # Embed incoming query
         try:
             query_vec = embedding_service.embed_query(query)
         except Exception as e:
-            logger.warning("Failed to embed query for cache lookup: %s", str(e))
+            logger.warning(
+                "Failed to embed query for cache lookup: %s",
+                str(e),
+            )
             return None
 
         best_score = 0.0
         best_entry = None
 
         for entry in self._cache:
-            # RBAC Isolation: Only hit cache if created under same department and role scope
-            if entry["department"] == user_department and entry["role"] == user_role:
-                sim = self._cosine_similarity(query_vec, entry["embedding"])
-                if sim > best_score:
-                    best_score = sim
-                    best_entry = entry
+            if entry["user_id"] != user_id:
+                continue
+
+            if (
+                entry["department"] != user_department
+                or entry["role"] != user_role
+            ):
+                continue
+
+            sim = self._cosine_similarity(
+                query_vec,
+                entry["embedding"],
+            )
+
+            if sim > best_score:
+                best_score = sim
+                best_entry = entry
 
         if best_entry and best_score >= self.threshold:
-            logger.info(
-                "SEMANTIC CACHE HIT | sim=%.4f >= %.2f | query='%s' ~ '%s'",
-                best_score,
-                self.threshold,
-                query[:40],
-                best_entry["query"][:40],
-            )
             return {
                 "query": query,
                 "answer": best_entry["answer"],
@@ -104,14 +101,18 @@ class SemanticCacheService:
         sources: list[dict],
         model: str,
         chunks_retrieved: int,
+        user_id: str,
         user_role: str,
         user_department: str,
-    ):
-        """
-        Store query and response into semantic cache.
-        """
-        # Don't cache insufficient information or security alert refusals
-        if "cannot find sufficient information" in answer.lower() or "security alert" in answer.lower():
+    ) -> None:
+        if not user_id:
+            return
+
+        if (
+            "cannot find sufficient information" in answer.lower()
+            or "security alert" in answer.lower()
+            or "access denied" in answer.lower()
+        ):
             return
 
         try:
@@ -123,16 +124,18 @@ class SemanticCacheService:
                 "sources": sources,
                 "model": model,
                 "chunks_retrieved": chunks_retrieved,
+                "user_id": user_id,
                 "role": user_role,
                 "department": user_department,
                 "created_at": time.time(),
             })
-            logger.info("SEMANTIC CACHE STORED | query='%s'", query[:40])
         except Exception as e:
-            logger.warning("Failed to store entry in semantic cache: %s", str(e))
+            logger.warning(
+                "Failed to store entry in semantic cache: %s",
+                str(e),
+            )
 
     def clear(self):
-        """Clear cache entries."""
         self._cache.clear()
 
 
