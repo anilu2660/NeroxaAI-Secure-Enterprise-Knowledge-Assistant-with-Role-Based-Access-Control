@@ -82,13 +82,11 @@ class RetrieverService:
             ),
         ]
 
-        must_conditions = [
-            Filter(should=access_conditions)
-        ]
+        must_conditions = [Filter(should=access_conditions)]
 
         if department_filter:
             if department_filter not in allowed_departments:
-                must_conditions.append(
+                must_conditions = [
                     Filter(
                         should=[
                             FieldCondition(
@@ -100,8 +98,16 @@ class RetrieverService:
                                 match=MatchValue(value=user_id),
                             ),
                         ]
-                    )
-                )
+                    ),
+                    Filter(
+                        must=[
+                            FieldCondition(
+                                key="department",
+                                match=MatchValue(value=department_filter),
+                            )
+                        ]
+                    ),
+                ]
             else:
                 must_conditions.append(
                     Filter(
