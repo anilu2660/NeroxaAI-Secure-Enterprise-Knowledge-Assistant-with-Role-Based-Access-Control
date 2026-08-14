@@ -9,6 +9,7 @@ export interface AssistantQueryRequest {
   department_filter?: string | null;
   top_k?: number;
   temperature?: number;
+  session_id?: string | null;
 }
 
 export interface AssistantSource {
@@ -49,4 +50,6 @@ export interface AssistantQueryResponse {
   toolResult: unknown;
   agentPlan: AgentPlan | null;
   agentSteps: AgentExecutionStep[];
+  messageId: string | null;
+  createdAt: string | null;
 }
