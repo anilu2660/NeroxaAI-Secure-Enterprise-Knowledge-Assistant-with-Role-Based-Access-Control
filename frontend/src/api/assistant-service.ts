@@ -4,7 +4,7 @@ import type {
   AssistantQueryRequest,
   AssistantQueryResponse,
   AssistantSource,
-} from "./types";
+} from "./assistant-types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -20,9 +20,9 @@ function buildHeaders(token?: string | null): HeadersInit {
   };
 }
 
-function normalizeSource(source: Record<string, unknown>): AssistantSource {
+function normalizeSource(source: Record<string, unknown>, index: number): AssistantSource {
   return {
-    id: String(source.id ?? source.document_id ?? source.url ?? crypto.randomUUID()),
+    id: String(source.id ?? source.document_id ?? source.url ?? `source-${index}`),
     type: source.type === "web" ? "web" : "enterprise",
     title: String(source.title ?? source.document_title ?? source.filename ?? "Source"),
     url: typeof source.url === "string" ? source.url : null,
@@ -38,17 +38,17 @@ function normalizeAgentPlan(value: unknown): AgentPlan | null {
   const plan = value as { steps?: unknown };
   if (!Array.isArray(plan.steps)) return null;
 
-  const steps = plan.steps
-    .filter((step): step is Record<string, unknown> => !!step && typeof step === "object")
-    .map((step) => ({
-      id: Number(step.id),
-      type: String(step.type) as AgentExecutionStep["type"],
-      task: String(step.task ?? ""),
-      toolName: typeof step.tool_name === "string" ? step.tool_name : null,
-      status: null,
-    }));
-
-  return { steps };
+  return {
+    steps: plan.steps
+      .filter((step): step is Record<string, unknown> => !!step && typeof step === "object")
+      .map((step) => ({
+        id: Number(step.id),
+        type: String(step.type) as AgentExecutionStep["type"],
+        task: String(step.task ?? ""),
+        toolName: typeof step.tool_name === "string" ? step.tool_name : null,
+        status: null,
+      })),
+  };
 }
 
 function normalizeResponse(
@@ -57,13 +57,11 @@ function normalizeResponse(
 ): AssistantQueryResponse {
   const rawSources = Array.isArray(payload.sources) ? payload.sources : [];
   const rawSteps = Array.isArray(payload.steps) ? payload.steps : [];
-
-  const route = String(payload.route ?? "enterprise") as AssistantQueryResponse["route"];
+  const route = String(payload.route ?? "enterprise");
   const normalizedRoute = ["casual", "enterprise", "web", "hybrid", "tool", "agent"].includes(route)
-    ? route
+    ? (route as AssistantQueryResponse["route"])
     : "enterprise";
 
-  const agentPlan = normalizeAgentPlan(payload.plan);
   const steps: AgentExecutionStep[] = rawSteps
     .filter((step): step is Record<string, unknown> => !!step && typeof step === "object")
     .map((step) => ({
@@ -95,7 +93,7 @@ function normalizeResponse(
         ? payload.tool_status
         : null,
     toolResult: payload.tool_result ?? null,
-    agentPlan,
+    agentPlan: normalizeAgentPlan(payload.plan),
     agentSteps: steps,
   };
 }
