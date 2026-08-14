@@ -3,12 +3,6 @@ Retriever Service
 
 Performs semantic search with metadata filtering against Qdrant.
 Enforces RBAC before returning relevant document chunks.
-
-RBAC Rules:
-- Admin: Can access all documents across all departments
-- Department roles (HR, Finance, Engineering, Sales): Can access their own
-  department's documents plus documents tagged as "General"
-- Employee: Can only access documents tagged as "General" or explicitly shared
 """
 
 import logging
@@ -20,28 +14,18 @@ from backend.retriever.qdrant_client import qdrant_manager
 
 logger = logging.getLogger(__name__)
 
-# RBAC role-to-department access mapping
 ROLE_ACCESS_MAP = {
-    "admin": None,  # None means access to ALL departments
-    "hr": ["HR", "General"],
-    "finance": ["Finance", "General"],
-    "engineering": ["Engineering", "General"],
-    "sales": ["Sales", "General"],
-    "employee": ["General"],
+    "admin": None,
+    "hr": {"HR", "General"},
+    "finance": {"Finance", "General"},
+    "engineering": {"Engineering", "General"},
+    "sales": {"Sales", "General"},
+    "employee": {"General"},
 }
 
 
 class RetrieverService:
-    """
-    Service for RBAC-aware semantic search against Qdrant vector database.
-
-    Retrieves relevant document chunks by combining vector similarity
-    with metadata filtering based on the user's role and department.
-    Also handles chunk indexing and document deletion.
-    """
-
     def __init__(self):
-        """Initialize the Qdrant client and manager."""
         self.host = settings.QDRANT_HOST
         self.port = settings.QDRANT_PORT
         self.collection = settings.QDRANT_COLLECTION
@@ -49,138 +33,132 @@ class RetrieverService:
 
     @property
     def client(self) -> QdrantClient:
-        """Access the underlying Qdrant client."""
         return self.manager.client
 
     def _build_rbac_filter(
         self,
         user_role: str,
         user_department: str,
+        user_id: str,
         department_filter: str | None = None,
     ) -> Filter | None:
-        """
-        Build a Qdrant metadata filter based on user's RBAC permissions.
+        role_lower = (user_role or "").strip().lower()
+        user_dept = (user_department or "").strip()
+        user_id = (user_id or "").strip()
 
-        Args:
-            user_role: The user's role (admin, hr, finance, etc.)
-            user_department: The user's department.
-            department_filter: Optional additional department filter from query.
+        if not user_id:
+            raise ValueError("Authenticated user ID is required for RAG retrieval.")
 
-        Returns:
-            Qdrant Filter object or None (for admin with no extra filter).
-        """
-        role_lower = user_role.lower()
         if role_lower == "admin":
-            allowed_departments = None
-        else:
-            depts = {"General"}
-            if user_department:
-                depts.add(user_department)
-            role_depts = ROLE_ACCESS_MAP.get(role_lower)
-            if role_depts:
-                depts.update(role_depts)
-            allowed_departments = list(depts)
-
-        # Admin with no department filter => no restrictions
-        if allowed_departments is None and department_filter is None:
+            if department_filter:
+                return Filter(
+                    must=[
+                        FieldCondition(
+                            key="department",
+                            match=MatchValue(value=department_filter),
+                        )
+                    ]
+                )
             return None
 
-        # Admin with department filter => filter by requested department only
-        if allowed_departments is None and department_filter:
-            return Filter(
-                must=[
-                    FieldCondition(
-                        key="department",
-                        match=MatchValue(value=department_filter),
-                    )
-                ]
-            )
-
-        # Non-admin: restrict to allowed departments
-        # If a department_filter is specified, intersect with allowed departments
-        if department_filter:
-            if department_filter in allowed_departments:
-                target_departments = [department_filter]
-            else:
-                logger.warning(
-                    "User role '%s' cannot access department '%s'",
-                    user_role,
-                    department_filter,
-                )
-                # Return an impossible filter to yield zero results
-                target_departments = ["__NONE__"]
-        else:
-            target_departments = allowed_departments
-
-        return Filter(
-            should=[
-                FieldCondition(
-                    key="department",
-                    match=MatchAny(any=target_departments),
-                ),
-                FieldCondition(
-                    key="shared_with",
-                    match=MatchValue(value=user_role.lower()),
-                ),
-            ]
+        allowed_departments = set(
+            ROLE_ACCESS_MAP.get(role_lower, {"General"}) or {"General"}
         )
+        if user_dept:
+            allowed_departments.add(user_dept)
+
+        access_conditions = [
+            FieldCondition(
+                key="department",
+                match=MatchAny(any=list(allowed_departments)),
+            ),
+            FieldCondition(
+                key="owner_id",
+                match=MatchValue(value=user_id),
+            ),
+            FieldCondition(
+                key="shared_with",
+                match=MatchValue(value=user_id),
+            ),
+        ]
+
+        must_conditions = [
+            Filter(should=access_conditions)
+        ]
+
+        if department_filter:
+            if department_filter not in allowed_departments:
+                must_conditions.append(
+                    Filter(
+                        should=[
+                            FieldCondition(
+                                key="owner_id",
+                                match=MatchValue(value=user_id),
+                            ),
+                            FieldCondition(
+                                key="shared_with",
+                                match=MatchValue(value=user_id),
+                            ),
+                        ]
+                    )
+                )
+            else:
+                must_conditions.append(
+                    Filter(
+                        must=[
+                            FieldCondition(
+                                key="department",
+                                match=MatchValue(value=department_filter),
+                            )
+                        ]
+                    )
+                )
+
+        return Filter(must=must_conditions)
 
     async def search(
         self,
         query_embedding: list[float],
         user_role: str,
         user_department: str,
+        user_id: str,
         department_filter: str | None = None,
         top_k: int = 6,
         query_text: str | None = None,
     ) -> list[dict]:
-        """
-        Search for relevant document chunks with RBAC enforcement and optional Hybrid Search.
-
-        Args:
-            query_embedding: The embedded query vector.
-            user_role: User's role for RBAC filtering.
-            user_department: User's department for RBAC filtering.
-            department_filter: Optional department to narrow results.
-            top_k: Number of top results to return.
-            query_text: Original text query for sparse BM25 encoding.
-
-        Returns:
-            List of dicts with keys: content, title, department, page_number, score.
-        """
         self.manager.ensure_collection_exists()
 
         rbac_filter = self._build_rbac_filter(
             user_role=user_role,
             user_department=user_department,
+            user_id=user_id,
             department_filter=department_filter,
         )
 
         try:
-            # 1. Attempt named vector search ('dense')
             results = []
+            limit = top_k * 3 if query_text and settings.ENABLE_HYBRID_SEARCH else top_k
+
             try:
                 response = self.client.query_points(
                     collection_name=self.collection,
                     query=query_embedding,
                     using="dense",
                     query_filter=rbac_filter,
-                    limit=top_k * 3 if (query_text and settings.ENABLE_HYBRID_SEARCH) else top_k,
+                    limit=limit,
                     score_threshold=0.1,
                 )
                 results = response.points
             except Exception:
-                # Fallback to unnamed vector for legacy collections
                 response = self.client.query_points(
                     collection_name=self.collection,
                     query=query_embedding,
                     query_filter=rbac_filter,
-                    limit=top_k * 3 if (query_text and settings.ENABLE_HYBRID_SEARCH) else top_k,
+                    limit=limit,
                     score_threshold=0.1,
                 )
                 results = response.points
 
-            # 2. If Hybrid Search is enabled and query_text is provided, perform Sparse BM25 retrieval
             sparse_results = []
             if query_text and settings.ENABLE_HYBRID_SEARCH:
                 try:
@@ -196,27 +174,30 @@ class RetrieverService:
                         )
                         sparse_results = sparse_resp.points
                 except Exception as sparse_err:
-                    logger.debug("Sparse search skipped or not available on collection: %s", sparse_err)
+                    logger.debug(
+                        "Sparse search skipped or unavailable: %s",
+                        sparse_err,
+                    )
 
-            # 3. Reciprocal Rank Fusion (RRF) if sparse results are present
             if sparse_results:
                 rrf_scores: dict[str, float] = {}
                 point_map: dict[str, Any] = {}
 
-                # Score dense results
                 for rank, point in enumerate(results, start=1):
                     pid = str(point.id)
-                    rrf_scores[pid] = rrf_scores.get(pid, 0.0) + (1.0 / (60 + rank))
+                    rrf_scores[pid] = rrf_scores.get(pid, 0.0) + 1.0 / (60 + rank)
                     point_map[pid] = point
 
-                # Score sparse results
                 for rank, point in enumerate(sparse_results, start=1):
                     pid = str(point.id)
-                    rrf_scores[pid] = rrf_scores.get(pid, 0.0) + (1.0 / (60 + rank))
+                    rrf_scores[pid] = rrf_scores.get(pid, 0.0) + 1.0 / (60 + rank)
                     point_map[pid] = point
 
-                # Sort by combined RRF score
-                sorted_pids = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)[:top_k]
+                sorted_pids = sorted(
+                    rrf_scores,
+                    key=lambda k: rrf_scores[k],
+                    reverse=True,
+                )[:top_k]
                 final_points = [point_map[pid] for pid in sorted_pids]
             else:
                 final_points = results[:top_k]
@@ -226,22 +207,26 @@ class RetrieverService:
                 payload = point.payload or {}
                 chunks.append({
                     "content": payload.get("content", ""),
+                    "parent_content": payload.get("parent_content", ""),
+                    "parent_id": payload.get("parent_id", ""),
                     "title": payload.get("title", "Unknown Document"),
                     "department": payload.get("department", "General"),
                     "page_number": payload.get("page_number", "N/A"),
                     "document_id": payload.get("document_id", ""),
                     "owner": payload.get("owner", ""),
+                    "owner_id": payload.get("owner_id", ""),
+                    "shared_with": payload.get("shared_with", []),
                     "score": getattr(point, "score", 0.0),
                 })
 
             logger.info(
-                "Retrieved %d chunks (hybrid=%s) | role=%s | filter=%s",
+                "Retrieved %d authorized chunks | role=%s | department=%s | user_id=%s | filter=%s",
                 len(chunks),
-                bool(sparse_results),
                 user_role,
+                user_department,
+                user_id,
                 department_filter,
             )
-
             return chunks
 
         except Exception as e:
@@ -249,49 +234,21 @@ class RetrieverService:
             raise RuntimeError(f"Retrieval failed: {str(e)}") from e
 
     async def index_chunks(self, points: list[PointStruct]) -> bool:
-        """
-        Store embedded document chunk points in Qdrant with metadata payload.
-
-        Args:
-            points: List of PointStruct objects (id, vector, payload).
-        """
         return self.manager.upsert_chunks(points)
 
     async def share_document(self, document_id: str, user_ids: list[str]) -> bool:
-        """
-        Share document with specific users/roles so they can access it in RAG queries.
-        """
         return self.manager.share_document_with_users(document_id, user_ids)
 
     async def delete_document_chunks(self, document_id: str) -> bool:
-        """
-        Delete all vector chunks belonging to a document from Qdrant.
-
-        Args:
-            document_id: The ID of the document to remove.
-        """
         return self.manager.delete_by_document_id(document_id)
 
     async def has_document_chunks(self, document_id: str) -> bool:
-        """
-        Check if vector chunks exist in Qdrant for a given document_id.
-        """
         return self.manager.has_document_chunks(document_id)
 
     def get_document_content(self, document_id: str) -> dict:
-        """
-        Retrieve document payload chunks and page text for PDF/TXT/DOCX previewers.
-        """
         return self.manager.get_document_content(document_id)
 
-
     async def check_health(self) -> dict:
-        """
-        Check Qdrant connectivity and collection status.
-
-        Returns:
-            dict with status, host, and collection info.
-        """
         try:
             collections = self.client.get_collections()
             collection_names = [c.name for c in collections.collections]
@@ -313,5 +270,4 @@ class RetrieverService:
             }
 
 
-# Singleton instance for dependency injection
 retriever_service = RetrieverService()
