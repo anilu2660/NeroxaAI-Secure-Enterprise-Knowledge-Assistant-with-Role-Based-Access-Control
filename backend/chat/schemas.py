@@ -5,11 +5,27 @@ Pydantic models for chat session and conversational memory API payloads.
 """
 
 from datetime import datetime
+from typing import Any
 from pydantic import BaseModel, Field, ConfigDict
 
 
 class CreateChatSessionRequest(BaseModel):
     title: str = Field(default="New Conversation", description="Title for the chat session.")
+
+
+class ChatExecutionMetadata(BaseModel):
+    route: str | None = None
+    route_confidence: float | None = None
+    rewritten_query: str | None = None
+    cached: bool = False
+    model: str | None = None
+    chunks_retrieved: int = 0
+    tool_name: str | None = None
+    tool_status: str | None = None
+    tool_result: Any = None
+    agent_plan: dict | None = None
+    agent_steps: list[dict] = Field(default_factory=list)
+    web_search_status: str | None = None
 
 
 class ChatMessageResponse(BaseModel):
@@ -18,6 +34,7 @@ class ChatMessageResponse(BaseModel):
     role: str
     content: str
     sources: list[dict] | None = None
+    execution_metadata: ChatExecutionMetadata | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -28,10 +45,9 @@ class ChatSessionResponse(BaseModel):
     user_id: str
     title: str
     created_at: datetime
-    messages: list[ChatMessageResponse] = []
+    messages: list[ChatMessageResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
-
 
 
 class SendChatMessageRequest(BaseModel):
