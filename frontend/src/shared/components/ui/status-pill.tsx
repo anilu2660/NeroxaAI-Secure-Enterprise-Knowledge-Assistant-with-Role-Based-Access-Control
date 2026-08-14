@@ -9,21 +9,11 @@ const tones = {
   accent: "border-primary/20 bg-primary/10 text-primary",
 } as const;
 
-export function StatusPill({
-  children,
-  tone = "neutral",
-  icon,
-  className,
-}: {
+export function StatusPill({ children, tone = "neutral", icon, className }: {
   children: ReactNode;
   tone?: keyof typeof tones;
   icon?: ReactNode;
   className?: string;
 }) {
-  return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10.5px] font-medium", tones[tone], className)}>
-      {icon}
-      {children}
-    </span>
-  );
+  return <span role="status" className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10.5px] font-medium", tones[tone], className)}>{icon ? <span aria-hidden="true" className="shrink-0">{icon}</span> : null}{children}</span>;
 }
