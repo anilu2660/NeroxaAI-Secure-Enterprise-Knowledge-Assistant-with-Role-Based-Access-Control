@@ -13,11 +13,38 @@ export interface AssistantQueryOptions {
   signal?: AbortSignal;
 }
 
+export interface AssistantSession {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+}
+
+export interface AssistantMessage {
+  id: string;
+  session_id: string;
+  role: string;
+  content: string;
+  sources: Record<string, unknown>[] | null;
+  created_at: string;
+}
+
 function buildHeaders(token?: string | null): HeadersInit {
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+async function parseError(response: Response, fallback: string): Promise<never> {
+  let detail = fallback;
+  try {
+    const body = (await response.json()) as { detail?: string };
+    if (body.detail) detail = body.detail;
+  } catch {
+    // Keep the status-based fallback when the server does not return JSON.
+  }
+  throw new Error(detail);
 }
 
 function normalizeSource(source: Record<string, unknown>, index: number): AssistantSource {
@@ -67,7 +94,7 @@ function normalizeResponse(
     .map((step) => ({
       id: Number(step.step_id ?? step.id),
       type: String(step.type ?? "rag") as AgentExecutionStep["type"],
-      task: "",
+      task: String(step.task ?? ""),
       toolName: typeof step.tool_name === "string" ? step.tool_name : null,
       status: step.status === "failed" ? "failed" : "success",
     }));
@@ -95,7 +122,51 @@ function normalizeResponse(
     toolResult: payload.tool_result ?? null,
     agentPlan: normalizeAgentPlan(payload.plan),
     agentSteps: steps,
+    messageId: typeof payload.message_id === "string" ? payload.message_id : null,
+    createdAt: typeof payload.created_at === "string" ? payload.created_at : null,
   };
+}
+
+export async function createAssistantSession(
+  title = "New Conversation",
+  options: AssistantQueryOptions = {},
+): Promise<AssistantSession> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/chat/sessions`, {
+    method: "POST",
+    headers: buildHeaders(options.token),
+    body: JSON.stringify({ title }),
+    signal: options.signal,
+  });
+
+  if (!response.ok) {
+    return parseError(response, `Could not create chat session (${response.status}).`);
+  }
+
+  return (await response.json()) as AssistantSession;
+}
+
+export async function sendAssistantMessage(
+  sessionId: string,
+  message: string,
+  departmentFilter?: string | null,
+  options: AssistantQueryOptions = {},
+): Promise<AssistantMessage> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/chat/message`, {
+    method: "POST",
+    headers: buildHeaders(options.token),
+    body: JSON.stringify({
+      session_id: sessionId,
+      message,
+      department_filter: departmentFilter ?? null,
+    }),
+    signal: options.signal,
+  });
+
+  if (!response.ok) {
+    return parseError(response, `Assistant request failed (${response.status}).`);
+  }
+
+  return (await response.json()) as AssistantMessage;
 }
 
 export async function queryAssistant(
@@ -110,18 +181,24 @@ export async function queryAssistant(
   });
 
   if (!response.ok) {
-    let detail = `Assistant request failed (${response.status}).`;
-    try {
-      const body = (await response.json()) as { detail?: string };
-      if (body.detail) detail = body.detail;
-    } catch {
-      // Keep the status-based error when the server does not return JSON.
-    }
-    throw new Error(detail);
+    return parseError(response, `Assistant request failed (${response.status}).`);
   }
 
   const payload = (await response.json()) as Record<string, unknown>;
   return normalizeResponse(request, payload);
+}
+
+export function normalizeAssistantMessage(
+  request: AssistantQueryRequest,
+  message: AssistantMessage,
+): AssistantQueryResponse {
+  return normalizeResponse(request, {
+    query: request.query,
+    answer: message.content,
+    sources: message.sources ?? [],
+    message_id: message.id,
+    created_at: message.created_at,
+  });
 }
 
 export function createAssistantAbortController(): AbortController {
