@@ -31,6 +31,25 @@ from backend.utils.rate_limiter import rate_limit_guard
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
 
+def _set_access_token_cookie(response: RedirectResponse, token: str) -> None:
+    response.set_cookie(
+        key="neroxa_access_token",
+        value=token,
+        max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_access_token_cookie(response: RedirectResponse) -> None:
+    response.delete_cookie(
+        key="neroxa_access_token",
+        path="/",
+    )
+
+
 @router.post("/register/initiate", status_code=status.HTTP_200_OK, summary="Step 1: Send email and mobile OTPs for new user registration", dependencies=[Depends(rate_limit_guard("auth"))])
 def initiate_registration(request: InitiateRegistrationRequest, db: Session = Depends(get_db)):
     return auth_service.initiate_registration(db, request)
@@ -61,6 +80,42 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     from backend.audit.service import audit_service
     audit_service.log_event(db=db, event_data=AuditLogCreate(event_type="user_login", user_id=user.id, user_email=user.email, user_role=user.role_id, action=f"User '{user.email}' logged in successfully"))
     return TokenResponse(access_token=token, token_type="bearer", user_id=user.id, email=user.email, role=user.role_id, department=user.department)
+
+
+@router.post("/session", response_model=UserAuthInfo, summary="Create an authenticated browser session")
+def create_browser_session(request: Request, db: Session = Depends(get_db)):
+    token = request.headers.get("Authorization", "")
+    if not token.startswith("Bearer "):
+        raise CredentialsException("Authentication token missing.")
+
+    raw_token = token[7:].strip()
+    if not raw_token:
+        raise CredentialsException("Authentication token missing.")
+
+    from backend.auth.jwt_handler import decode_access_token
+
+    try:
+        payload = decode_access_token(raw_token)
+        user_id = payload.get("sub")
+        if not user_id:
+            raise CredentialsException("Invalid authentication token.")
+    except Exception as exc:
+        raise CredentialsException("Could not validate credentials.") from exc
+
+    user = auth_service.user_service.get_by_id(db, user_id) if hasattr(auth_service, "user_service") else db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        raise CredentialsException("User account not found or inactive.")
+
+    response = RedirectResponse(url=settings.FRONTEND_URL, status_code=status.HTTP_303_SEE_OTHER)
+    _set_access_token_cookie(response, raw_token)
+    return response
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Clear authenticated browser session")
+def logout():
+    response = RedirectResponse(url=settings.FRONTEND_URL, status_code=status.HTTP_303_SEE_OTHER)
+    _clear_access_token_cookie(response)
+    return response
 
 
 @router.get("/me", response_model=UserAuthInfo, summary="Get current authenticated user")
@@ -105,7 +160,8 @@ async def oauth_callback(provider: str, request: Request, db: Session = Depends(
         from backend.audit.service import audit_service
         audit_service.log_event(db=db, event_data=AuditLogCreate(event_type="user_oauth_login", user_id=user.id, user_email=user.email, user_role=user.role_id, action=f"User '{user.email}' logged in via {provider_lower} OAuth"))
 
-        response = RedirectResponse(url=f"{settings.FRONTEND_URL}/login?token={quote_plus(app_token)}", status_code=status.HTTP_303_SEE_OTHER)
+        response = RedirectResponse(url=f"{settings.FRONTEND_URL}/login", status_code=status.HTTP_303_SEE_OTHER)
+        _set_access_token_cookie(response, app_token)
         response.delete_cookie(key=f"oauth_state_{provider_lower}", path=f"/api/v1/auth/oauth/{provider_lower}/callback")
         return response
 
