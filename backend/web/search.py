@@ -20,6 +20,9 @@ class WebSearchService:
     def __init__(self):
         self.max_results = settings.WEB_SEARCH_MAX_RESULTS
         self.timeout_seconds = settings.WEB_SEARCH_TIMEOUT_SECONDS
+        self.location = settings.WEB_SEARCH_LOCATION
+        self.language = settings.WEB_SEARCH_LANGUAGE
+        self.country = settings.WEB_SEARCH_COUNTRY
 
     @staticmethod
     def _clean_text(value: object, limit: int = 1200) -> str:
@@ -34,40 +37,53 @@ class WebSearchService:
             return False
 
     def _search_sync(self, query: str) -> list[WebSearchResult]:
-        from ddgs import DDGS
+        if not settings.SERPAPI_KEY:
+            raise RuntimeError("SERPAPI_KEY is not configured.")
 
-        results: list[WebSearchResult] = []
-        with DDGS(timeout=int(self.timeout_seconds)) as client:
-            raw_results = client.text(
-                query,
-                max_results=self.max_results,
-                safesearch="moderate",
-                backend="duckduckgo",
-            )
+        import serpapi
 
-            for item in raw_results or []:
-                url = str(item.get("href") or item.get("url") or "").strip()
-                if not self._valid_url(url):
-                    continue
+        client = serpapi.Client(
+            api_key=settings.SERPAPI_KEY,
+            timeout=self.timeout_seconds,
+        )
 
-                title = self._clean_text(item.get("title"), 300)
-                snippet = self._clean_text(
-                    item.get("body") or item.get("snippet"),
-                    1000,
-                )
-                source = urlparse(url).netloc.lower()
+        params = {
+            "engine": "google",
+            "q": query,
+            "num": self.max_results,
+            "hl": self.language,
+            "gl": self.country,
+        }
+        if self.location:
+            params["location"] = self.location
 
-                if title and snippet:
-                    results.append(
-                        WebSearchResult(
-                            title=title,
-                            url=url,
-                            snippet=snippet,
-                            source=source,
-                        )
+        results = client.search(params)
+        raw_results = results.get("organic_results", [])
+
+        normalized: list[WebSearchResult] = []
+        for item in raw_results:
+            url = str(item.get("link") or "").strip()
+            if not self._valid_url(url):
+                continue
+
+            title = self._clean_text(item.get("title"), 300)
+            snippet = self._clean_text(item.get("snippet"), 1000)
+            source = urlparse(url).netloc.lower()
+
+            if title and snippet:
+                normalized.append(
+                    WebSearchResult(
+                        title=title,
+                        url=url,
+                        snippet=snippet,
+                        source=source,
                     )
+                )
 
-        return results
+            if len(normalized) >= self.max_results:
+                break
+
+        return normalized
 
     async def search(self, query: str) -> list[WebSearchResult]:
         query = query.strip()
@@ -77,13 +93,13 @@ class WebSearchService:
         try:
             return await asyncio.wait_for(
                 asyncio.to_thread(self._search_sync, query),
-                timeout=self.timeout_seconds,
+                timeout=self.timeout_seconds + 2,
             )
         except asyncio.TimeoutError as exc:
-            logger.warning("Web search timed out.")
+            logger.warning("SerpApi web search timed out.")
             raise TimeoutError("Web search timed out.") from exc
         except Exception as exc:
-            logger.exception("Web search failed: %s", str(exc))
+            logger.exception("SerpApi web search failed: %s", str(exc))
             raise RuntimeError("Web search is temporarily unavailable.") from exc
 
 
