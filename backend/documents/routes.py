@@ -12,6 +12,7 @@ from backend.authorization.service import authorization_service
 from backend.config import settings
 from backend.database.session import get_db
 from backend.documents.schemas import DocumentUploadResponse, ShareDocumentRequest
+from backend.documents.security import validate_upload
 from backend.documents.service import document_service
 from backend.models.document import Document
 from backend.models.user import User
@@ -21,8 +22,6 @@ from backend.utils.rate_limiter import rate_limit_guard
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/documents", tags=["Documents"])
-
-ALLOWED_EXTENSIONS = {"pdf", "docx", "doc", "txt"}
 
 
 @router.post(
@@ -39,41 +38,26 @@ async def upload_document(
 ):
     department = department.strip()
     filename = (file.filename or "").strip()
-    ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
 
     authorization_service.require_upload_permission(
         current_user,
         department,
     )
 
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file format '.{ext}'. Allowed formats: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
-        )
-
     try:
         file_bytes = await file.read()
-
-        if not file_bytes:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Uploaded file is empty.",
-            )
-
-        max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
-        if len(file_bytes) > max_bytes:
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File size exceeds maximum allowed limit of {settings.MAX_UPLOAD_SIZE_MB}MB.",
-            )
+        safe_filename, detected_mime = validate_upload(
+            filename,
+            file_bytes,
+        )
 
         result = await document_service.ingest_document(
-            filename=filename,
+            filename=safe_filename,
             file_bytes=file_bytes,
             department=department,
             owner=current_user.email,
             owner_id=current_user.id,
+            mime_type=detected_mime,
             db=db,
         )
 
@@ -84,9 +68,9 @@ async def upload_document(
         )
 
         action = (
-            f"Upload skipped — '{filename}' already indexed in '{department}'"
+            f"Upload skipped — '{safe_filename}' already indexed in '{department}'"
             if event_type == "document_skipped_duplicate"
-            else f"Uploaded document '{filename}' to department '{department}'"
+            else f"Uploaded document '{safe_filename}' to department '{department}'"
         )
 
         audit_service.log_event(
@@ -101,6 +85,7 @@ async def upload_document(
                 details={
                     "chunks": result["chunks_created"],
                     "size": len(file_bytes),
+                    "mime_type": detected_mime,
                 },
             ),
         )
@@ -299,23 +284,27 @@ def get_document_preview(
     )
 
     filename = document.filename
-    paths_to_check = [
-        os.path.join("uploaded_files", f"{document_id}.pdf"),
-        os.path.join("uploaded_files", f"{document_id}_{filename}"),
-        os.path.join("docs", filename),
-    ]
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    storage_path = os.path.join(
+        "uploaded_files",
+        f"{document_id}.{extension}",
+    )
+    legacy_pdf_path = os.path.join(
+        "uploaded_files",
+        f"{document_id}.pdf",
+    )
+    legacy_named_path = os.path.join(
+        "uploaded_files",
+        f"{document_id}_{filename}",
+    )
+    docs_path = os.path.join("docs", filename)
 
     has_raw = any(
         os.path.exists(path) and os.path.isfile(path)
-        for path in paths_to_check
+        for path in [storage_path, legacy_pdf_path, legacy_named_path, docs_path]
     )
 
-    chunks = content_data.get("chunks", [])
-    ext = (
-        filename.rsplit(".", 1)[-1].upper()
-        if "." in filename
-        else "PDF"
-    )
+    ext = extension.upper() if extension else "UNKNOWN"
 
     return {
         "document_id": document.id,
@@ -333,7 +322,7 @@ def get_document_preview(
             if document.created_at
             else None
         ),
-        "chunks": chunks,
+        "chunks": content_data.get("chunks", []),
     }
 
 
@@ -364,7 +353,9 @@ def get_raw_document(
     )
 
     filename = document.filename
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     paths_to_check = [
+        os.path.join("uploaded_files", f"{document_id}.{extension}"),
         os.path.join("uploaded_files", f"{document_id}.pdf"),
         os.path.join("uploaded_files", f"{document_id}_{filename}"),
         os.path.join("docs", filename),
