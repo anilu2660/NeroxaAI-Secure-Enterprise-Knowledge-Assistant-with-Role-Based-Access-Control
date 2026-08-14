@@ -3,6 +3,8 @@ import logging
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
+from backend.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,9 +17,9 @@ class WebSearchResult:
 
 
 class WebSearchService:
-    def __init__(self, max_results: int = 5, timeout_seconds: float = 10.0):
-        self.max_results = max_results
-        self.timeout_seconds = timeout_seconds
+    def __init__(self):
+        self.max_results = settings.WEB_SEARCH_MAX_RESULTS
+        self.timeout_seconds = settings.WEB_SEARCH_TIMEOUT_SECONDS
 
     @staticmethod
     def _clean_text(value: object, limit: int = 1200) -> str:
@@ -35,20 +37,26 @@ class WebSearchService:
         from ddgs import DDGS
 
         results: list[WebSearchResult] = []
-        with DDGS() as client:
+        with DDGS(timeout=int(self.timeout_seconds)) as client:
             raw_results = client.text(
                 query,
                 max_results=self.max_results,
                 safesearch="moderate",
+                backend="duckduckgo",
             )
 
             for item in raw_results or []:
                 url = str(item.get("href") or item.get("url") or "").strip()
                 if not self._valid_url(url):
                     continue
+
                 title = self._clean_text(item.get("title"), 300)
-                snippet = self._clean_text(item.get("body") or item.get("snippet"), 1000)
+                snippet = self._clean_text(
+                    item.get("body") or item.get("snippet"),
+                    1000,
+                )
                 source = urlparse(url).netloc.lower()
+
                 if title and snippet:
                     results.append(
                         WebSearchResult(
@@ -72,7 +80,7 @@ class WebSearchService:
                 timeout=self.timeout_seconds,
             )
         except asyncio.TimeoutError as exc:
-            logger.warning("Web search timed out for query.")
+            logger.warning("Web search timed out.")
             raise TimeoutError("Web search timed out.") from exc
         except Exception as exc:
             logger.exception("Web search failed: %s", str(exc))
