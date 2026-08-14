@@ -46,10 +46,7 @@ async def upload_document(
 
     try:
         file_bytes = await file.read()
-        safe_filename, detected_mime = validate_upload(
-            filename,
-            file_bytes,
-        )
+        safe_filename, detected_mime = validate_upload(filename, file_bytes)
 
         result = await document_service.ingest_document(
             filename=safe_filename,
@@ -57,9 +54,33 @@ async def upload_document(
             department=department,
             owner=current_user.email,
             owner_id=current_user.id,
-            mime_type=detected_mime,
             db=db,
         )
+
+        if result.get("status") == "ingested":
+            extension = safe_filename.rsplit(".", 1)[-1].lower()
+            pdf_storage_path = os.path.join(
+                "uploaded_files",
+                f"{result['document_id']}.pdf",
+            )
+            final_storage_path = os.path.join(
+                "uploaded_files",
+                f"{result['document_id']}.{extension}",
+            )
+
+            if extension != "pdf" and os.path.isfile(pdf_storage_path):
+                os.replace(pdf_storage_path, final_storage_path)
+
+            document = (
+                db.query(Document)
+                .filter(Document.id == result["document_id"])
+                .first()
+            )
+            if document:
+                document.mime_type = detected_mime
+                document.filename = safe_filename
+                document.title = safe_filename
+                db.commit()
 
         event_type = (
             "document_skipped_duplicate"
@@ -107,29 +128,21 @@ async def upload_document(
         ) from exc
 
 
-@router.get(
-    "/",
-    summary="List indexed documents",
-)
+@router.get("/", summary="List indexed documents")
 def list_documents(
     department: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     query = db.query(Document).filter(Document.status == "indexed")
-
     if department:
         query = query.filter(Document.department == department.strip())
 
     documents = query.order_by(Document.created_at.desc()).all()
-
     visible_documents = [
         document
         for document in documents
-        if authorization_service.can_access_document(
-            current_user,
-            document,
-        )
+        if authorization_service.can_access_document(current_user, document)
     ]
 
     return [
@@ -140,48 +153,26 @@ def list_documents(
             "department": document.department,
             "total_chunks": document.total_chunks,
             "status": document.status,
-            "created_at": (
-                document.created_at.isoformat()
-                if document.created_at
-                else None
-            ),
+            "created_at": document.created_at.isoformat() if document.created_at else None,
         }
         for document in visible_documents
     ]
 
 
-@router.post(
-    "/{document_id}/share",
-    summary="Share document with specific users",
-)
+@router.post("/{document_id}/share", summary="Share document with specific users")
 async def share_document(
     document_id: str,
     request: ShareDocumentRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    document = (
-        db.query(Document)
-        .filter(Document.id == document_id)
-        .first()
-    )
-
+    document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
-    authorization_service.require_share_permission(
-        current_user,
-        document,
-    )
+    authorization_service.require_share_permission(current_user, document)
 
-    success = await document_service.share_document(
-        document_id,
-        request.user_ids,
-        db=db,
-    )
+    success = await document_service.share_document(document_id, request.user_ids, db=db)
 
     audit_service.log_event(
         db=db,
@@ -203,36 +194,18 @@ async def share_document(
     }
 
 
-@router.delete(
-    "/{document_id}",
-    summary="Delete document",
-)
+@router.delete("/{document_id}", summary="Delete document")
 async def delete_document(
     document_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    document = (
-        db.query(Document)
-        .filter(Document.id == document_id)
-        .first()
-    )
-
+    document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
-    authorization_service.require_delete_permission(
-        current_user,
-        document,
-    )
-
-    success = await document_service.delete_document(
-        document_id,
-        db=db,
-    )
+    authorization_service.require_delete_permission(current_user, document)
+    success = await document_service.delete_document(document_id, db=db)
 
     audit_service.log_event(
         db=db,
@@ -246,65 +219,35 @@ async def delete_document(
         ),
     )
 
-    return {
-        "status": "deleted",
-        "document_id": document_id,
-        "success": success,
-    }
+    return {"status": "deleted", "document_id": document_id, "success": success}
 
 
-@router.get(
-    "/{document_id}/preview",
-    summary="Get document preview and content",
-)
+@router.get("/{document_id}/preview", summary="Get document preview and content")
 def get_document_preview(
     document_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    document = (
-        db.query(Document)
-        .filter(Document.id == document_id)
-        .first()
-    )
-
+    document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Document '{document_id}' not found.",
         )
 
-    authorization_service.require_document_access(
-        current_user,
-        document,
-    )
-
-    content_data = retriever_service.get_document_content(
-        document_id,
-    )
+    authorization_service.require_document_access(current_user, document)
+    content_data = retriever_service.get_document_content(document_id)
 
     filename = document.filename
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    storage_path = os.path.join(
-        "uploaded_files",
-        f"{document_id}.{extension}",
-    )
-    legacy_pdf_path = os.path.join(
-        "uploaded_files",
-        f"{document_id}.pdf",
-    )
-    legacy_named_path = os.path.join(
-        "uploaded_files",
-        f"{document_id}_{filename}",
-    )
-    docs_path = os.path.join("docs", filename)
+    paths_to_check = [
+        os.path.join("uploaded_files", f"{document_id}.{extension}"),
+        os.path.join("uploaded_files", f"{document_id}.pdf"),
+        os.path.join("uploaded_files", f"{document_id}_{filename}"),
+        os.path.join("docs", filename),
+    ]
 
-    has_raw = any(
-        os.path.exists(path) and os.path.isfile(path)
-        for path in [storage_path, legacy_pdf_path, legacy_named_path, docs_path]
-    )
-
-    ext = extension.upper() if extension else "UNKNOWN"
+    has_raw = any(os.path.isfile(path) for path in paths_to_check)
 
     return {
         "document_id": document.id,
@@ -313,44 +256,26 @@ def get_document_preview(
         "department": document.department,
         "file_size": document.file_size,
         "mime_type": document.mime_type,
-        "kind": ext,
+        "kind": extension.upper() if extension else "UNKNOWN",
         "total_chunks": document.total_chunks,
         "has_raw": has_raw,
         "raw_url": f"/api/v1/documents/{document.id}/raw",
-        "created_at": (
-            document.created_at.isoformat()
-            if document.created_at
-            else None
-        ),
+        "created_at": document.created_at.isoformat() if document.created_at else None,
         "chunks": content_data.get("chunks", []),
     }
 
 
-@router.get(
-    "/{document_id}/raw",
-    summary="Serve raw document binary",
-)
+@router.get("/{document_id}/raw", summary="Serve raw document binary")
 def get_raw_document(
     document_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    document = (
-        db.query(Document)
-        .filter(Document.id == document_id)
-        .first()
-    )
-
+    document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
-    authorization_service.require_document_access(
-        current_user,
-        document,
-    )
+    authorization_service.require_document_access(current_user, document)
 
     filename = document.filename
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
@@ -362,11 +287,10 @@ def get_raw_document(
     ]
 
     for path in paths_to_check:
-        if os.path.exists(path) and os.path.isfile(path):
-            mime = document.mime_type or "application/octet-stream"
+        if os.path.isfile(path):
             return FileResponse(
                 path=path,
-                media_type=mime,
+                media_type=document.mime_type or "application/octet-stream",
                 filename=filename,
             )
 
