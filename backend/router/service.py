@@ -29,12 +29,22 @@ class QueryRouter:
                 reason="Recognized conversational request.",
             )
 
+        calculator_pattern = re.fullmatch(r"[\d\s+\-*/%.()]+", text)
+        if calculator_pattern and any(char.isdigit() for char in text):
+            return QueryRoutingDecision(
+                route=QueryRoute.TOOL,
+                confidence=0.99,
+                reason="Query is a pure arithmetic expression.",
+                requires_tool=True,
+                tool_name="calculator",
+            )
+
         enterprise_terms = {
             "company", "enterprise", "internal", "employee", "policy",
-            "procedure", "finance", "finance", "hr", "payroll", "leave",
-            "department", "invoice", "budget", "compliance", "audit",
-            "document", "handbook", "guideline", "approval", "benefit",
-            "reimbursement", "travel", "internal", "organization",
+            "procedure", "finance", "hr", "payroll", "leave", "department",
+            "invoice", "budget", "compliance", "audit", "document", "handbook",
+            "guideline", "approval", "benefit", "reimbursement", "travel",
+            "organization",
         }
         web_terms = {
             "latest", "today", "current", "recent", "news", "weather",
@@ -81,18 +91,23 @@ class QueryRouter:
             return heuristic
 
         prompt = f"""
-Classify the user's query into exactly one route: casual, enterprise, web, or hybrid.
+Classify the user's query into exactly one route: casual, enterprise, web, hybrid, or tool.
 
-casual: greetings, small talk, general conversation, or simple non-current questions.
-enterprise: questions that require the organization's private/internal knowledge base.
-web: questions that require current, live, recent, or public internet information.
-hybrid: questions that require both private enterprise knowledge and current web information.
+a casual query needs normal conversation and no external retrieval.
+an enterprise query requires the organization's private/internal knowledge base.
+a web query requires current, live, recent, or public internet information.
+a hybrid query requires both private enterprise knowledge and current web information.
+a tool query requires a registered application tool, such as arithmetic calculation.
+
+Never invent a tool. Only classify as tool when a registered application capability is clearly required.
 
 Return JSON only with this schema:
 {{
-  "route": "casual|enterprise|web|hybrid",
+  "route": "casual|enterprise|web|hybrid|tool",
   "confidence": 0.0,
-  "reason": "short reason"
+  "reason": "short reason",
+  "requires_tool": false,
+  "tool_name": null
 }}
 
 User query:
@@ -100,31 +115,37 @@ User query:
 """.strip()
 
         try:
-            response = await self.llm.generate(
+            response = await self.llm.generate_text(
                 prompt=prompt,
                 temperature=0.0,
-                max_tokens=150,
+                max_tokens=200,
             )
-            text = response if isinstance(response, str) else str(response)
-            match = re.search(r"\{.*\}", text, re.DOTALL)
+            match = re.search(r"\{.*\}", response, re.DOTALL)
             if not match:
                 raise ValueError("Router returned no JSON object.")
 
-            data = json.loads(match.group(0))
-            decision = QueryRoutingDecision.model_validate(data)
+            decision = QueryRoutingDecision.model_validate(json.loads(match.group(0)))
 
             if decision.route == QueryRoute.CASUAL:
                 decision.requires_rag = False
                 decision.requires_web = False
+                decision.requires_tool = False
             elif decision.route == QueryRoute.ENTERPRISE:
                 decision.requires_rag = True
                 decision.requires_web = False
+                decision.requires_tool = False
             elif decision.route == QueryRoute.WEB:
                 decision.requires_rag = False
                 decision.requires_web = True
+                decision.requires_tool = False
             elif decision.route == QueryRoute.HYBRID:
                 decision.requires_rag = True
                 decision.requires_web = True
+                decision.requires_tool = False
+            elif decision.route == QueryRoute.TOOL:
+                decision.requires_tool = True
+                decision.requires_rag = False
+                decision.requires_web = False
 
             return decision
 
