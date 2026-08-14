@@ -210,6 +210,8 @@ class DocumentService:
         user_ids: list[str],
         db: Session | None = None,
     ) -> bool:
+        qdrant_shared_with = list(user_ids)
+
         if db:
             try:
                 from backend.models.document import Document
@@ -225,6 +227,7 @@ class DocumentService:
                 doc.shared_with = list(
                     set((doc.shared_with or []) + user_ids)
                 )
+                qdrant_shared_with = list(doc.shared_with)
                 db.commit()
             except Exception as e:
                 db.rollback()
@@ -238,7 +241,7 @@ class DocumentService:
 
         return await self.retriever.share_document(
             document_id,
-            user_ids,
+            qdrant_shared_with,
         )
 
     async def delete_document(
