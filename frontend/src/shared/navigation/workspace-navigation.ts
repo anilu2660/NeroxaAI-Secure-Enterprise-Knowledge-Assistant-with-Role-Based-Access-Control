@@ -1,14 +1,5 @@
 import type { ComponentType } from "react";
-import {
-  FileText,
-  FolderCog,
-  KeyRound,
-  LayoutDashboard,
-  ScrollText,
-  Sparkles,
-  UploadCloud,
-  Users,
-} from "lucide-react";
+import { FileText, FolderCog, KeyRound, LayoutDashboard, ScrollText, Sparkles, UploadCloud, Users } from "lucide-react";
 import type { Permission } from "@/auth/types";
 
 export type WorkspaceNavItem = {
@@ -33,15 +24,13 @@ export const workspaceNavigation: WorkspaceNavItem[] = [
   { to: "/assistant", label: "AI Assistant", icon: Sparkles, permission: "assistant:query", section: "workspace" },
   { to: "/documents", label: "Documents", icon: FileText, permission: "documents:read", section: "workspace" },
   { to: "/access", label: "Access Control", icon: KeyRound, permission: "access:manage", section: "workspace" },
-  { to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard, section: "administration" },
+  { to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard, permission: "users:manage", section: "administration" },
   { to: "/users", label: "User Management", icon: Users, permission: "users:manage", section: "administration" },
   { to: "/admin/documents", label: "Document Management", icon: FolderCog, permission: "documents:upload", section: "administration" },
   { to: "/upload", label: "Upload Document", icon: UploadCloud, permission: "documents:upload", section: "administration" },
   { to: "/audit", label: "Audit Logs", icon: ScrollText, permission: "audit:read", section: "administration" },
 ];
 
-export function getVisibleNavigation(
-  can: (permission: Permission) => boolean,
-): WorkspaceNavItem[] {
+export function getVisibleNavigation(can: (permission: Permission) => boolean): WorkspaceNavItem[] {
   return workspaceNavigation.filter((item) => !item.permission || can(item.permission));
 }
