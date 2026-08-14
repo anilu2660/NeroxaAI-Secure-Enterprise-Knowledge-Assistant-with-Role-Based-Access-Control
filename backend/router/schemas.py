@@ -9,6 +9,7 @@ class QueryRoute(str, Enum):
     WEB = "web"
     HYBRID = "hybrid"
     TOOL = "tool"
+    AGENT = "agent"
 
 
 class QueryRoutingDecision(BaseModel):
@@ -20,3 +21,4 @@ class QueryRoutingDecision(BaseModel):
     requires_web: bool = False
     requires_tool: bool = False
     tool_name: str | None = None
+    requires_agent: bool = False
