@@ -24,12 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class QdrantManager:
-    """
-    Manages Qdrant vector database lifecycle and point operations.
-    """
-
     def __init__(self):
-        """Initialize Qdrant client connection."""
         self.host = settings.QDRANT_HOST
         self.port = settings.QDRANT_PORT
         self.url = settings.QDRANT_URL
@@ -40,10 +35,8 @@ class QdrantManager:
 
     @property
     def client(self) -> QdrantClient:
-        """Lazy-loaded Qdrant client instance (supports Qdrant Cloud & local)."""
         if self._client is None:
             if self.url and self.api_key:
-                logger.info("Connecting to Qdrant Cloud at %s", self.url)
                 self._client = QdrantClient(
                     url=self.url,
                     api_key=self.api_key,
@@ -52,7 +45,6 @@ class QdrantManager:
                     check_compatibility=False,
                 )
             elif self.url:
-                logger.info("Connecting to Qdrant at %s", self.url)
                 self._client = QdrantClient(
                     url=self.url,
                     prefer_grpc=False,
@@ -61,10 +53,8 @@ class QdrantManager:
                 )
             else:
                 if self.host == ":memory:" or self.host == "localhost" or not self.host:
-                    logger.info("Connecting to local persistent Qdrant at ./qdrant_storage")
                     self._client = QdrantClient(path="./qdrant_storage")
                 else:
-                    logger.info("Connecting to local Qdrant at %s:%d", self.host, self.port)
                     self._client = QdrantClient(
                         host=self.host,
                         port=self.port,
@@ -75,20 +65,11 @@ class QdrantManager:
         return self._client
 
     def ensure_collection_exists(self) -> bool:
-        """
-        Check if the target collection exists. If not, create it with named vectors ('dense' & 'sparse').
-        Also configures payload indices for RBAC filtering fields.
-        """
         try:
             collections = self.client.get_collections()
             collection_names = [c.name for c in collections.collections]
 
             if self.collection_name not in collection_names:
-                logger.info(
-                    "Collection '%s' does not exist. Creating with named vectors (dense size=%d, sparse)...",
-                    self.collection_name,
-                    self.vector_size,
-                )
                 self.client.create_collection(
                     collection_name=self.collection_name,
                     vectors_config={
@@ -99,19 +80,13 @@ class QdrantManager:
                     },
                     sparse_vectors_config={
                         "sparse": SparseVectorParams(
-                            index=SparseIndexParams(
-                                on_disk=False,
-                            )
+                            index=SparseIndexParams(on_disk=False)
                         )
                     },
                 )
-                logger.info("Collection '%s' created successfully with hybrid vectors schema.", self.collection_name)
-
-                # Create payload indices for fast RBAC metadata filtering
                 self._create_payload_indices()
                 return True
 
-            logger.debug("Collection '%s' already exists.", self.collection_name)
             return True
 
         except Exception as e:
@@ -119,42 +94,29 @@ class QdrantManager:
             raise RuntimeError(f"Qdrant collection error: {str(e)}") from e
 
     def _create_payload_indices(self):
-        """Create payload index on department and role fields for metadata filtering."""
-        try:
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="department",
-                field_schema=PayloadSchemaType.KEYWORD,
-            )
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="role",
-                field_schema=PayloadSchemaType.KEYWORD,
-            )
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="document_id",
-                field_schema=PayloadSchemaType.KEYWORD,
-            )
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="shared_with",
-                field_schema=PayloadSchemaType.KEYWORD,
-            )
-            logger.info("Payload indices created for department, role, document_id, shared_with")
-        except Exception as e:
-            logger.warning("Could not create payload indices: %s", str(e))
+        fields = {
+            "department": PayloadSchemaType.KEYWORD,
+            "role": PayloadSchemaType.KEYWORD,
+            "document_id": PayloadSchemaType.KEYWORD,
+            "shared_with": PayloadSchemaType.KEYWORD,
+            "owner_id": PayloadSchemaType.KEYWORD,
+        }
+
+        for field_name, field_schema in fields.items():
+            try:
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name=field_name,
+                    field_schema=field_schema,
+                )
+            except Exception as e:
+                logger.warning(
+                    "Could not create payload index for '%s': %s",
+                    field_name,
+                    str(e),
+                )
 
     def upsert_chunks(self, points: list[PointStruct]) -> bool:
-        """
-        Upsert (insert/update) a list of document chunk points into Qdrant.
-
-        Args:
-            points: List of PointStruct objects containing id, vector, and payload.
-
-        Returns:
-            True if successful.
-        """
         self.ensure_collection_exists()
 
         try:
@@ -174,15 +136,6 @@ class QdrantManager:
             raise RuntimeError(f"Upsert points failed: {str(e)}") from e
 
     def delete_by_document_id(self, document_id: str) -> bool:
-        """
-        Delete all vector chunks associated with a specific document_id.
-
-        Args:
-            document_id: Unique ID of the document to remove.
-
-        Returns:
-            True if successful.
-        """
         try:
             self.client.delete(
                 collection_name=self.collection_name,
@@ -195,26 +148,24 @@ class QdrantManager:
                     ]
                 ),
             )
-            logger.info("Deleted chunks for document_id='%s'", document_id)
             return True
         except Exception as e:
-            logger.error("Failed to delete points for document '%s': %s", document_id, str(e))
+            logger.error(
+                "Failed to delete points for document '%s': %s",
+                document_id,
+                str(e),
+            )
             raise RuntimeError(f"Delete document chunks failed: {str(e)}") from e
 
-    def share_document_with_users(self, document_id: str, user_ids: list[str]) -> bool:
-
-        """
-        Set or update the 'shared_with' payload array for all chunks of a document.
-        Allows Admin to grant document access directly to specific employees/users.
-
-        Args:
-            document_id: UUID of the document.
-            user_ids: List of user/employee IDs or usernames granted access.
-        """
+    def share_document_with_users(
+        self,
+        document_id: str,
+        user_ids: list[str],
+    ) -> bool:
         try:
             self.client.set_payload(
                 collection_name=self.collection_name,
-                payload={"shared_with": user_ids},
+                payload={"shared_with": list(set(user_ids))},
                 points=Filter(
                     must=[
                         FieldCondition(
@@ -224,22 +175,16 @@ class QdrantManager:
                     ]
                 ),
             )
-            logger.info("Shared document_id='%s' with users: %s", document_id, user_ids)
             return True
         except Exception as e:
-            logger.error("Failed to share document '%s': %s", document_id, str(e))
+            logger.error(
+                "Failed to share document '%s': %s",
+                document_id,
+                str(e),
+            )
             raise RuntimeError(f"Share document failed: {str(e)}") from e
 
     def has_document_chunks(self, document_id: str) -> bool:
-        """
-        Check if any vector points exist in Qdrant for a given document_id.
-
-        Args:
-            document_id: UUID of the document.
-
-        Returns:
-            True if points exist in Qdrant, False otherwise.
-        """
         try:
             self.ensure_collection_exists()
             res = self.client.scroll(
@@ -257,14 +202,14 @@ class QdrantManager:
             points, _ = res
             return len(points) > 0
         except Exception as e:
-            logger.warning("Error checking vector points for document '%s': %s", document_id, str(e))
+            logger.warning(
+                "Error checking vector points for document '%s': %s",
+                document_id,
+                str(e),
+            )
             return False
 
     def get_document_content(self, document_id: str) -> dict:
-        """
-        Retrieve all text chunks and metadata for a given document_id from Qdrant.
-        Returns structured content including pages, sections, and full text for document previewers.
-        """
         try:
             self.ensure_collection_exists()
             res = self.client.scroll(
@@ -283,17 +228,28 @@ class QdrantManager:
             )
             points, _ = res
             chunks = [p.payload for p in points if p.payload]
-            chunks.sort(key=lambda c: (c.get("page_number", 1), c.get("chunk_index", 0)))
+            chunks.sort(
+                key=lambda c: (
+                    c.get("page_number", 1),
+                    c.get("chunk_index", 0),
+                )
+            )
             return {
                 "document_id": document_id,
                 "total_chunks": len(chunks),
                 "chunks": chunks,
             }
         except Exception as e:
-            logger.warning("Error getting vector content for document '%s': %s", document_id, str(e))
-            return {"document_id": document_id, "total_chunks": 0, "chunks": []}
+            logger.warning(
+                "Error getting vector content for document '%s': %s",
+                document_id,
+                str(e),
+            )
+            return {
+                "document_id": document_id,
+                "total_chunks": 0,
+                "chunks": [],
+            }
 
 
-# Singleton instance
 qdrant_manager = QdrantManager()
-
