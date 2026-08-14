@@ -111,16 +111,9 @@ class RAGService:
         return reranked_chunks[:top_k]
 
     async def query(self, query: str, user_id: str, user_role: str, user_department: str, department_filter: str | None = None, top_k: int = 5, temperature: float = 0.7) -> dict:
-        cached_result = await self.cache.get(
-            query=query,
-            user_id=user_id,
-            user_role=user_role,
-            user_department=user_department,
-        )
-        if cached_result:
-            return cached_result
-
-        logger.info("RAG query started | role=%s | department=%s | user_id=%s", user_role, user_department, user_id)
+        query = query.strip()
+        if not query or len(query) > 500:
+            raise ValueError("Query must contain between 1 and 500 characters.")
 
         from backend.llm.prompts import detect_prompt_injection
         is_injection, signature = detect_prompt_injection(query)
@@ -132,7 +125,19 @@ class RAGService:
                 "sources": [],
                 "model": self.llm.model,
                 "chunks_retrieved": 0,
+                "cached": False,
             }
+
+        cached_result = await self.cache.get(
+            query=query,
+            user_id=user_id,
+            user_role=user_role,
+            user_department=user_department,
+        )
+        if cached_result:
+            return cached_result
+
+        logger.info("RAG query started | role=%s | department=%s | user_id=%s", user_role, user_department, user_id)
 
         if is_conversational_query(query):
             try:
@@ -143,6 +148,7 @@ class RAGService:
                     "sources": [],
                     "model": llm_response["model"],
                     "chunks_retrieved": 0,
+                    "cached": False,
                 }
             except Exception as conv_err:
                 logger.warning("Conversational LLM call failed: %s", conv_err)
@@ -163,6 +169,7 @@ class RAGService:
                 "sources": [],
                 "model": self.llm.model,
                 "chunks_retrieved": 0,
+                "cached": False,
             }
 
         llm_response = await self.llm.agenerate_response(query=query, context_chunks=context_chunks, temperature=temperature)
@@ -172,6 +179,7 @@ class RAGService:
             "sources": llm_response["sources"],
             "model": llm_response["model"],
             "chunks_retrieved": len(context_chunks),
+            "cached": False,
         }
 
         await self.cache.set(
@@ -188,6 +196,11 @@ class RAGService:
 
     async def stream_query(self, query: str, user_id: str, user_role: str, user_department: str, department_filter: str | None = None, top_k: int = 5, temperature: float = 0.7):
         from backend.llm.prompts import detect_prompt_injection
+        query = query.strip()
+        if not query or len(query) > 500:
+            yield {"type": "error", "error": "Query must contain between 1 and 500 characters."}
+            return
+
         is_injection, signature = detect_prompt_injection(query)
         if is_injection:
             logger.warning("Prompt injection attempt detected in stream | signature=%s | user_id=%s", signature, user_id)
