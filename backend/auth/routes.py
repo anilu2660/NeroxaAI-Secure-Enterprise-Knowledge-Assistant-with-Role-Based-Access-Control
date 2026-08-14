@@ -1,25 +1,30 @@
 """
 Authentication Routes
 
-API endpoints for user registration, login, and token generation.
+API endpoints for user registration, login, and OAuth authentication.
 """
 
-from fastapi import APIRouter, Depends, status
+from urllib.parse import quote_plus
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from backend.database.session import get_db
-from backend.auth.schemas import RegisterRequest, LoginRequest, TokenResponse, UserAuthInfo
+
+from backend.api.dependencies import get_current_user
+from backend.auth.oauth_service import oauth_service
 from backend.auth.schemas import (
-    RegisterRequest,
+    InitiateRegistrationRequest,
     LoginRequest,
+    RegisterRequest,
     TokenResponse,
     UserAuthInfo,
-    InitiateRegistrationRequest,
     VerifyOTPRequest,
 )
 from backend.auth.service import auth_service
-from backend.api.dependencies import get_current_user
+from backend.config import settings
+from backend.database.session import get_db
 from backend.models.user import User
-
+from backend.utils.exceptions import CredentialsException
 from backend.utils.rate_limiter import rate_limit_guard
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
@@ -28,18 +33,13 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 @router.post(
     "/register/initiate",
     status_code=status.HTTP_200_OK,
-    summary="Step 1: Send Gmail SMTP + Mobile SMS OTP for new user registration",
+    summary="Step 1: Send email and mobile OTPs for new user registration",
     dependencies=[Depends(rate_limit_guard("auth"))],
 )
 def initiate_registration(
     request: InitiateRegistrationRequest,
     db: Session = Depends(get_db),
 ):
-    """
-    Sends a 6-digit verification code to the user's Gmail address via Gmail SMTP,
-    and a 6-digit Mobile SMS OTP to their phone number.
-    Returns a session_token required for Step 2 verification.
-    """
     return auth_service.initiate_registration(db, request)
 
 
@@ -47,22 +47,18 @@ def initiate_registration(
     "/register/verify-otp",
     response_model=TokenResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Step 2: Verify Gmail & Mobile OTPs and complete user account creation",
+    summary="Step 2: Verify email and mobile OTPs",
     dependencies=[Depends(rate_limit_guard("auth"))],
 )
 def verify_otp_and_register(
     request: VerifyOTPRequest,
     db: Session = Depends(get_db),
 ):
-    """
-    Verifies the 6-digit Gmail SMTP email OTP and 6-digit Mobile SMS OTP.
-    Upon verification, activates the account and returns a JWT access token.
-    """
     user, token = auth_service.verify_otp_and_create_user(db, request)
 
-    # Log audit event
-    from backend.audit.service import audit_service
     from backend.audit.schemas import AuditLogCreate
+    from backend.audit.service import audit_service
+
     audit_service.log_event(
         db=db,
         event_data=AuditLogCreate(
@@ -70,7 +66,7 @@ def verify_otp_and_register(
             user_id=user.id,
             user_email=user.email,
             user_role=user.role_id,
-            action=f"User '{user.email}' registered with verified Gmail SMTP & Mobile OTP",
+            action=f"User '{user.email}' completed OTP registration",
         ),
     )
 
@@ -95,14 +91,11 @@ def register(
     request: RegisterRequest,
     db: Session = Depends(get_db),
 ):
-    """
-    Register a new enterprise user directly.
-    """
     user = auth_service.register_user(db, request)
 
-    # Log audit event
-    from backend.audit.service import audit_service
     from backend.audit.schemas import AuditLogCreate
+    from backend.audit.service import audit_service
+
     audit_service.log_event(
         db=db,
         event_data=AuditLogCreate(
@@ -135,14 +128,11 @@ def login(
     request: LoginRequest,
     db: Session = Depends(get_db),
 ):
-    """
-    Authenticate user with email and password, returning JWT access token.
-    """
     user, token = auth_service.authenticate_user(db, request)
 
-    # Log audit event
-    from backend.audit.service import audit_service
     from backend.audit.schemas import AuditLogCreate
+    from backend.audit.service import audit_service
+
     audit_service.log_event(
         db=db,
         event_data=AuditLogCreate(
@@ -172,9 +162,6 @@ def login(
 def get_me(
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Return currently authenticated user profile info.
-    """
     return UserAuthInfo(
         id=current_user.id,
         email=current_user.email,
@@ -186,36 +173,43 @@ def get_me(
     )
 
 
-from fastapi.responses import RedirectResponse
-from backend.config import settings
-from backend.auth.oauth_service import oauth_service
-from backend.utils.exceptions import CredentialsException
-from urllib.parse import quote_plus
-
-
 @router.get(
     "/oauth/{provider}/login",
     summary="Redirect to social OAuth authorization URL",
+    dependencies=[Depends(rate_limit_guard("auth"))],
 )
 def oauth_login(provider: str):
-    """
-    Redirects browser to social provider OAuth consent screen (Google, GitHub, Apple).
-    """
-    redirect_uri = f"http://localhost:8000/api/v1/auth/oauth/{provider.lower()}/callback"
     try:
-        auth_url = oauth_service.get_authorization_url(provider, redirect_uri)
-        return RedirectResponse(url=auth_url)
-    except CredentialsException as err:
-        err_msg = quote_plus(str(err))
-        return RedirectResponse(url=f"{settings.FRONTEND_URL}/login?error={err_msg}")
+        provider_lower = oauth_service.normalize_provider(provider)
+        redirect_uri = oauth_service.build_redirect_uri(provider_lower)
+        state = oauth_service.create_state(provider_lower, redirect_uri)
+        auth_url = oauth_service.get_authorization_url(
+            provider_lower,
+            redirect_uri,
+            state,
+        )
+
+        response = RedirectResponse(url=auth_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+        response.set_cookie(
+            key=f"oauth_state_{provider_lower}",
+            value=state,
+            max_age=settings.OAUTH_STATE_EXPIRE_SECONDS,
+            httponly=True,
+            secure=settings.OAUTH_SECURE_COOKIES,
+            samesite="lax",
+            path=f"/api/v1/auth/oauth/{provider_lower}/callback",
+        )
+        return response
+
+    except CredentialsException:
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/login?oauth_error=configuration",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
 
-from fastapi import Request, Form
-
-
-@router.api_route(
+@router.get(
     "/oauth/{provider}/callback",
-    methods=["GET", "POST"],
     summary="Handle social OAuth provider authorization code callback",
 )
 async def oauth_callback(
@@ -223,42 +217,41 @@ async def oauth_callback(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """
-    Exchanges OAuth code for access token, retrieves user profile, creates/logs in user,
-    and redirects browser back to frontend with JWT token.
-    """
-    params = dict(request.query_params)
-    if request.method == "POST":
-        try:
-            form_data = await request.form()
-            params.update({k: str(v) for k, v in form_data.items()})
-        except Exception:
-            pass
-
-    code = params.get("code")
-    id_token = params.get("id_token")
-    user_json = params.get("user")
-    error = params.get("error")
-
-    if error or (not code and not id_token):
-        err_msg = quote_plus(error or f"OAuth sign-in with {provider} was cancelled or failed.")
-        return RedirectResponse(url=f"{settings.FRONTEND_URL}/login?error={err_msg}")
-
-    redirect_uri = f"http://localhost:8000/api/v1/auth/oauth/{provider.lower()}/callback"
-
     try:
+        provider_lower = oauth_service.normalize_provider(provider)
+        redirect_uri = oauth_service.build_redirect_uri(provider_lower)
+
+        state = request.query_params.get("state")
+        stored_state = request.cookies.get(f"oauth_state_{provider_lower}")
+
+        if not state or not stored_state:
+            raise CredentialsException("OAuth state is missing.")
+
+        if not secrets.compare_digest(state, stored_state):
+            raise CredentialsException("Invalid OAuth state.")
+
+        oauth_service.verify_state(
+            state,
+            provider_lower,
+            redirect_uri,
+        )
+
+        error = request.query_params.get("error")
+        code = request.query_params.get("code")
+
+        if error or not code:
+            raise CredentialsException("OAuth authentication was cancelled or failed.")
+
         user, app_token = await oauth_service.process_oauth_callback(
-            provider=provider,
+            provider=provider_lower,
             code=code,
             redirect_uri=redirect_uri,
             db=db,
-            id_token=id_token,
-            user_json=user_json,
         )
 
-        # Log audit event
-        from backend.audit.service import audit_service
         from backend.audit.schemas import AuditLogCreate
+        from backend.audit.service import audit_service
+
         audit_service.log_event(
             db=db,
             event_data=AuditLogCreate(
@@ -266,12 +259,36 @@ async def oauth_callback(
                 user_id=user.id,
                 user_email=user.email,
                 user_role=user.role_id,
-                action=f"User '{user.email}' logged in via {provider} OAuth",
+                action=f"User '{user.email}' logged in via {provider_lower} OAuth",
             ),
         )
 
-        return RedirectResponse(url=f"{settings.FRONTEND_URL}/login?token={app_token}")
-    except Exception as err:
-        err_msg = quote_plus(str(err))
-        return RedirectResponse(url=f"{settings.FRONTEND_URL}/login?error={err_msg}")
+        response = RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/login?token={quote_plus(app_token)}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+        response.delete_cookie(
+            key=f"oauth_state_{provider_lower}",
+            path=f"/api/v1/auth/oauth/{provider_lower}/callback",
+        )
+        return response
 
+    except CredentialsException:
+        response = RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/login?oauth_error=authentication_failed",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+        try:
+            provider_lower = oauth_service.normalize_provider(provider)
+            response.delete_cookie(
+                key=f"oauth_state_{provider_lower}",
+                path=f"/api/v1/auth/oauth/{provider_lower}/callback",
+            )
+        except CredentialsException:
+            pass
+        return response
+    except Exception:
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/login?oauth_error=authentication_failed",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
