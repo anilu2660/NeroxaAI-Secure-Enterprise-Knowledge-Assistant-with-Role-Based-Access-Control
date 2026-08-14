@@ -290,7 +290,7 @@ from backend.api.dependencies import get_current_user, get_current_user_optional
 def get_document_preview(
     document_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Retrieve document details and parsed text chunks for PDF/TXT/DOCX document previewing.
@@ -362,7 +362,7 @@ from fastapi.responses import FileResponse
 def get_raw_document(
     document_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Returns original PDF binary file for native embedded PDF viewing.
