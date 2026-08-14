@@ -1,64 +1,145 @@
 import logging
-import random
+import secrets
 import uuid
 from datetime import datetime, timedelta
+
 from sqlalchemy.orm import Session
+
 from backend.models.user import User
 from backend.auth.password import hash_password, verify_password
 from backend.auth.jwt_handler import create_access_token
-from backend.auth.schemas import RegisterRequest, LoginRequest, InitiateRegistrationRequest, VerifyOTPRequest
+from backend.auth.schemas import (
+    LoginRequest,
+    InitiateRegistrationRequest,
+    VerifyOTPRequest,
+)
 from backend.auth.email_service import email_service
 from backend.auth.sms_service import sms_service
-from backend.utils.exceptions import CredentialsException, DuplicateResourceException
+from backend.utils.exceptions import (
+    CredentialsException,
+    DuplicateResourceException,
+)
 
 logger = logging.getLogger(__name__)
 
-# Temporary in-memory OTP storage for registration verification sessions
-# session_token -> { data, email_otp, mobile_otp, expires_at }
+OTP_EXPIRY_MINUTES = 10
+MAX_OTP_ATTEMPTS = 5
+
+ALLOWED_DEPARTMENTS = {
+    "General",
+    "HR",
+    "Finance",
+    "Engineering",
+    "Sales",
+}
+
 OTP_SESSIONS: dict[str, dict] = {}
 
 
 class AuthService:
-    """
-    Service for registration, credential verification, Gmail SMTP + Mobile SMS OTP, and JWT generation.
-    """
 
     @staticmethod
-    def initiate_registration(db: Session, request: InitiateRegistrationRequest) -> dict:
-        """
-        Initiates registration by generating 6-digit Email & Mobile OTPs,
-        dispatching Email OTP via Gmail SMTP and Mobile OTP via SMS.
-        """
-        email_clean = request.email.lower().strip()
-        existing_user = db.query(User).filter(User.email == email_clean).first()
-        if existing_user:
-            raise DuplicateResourceException(f"User with email '{request.email}' already exists.")
+    def initiate_registration(
+        db: Session,
+        request: InitiateRegistrationRequest,
+    ) -> dict:
 
-        # Generate 6-digit OTPs
-        email_otp = f"{random.randint(100000, 999999)}"
-        mobile_otp = f"{random.randint(100000, 999999)}"
+        email_clean = request.email.lower().strip()
+        full_name = request.full_name.strip()
+        phone_number = request.phone_number.strip()
+        department = request.department.strip()
+
+        if not email_clean:
+            raise CredentialsException("Email address is required.")
+
+        if not request.password:
+            raise CredentialsException("Password is required.")
+
+        if not full_name:
+            raise CredentialsException("Full name is required.")
+
+        if not phone_number:
+            raise CredentialsException("Phone number is required.")
+
+        if department not in ALLOWED_DEPARTMENTS:
+            raise CredentialsException("Invalid department selected.")
+
+        existing_user = (
+            db.query(User)
+            .filter(User.email == email_clean)
+            .first()
+        )
+
+        if existing_user:
+            raise DuplicateResourceException(
+                "An account with this email already exists."
+            )
+
+        email_otp = str(secrets.randbelow(900000) + 100000)
+        mobile_otp = str(secrets.randbelow(900000) + 100000)
+
         session_token = str(uuid.uuid4())
-        expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+        expires_at = (
+            datetime.utcnow()
+            + timedelta(minutes=OTP_EXPIRY_MINUTES)
+        )
+
+        hashed_password = hash_password(request.password)
+        email_otp_hash = hash_password(email_otp)
+        mobile_otp_hash = hash_password(mobile_otp)
 
         OTP_SESSIONS[session_token] = {
             "email": email_clean,
-            "password": request.password,
-            "full_name": request.full_name,
-            "phone_number": request.phone_number,
-            "department": request.department,
-            "email_otp": email_otp,
-            "mobile_otp": mobile_otp,
+            "hashed_password": hashed_password,
+            "full_name": full_name,
+            "phone_number": phone_number,
+            "department": department,
+            "email_otp_hash": email_otp_hash,
+            "mobile_otp_hash": mobile_otp_hash,
             "expires_at": expires_at,
+            "attempts": 0,
         }
 
-        # Dispatch Gmail SMTP & Mobile SMS OTPs
-        email_sent = email_service.send_email_otp(email_clean, request.full_name, email_otp)
-        sms_sent = sms_service.send_mobile_otp(request.phone_number, mobile_otp)
+        try:
+            email_sent = email_service.send_email_otp(
+                email_clean,
+                full_name,
+                email_otp,
+            )
+
+            sms_sent = sms_service.send_mobile_otp(
+                phone_number,
+                mobile_otp,
+            )
+
+        except Exception as exc:
+            OTP_SESSIONS.pop(session_token, None)
+
+            logger.exception(
+                "OTP delivery failed for registration session."
+            )
+
+            raise CredentialsException(
+                "Unable to send verification codes. Please try again later."
+            ) from exc
+
+        if not email_sent or not sms_sent:
+            OTP_SESSIONS.pop(session_token, None)
+
+            logger.warning(
+                "OTP delivery incomplete | email_sent=%s | sms_sent=%s",
+                email_sent,
+                sms_sent,
+            )
+
+            raise CredentialsException(
+                "Unable to deliver verification codes. Please try again later."
+            )
 
         logger.info(
-            "Initiated OTP registration for %s (session=%s, email_sent=%s, sms_sent=%s)",
+            "OTP registration initiated | email=%s | email_sent=%s | sms_sent=%s",
             email_clean,
-            session_token,
             email_sent,
             sms_sent,
         )
@@ -66,42 +147,96 @@ class AuthService:
         return {
             "session_token": session_token,
             "email": email_clean,
-            "phone_number": request.phone_number,
-            "expires_in_minutes": 10,
-            "message": f"Verification OTPs sent to {email_clean} and {request.phone_number}.",
+            "phone_number": phone_number,
+            "expires_in_minutes": OTP_EXPIRY_MINUTES,
+            "message": (
+                "Verification OTPs have been sent "
+                "to your registered email and mobile number."
+            ),
         }
 
     @staticmethod
-    def verify_otp_and_create_user(db: Session, request: VerifyOTPRequest) -> tuple[User, str]:
-        """
-        Verifies Email OTP & Mobile OTP. Upon successful verification,
-        creates the active User in database and issues JWT access token.
-        """
-        session_data = OTP_SESSIONS.get(request.session_token)
+    def verify_otp_and_create_user(
+        db: Session,
+        request: VerifyOTPRequest,
+    ) -> tuple[User, str]:
+
+        session_token = request.session_token
+
+        session_data = OTP_SESSIONS.get(session_token)
+
         if not session_data:
-            raise CredentialsException("Invalid or expired verification session. Please register again.")
+            raise CredentialsException(
+                "Invalid or expired verification session. Please register again."
+            )
 
         if datetime.utcnow() > session_data["expires_at"]:
-            OTP_SESSIONS.pop(request.session_token, None)
-            raise CredentialsException("Verification OTPs have expired. Please request a new code.")
+            OTP_SESSIONS.pop(session_token, None)
 
-        if request.email_otp.strip() != session_data["email_otp"]:
-            raise CredentialsException("Invalid Email OTP code. Please check your inbox.")
+            raise CredentialsException(
+                "Verification session has expired. Please register again."
+            )
 
-        if request.mobile_otp.strip() != session_data["mobile_otp"]:
-            raise CredentialsException("Invalid Mobile SMS OTP code. Please check your phone messages.")
+        attempts = session_data.get("attempts", 0)
 
-        # Double check existing user
+        if attempts >= MAX_OTP_ATTEMPTS:
+            OTP_SESSIONS.pop(session_token, None)
+
+            raise CredentialsException(
+                "Too many verification attempts. Please register again."
+            )
+
+        session_data["attempts"] = attempts + 1
+
+        email_otp = request.email_otp.strip()
+        mobile_otp = request.mobile_otp.strip()
+
+        if len(email_otp) != 6 or not email_otp.isdigit():
+            raise CredentialsException("Invalid verification code.")
+
+        if len(mobile_otp) != 6 or not mobile_otp.isdigit():
+            raise CredentialsException("Invalid verification code.")
+
+        try:
+            email_valid = verify_password(
+                email_otp,
+                session_data["email_otp_hash"],
+            )
+        except Exception:
+            email_valid = False
+
+        if not email_valid:
+            raise CredentialsException("Invalid verification code.")
+
+        try:
+            mobile_valid = verify_password(
+                mobile_otp,
+                session_data["mobile_otp_hash"],
+            )
+        except Exception:
+            mobile_valid = False
+
+        if not mobile_valid:
+            raise CredentialsException("Invalid verification code.")
+
         email_clean = session_data["email"]
-        existing_user = db.query(User).filter(User.email == email_clean).first()
-        if existing_user:
-            raise DuplicateResourceException(f"User with email '{email_clean}' is already registered.")
 
-        # Create active verified User
-        hashed_pwd = hash_password(session_data["password"])
+        existing_user = (
+            db.query(User)
+            .filter(User.email == email_clean)
+            .first()
+        )
+
+        if existing_user:
+            OTP_SESSIONS.pop(session_token, None)
+
+            raise DuplicateResourceException(
+                "An account with this email already exists."
+            )
+
         new_user = User(
             email=email_clean,
-            hashed_password=hashed_pwd,
+            hashed_password=session_data["hashed_password"],
             full_name=session_data["full_name"],
             phone_number=session_data["phone_number"],
             department=session_data["department"],
@@ -110,63 +245,96 @@ class AuthService:
             is_verified=True,
         )
 
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+        try:
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
 
-        # Clear verified session
-        OTP_SESSIONS.pop(request.session_token, None)
+        except Exception as exc:
+            db.rollback()
 
-        # Generate JWT access token
+            logger.exception(
+                "Failed to create user after OTP verification."
+            )
+
+            raise CredentialsException(
+                "Unable to create account. Please try again."
+            ) from exc
+
+        OTP_SESSIONS.pop(session_token, None)
+
         token_data = {
             "sub": new_user.id,
             "email": new_user.email,
             "role": new_user.role_id,
             "department": new_user.department,
         }
-        access_token = create_access_token(data=token_data)
 
-        logger.info("Successfully verified OTP and created user: %s (id=%s)", new_user.email, new_user.id)
+        access_token = create_access_token(
+            data=token_data
+        )
+
+        logger.info(
+            "User registration completed | user_id=%s | role=%s | department=%s",
+            new_user.id,
+            new_user.role_id,
+            new_user.department,
+        )
+
         return new_user, access_token
 
     @staticmethod
-    def register_user(db: Session, request: RegisterRequest) -> User:
-        """
-        Register a new user directly in the database.
-        """
-        existing_user = db.query(User).filter(User.email == request.email.lower()).first()
-        if existing_user:
-            raise DuplicateResourceException(f"User with email '{request.email}' already exists.")
+    def register_user(
+        db: Session,
+        request,
+    ) -> User:
 
-        hashed_pwd = hash_password(request.password)
-
-        new_user = User(
-            email=request.email.lower(),
-            hashed_password=hashed_pwd,
-            full_name=request.full_name,
-            department=request.department,
-            role_id="employee",
-            is_verified=True,
+        raise CredentialsException(
+            "Direct registration is disabled. "
+            "Please use OTP verification to create an account."
         )
 
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-
-        logger.info("Registered new user: %s (role=%s, dept=%s)", new_user.email, new_user.role_id, new_user.department)
-        return new_user
-
     @staticmethod
-    def authenticate_user(db: Session, request: LoginRequest) -> tuple[User, str]:
-        """
-        Authenticate user credentials and return User model + JWT access token.
-        """
-        user = db.query(User).filter(User.email == request.email.lower()).first()
-        if not user or not verify_password(request.password, user.hashed_password):
-            raise CredentialsException("Invalid email or password.")
+    def authenticate_user(
+        db: Session,
+        request: LoginRequest,
+    ) -> tuple[User, str]:
+
+        email_clean = request.email.lower().strip()
+
+        user = (
+            db.query(User)
+            .filter(User.email == email_clean)
+            .first()
+        )
+
+        if not user:
+            raise CredentialsException(
+                "Invalid email or password."
+            )
+
+        try:
+            password_valid = verify_password(
+                request.password,
+                user.hashed_password,
+            )
+        except Exception:
+            password_valid = False
+
+        if not password_valid:
+            raise CredentialsException(
+                "Invalid email or password."
+            )
 
         if not user.is_active:
-            raise CredentialsException("User account is inactive.")
+            raise CredentialsException(
+                "User account is inactive."
+            )
+
+        if hasattr(user, "is_verified") and not user.is_verified:
+            raise CredentialsException(
+                "User account has not been verified."
+            )
 
         token_data = {
             "sub": user.id,
@@ -175,8 +343,15 @@ class AuthService:
             "department": user.department,
         }
 
-        access_token = create_access_token(data=token_data)
-        logger.info("User authenticated: %s", user.email)
+        access_token = create_access_token(
+            data=token_data
+        )
+
+        logger.info(
+            "User authenticated | user_id=%s",
+            user.id,
+        )
+
         return user, access_token
 
 
