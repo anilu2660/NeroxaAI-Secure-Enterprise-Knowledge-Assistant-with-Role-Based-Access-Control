@@ -10,23 +10,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-load_dotenv(
-    dotenv_path=Path(__file__).parent / ".env",
-    override=True,
-)
+load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=True)
 
 
 class Settings:
-    """Application settings loaded from environment variables."""
-
     APP_NAME: str = "Enterprise RAG"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/enterprise_rag",
-    )
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/enterprise_rag")
 
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
@@ -40,27 +32,18 @@ class Settings:
 
     if not JWT_SECRET_KEY:
         raise RuntimeError("JWT_SECRET_KEY environment variable is required.")
-
     if len(JWT_SECRET_KEY) < 32:
         raise RuntimeError("JWT_SECRET_KEY must contain at least 32 characters.")
-
     if JWT_ALGORITHM not in {"HS256", "HS384", "HS512"}:
         raise RuntimeError("Unsupported JWT_ALGORITHM. Use HS256, HS384, or HS512.")
-
     if JWT_ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
         raise RuntimeError("JWT_ACCESS_TOKEN_EXPIRE_MINUTES must be greater than 0.")
 
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
     OAUTH_STATE_EXPIRE_SECONDS: int = int(os.getenv("OAUTH_STATE_EXPIRE_SECONDS", "600"))
-    OAUTH_SECURE_COOKIES: bool = os.getenv(
-        "OAUTH_SECURE_COOKIES",
-        "false" if DEBUG else "true",
-    ).lower() == "true"
-    COOKIE_SECURE: bool = os.getenv(
-        "COOKIE_SECURE",
-        "false" if DEBUG else "true",
-    ).lower() == "true"
+    OAUTH_SECURE_COOKIES: bool = os.getenv("OAUTH_SECURE_COOKIES", "false" if DEBUG else "true").lower() == "true"
+    COOKIE_SECURE: bool = os.getenv("COOKIE_SECURE", "false" if DEBUG else "true").lower() == "true"
 
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
@@ -77,6 +60,13 @@ class Settings:
     WEB_SEARCH_LANGUAGE: str = os.getenv("WEB_SEARCH_LANGUAGE", "en")
     WEB_SEARCH_COUNTRY: str = os.getenv("WEB_SEARCH_COUNTRY", "in")
 
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    REDIS_CONNECT_TIMEOUT_SECONDS: float = float(os.getenv("REDIS_CONNECT_TIMEOUT_SECONDS", "2"))
+    REDIS_TIMEOUT_SECONDS: float = float(os.getenv("REDIS_TIMEOUT_SECONDS", "2"))
+    CACHE_NAMESPACE: str = os.getenv("CACHE_NAMESPACE", "neroxaai:v1")
+    CACHE_TTL_SECONDS: int = int(os.getenv("CACHE_TTL_SECONDS", "300"))
+    CACHE_MAX_ENTRIES_PER_SCOPE: int = int(os.getenv("CACHE_MAX_ENTRIES_PER_SCOPE", "50"))
+
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5")
 
@@ -86,17 +76,12 @@ class Settings:
     RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
     RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "5"))
     ENABLE_HYBRID_SEARCH: bool = os.getenv("ENABLE_HYBRID_SEARCH", "true").lower() == "true"
-    CACHE_TTL_SECONDS: int = int(os.getenv("CACHE_TTL_SECONDS", "300"))
 
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1200"))
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
     MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))
 
-    CORS_ORIGINS: list[str] = [
-        origin.strip()
-        for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
-        if origin.strip()
-    ]
+    CORS_ORIGINS: list[str] = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
 
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
