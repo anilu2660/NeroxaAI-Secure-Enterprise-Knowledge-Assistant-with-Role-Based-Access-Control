@@ -10,7 +10,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=True)
+load_dotenv(
+    dotenv_path=Path(__file__).parent / ".env",
+    override=True,
+)
 
 
 class Settings:
@@ -20,7 +23,10 @@ class Settings:
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/enterprise_rag")
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@localhost:5432/enterprise_rag",
+    )
 
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
@@ -34,10 +40,13 @@ class Settings:
 
     if not JWT_SECRET_KEY:
         raise RuntimeError("JWT_SECRET_KEY environment variable is required.")
+
     if len(JWT_SECRET_KEY) < 32:
         raise RuntimeError("JWT_SECRET_KEY must contain at least 32 characters.")
+
     if JWT_ALGORITHM not in {"HS256", "HS384", "HS512"}:
         raise RuntimeError("Unsupported JWT_ALGORITHM. Use HS256, HS384, or HS512.")
+
     if JWT_ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
         raise RuntimeError("JWT_ACCESS_TOKEN_EXPIRE_MINUTES must be greater than 0.")
 
@@ -46,6 +55,10 @@ class Settings:
     OAUTH_STATE_EXPIRE_SECONDS: int = int(os.getenv("OAUTH_STATE_EXPIRE_SECONDS", "600"))
     OAUTH_SECURE_COOKIES: bool = os.getenv(
         "OAUTH_SECURE_COOKIES",
+        "false" if DEBUG else "true",
+    ).lower() == "true"
+    COOKIE_SECURE: bool = os.getenv(
+        "COOKIE_SECURE",
         "false" if DEBUG else "true",
     ).lower() == "true"
 
