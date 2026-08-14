@@ -20,12 +20,28 @@ export interface AssistantSession {
   created_at: string;
 }
 
+export interface AssistantExecutionMetadata {
+  route?: string | null;
+  route_confidence?: number | null;
+  rewritten_query?: string | null;
+  cached?: boolean;
+  model?: string | null;
+  chunks_retrieved?: number;
+  tool_name?: string | null;
+  tool_status?: string | null;
+  tool_result?: unknown;
+  agent_plan?: unknown;
+  agent_steps?: unknown[];
+  web_search_status?: string | null;
+}
+
 export interface AssistantMessage {
   id: string;
   session_id: string;
   role: string;
   content: string;
   sources: Record<string, unknown>[] | null;
+  execution_metadata?: AssistantExecutionMetadata | null;
   created_at: string;
 }
 
@@ -54,7 +70,11 @@ function normalizeSource(source: Record<string, unknown>, index: number): Assist
     title: String(source.title ?? source.document_title ?? source.filename ?? "Source"),
     url: typeof source.url === "string" ? source.url : null,
     documentId: typeof source.document_id === "string" ? source.document_id : null,
-    page: typeof source.page === "number" ? source.page : null,
+    page: typeof source.page === "number"
+      ? source.page
+      : typeof source.page_number === "number"
+        ? source.page_number
+        : null,
     department: typeof source.department === "string" ? source.department : null,
     snippet: typeof source.snippet === "string" ? source.snippet : null,
   };
@@ -69,11 +89,11 @@ function normalizeAgentPlan(value: unknown): AgentPlan | null {
     steps: plan.steps
       .filter((step): step is Record<string, unknown> => !!step && typeof step === "object")
       .map((step) => ({
-        id: Number(step.id),
-        type: String(step.type) as AgentExecutionStep["type"],
+        id: Number(step.id ?? step.step_id),
+        type: String(step.type ?? "rag") as AgentExecutionStep["type"],
         task: String(step.task ?? ""),
         toolName: typeof step.tool_name === "string" ? step.tool_name : null,
-        status: null,
+        status: step.status === "failed" ? "failed" : null,
       })),
   };
 }
@@ -83,44 +103,67 @@ function normalizeResponse(
   payload: Record<string, unknown>,
 ): AssistantQueryResponse {
   const rawSources = Array.isArray(payload.sources) ? payload.sources : [];
-  const rawSteps = Array.isArray(payload.steps) ? payload.steps : [];
-  const route = String(payload.route ?? "enterprise");
+  const metadata =
+    payload.execution_metadata && typeof payload.execution_metadata === "object"
+      ? (payload.execution_metadata as AssistantExecutionMetadata)
+      : null;
+
+  const routeValue = metadata?.route ?? payload.route ?? "enterprise";
+  const route = String(routeValue);
   const normalizedRoute = ["casual", "enterprise", "web", "hybrid", "tool", "agent"].includes(route)
     ? (route as AssistantQueryResponse["route"])
     : "enterprise";
 
-  const steps: AgentExecutionStep[] = rawSteps
-    .filter((step): step is Record<string, unknown> => !!step && typeof step === "object")
-    .map((step) => ({
-      id: Number(step.step_id ?? step.id),
-      type: String(step.type ?? "rag") as AgentExecutionStep["type"],
-      task: String(step.task ?? ""),
-      toolName: typeof step.tool_name === "string" ? step.tool_name : null,
-      status: step.status === "failed" ? "failed" : "success",
-    }));
+  const rawSteps = metadata?.agent_steps ?? payload.steps ?? [];
+  const steps: AgentExecutionStep[] = Array.isArray(rawSteps)
+    ? rawSteps
+        .filter((step): step is Record<string, unknown> => !!step && typeof step === "object")
+        .map((step) => ({
+          id: Number(step.step_id ?? step.id),
+          type: String(step.type ?? "rag") as AgentExecutionStep["type"],
+          task: String(step.task ?? ""),
+          toolName: typeof step.tool_name === "string" ? step.tool_name : null,
+          status: step.status === "failed" ? "failed" : "success",
+        }))
+    : [];
+
+  const plan = metadata?.agent_plan ?? payload.plan;
 
   return {
     query: String(payload.query ?? request.query),
     answer: String(payload.answer ?? ""),
     route: normalizedRoute,
     routeConfidence:
-      typeof payload.route_confidence === "number" ? payload.route_confidence : null,
+      typeof (metadata?.route_confidence ?? payload.route_confidence) === "number"
+        ? (metadata?.route_confidence ?? payload.route_confidence) as number
+        : null,
     rewrittenQuery:
-      typeof payload.rewritten_query === "string" ? payload.rewritten_query : null,
-    cached: payload.cached === true,
-    model: typeof payload.model === "string" ? payload.model : null,
+      typeof (metadata?.rewritten_query ?? payload.rewritten_query) === "string"
+        ? (metadata?.rewritten_query ?? payload.rewritten_query) as string
+        : null,
+    cached: metadata?.cached === true || payload.cached === true,
+    model:
+      typeof (metadata?.model ?? payload.model) === "string"
+        ? (metadata?.model ?? payload.model) as string
+        : null,
     chunksRetrieved:
-      typeof payload.chunks_retrieved === "number" ? payload.chunks_retrieved : 0,
+      typeof (metadata?.chunks_retrieved ?? payload.chunks_retrieved) === "number"
+        ? (metadata?.chunks_retrieved ?? payload.chunks_retrieved) as number
+        : 0,
     sources: rawSources
       .filter((source): source is Record<string, unknown> => !!source && typeof source === "object")
       .map(normalizeSource),
-    toolName: typeof payload.tool_name === "string" ? payload.tool_name : null,
-    toolStatus:
-      payload.tool_status === "success" || payload.tool_status === "not_executed"
-        ? payload.tool_status
+    toolName:
+      typeof (metadata?.tool_name ?? payload.tool_name) === "string"
+        ? (metadata?.tool_name ?? payload.tool_name) as string
         : null,
-    toolResult: payload.tool_result ?? null,
-    agentPlan: normalizeAgentPlan(payload.plan),
+    toolStatus:
+      (metadata?.tool_status ?? payload.tool_status) === "success" ||
+      (metadata?.tool_status ?? payload.tool_status) === "not_executed"
+        ? (metadata?.tool_status ?? payload.tool_status) as "success" | "not_executed"
+        : null,
+    toolResult: metadata?.tool_result ?? payload.tool_result ?? null,
+    agentPlan: normalizeAgentPlan(plan),
     agentSteps: steps,
     messageId: typeof payload.message_id === "string" ? payload.message_id : null,
     createdAt: typeof payload.created_at === "string" ? payload.created_at : null,
@@ -196,6 +239,7 @@ export function normalizeAssistantMessage(
     query: request.query,
     answer: message.content,
     sources: message.sources ?? [],
+    execution_metadata: message.execution_metadata ?? null,
     message_id: message.id,
     created_at: message.created_at,
   });
