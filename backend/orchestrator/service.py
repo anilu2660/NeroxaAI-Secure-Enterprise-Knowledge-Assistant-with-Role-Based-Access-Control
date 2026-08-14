@@ -5,6 +5,7 @@ from backend.query.rewriter import query_rewriter
 from backend.rag.service import rag_service
 from backend.router.schemas import QueryRoute, QueryRoutingDecision
 from backend.router.service import query_router
+from backend.tools.executor import executor
 from backend.tools.service import tool_calling_service
 from backend.web.search import web_search_service
 
@@ -128,10 +129,38 @@ class QueryOrchestrator:
         decision: QueryRoutingDecision,
         user_role: str,
     ) -> dict:
-        tool_result = await self.tools.execute_requested_tool(
-            query=query,
-            user_role=user_role,
-        )
+        tool_result = None
+
+        if decision.tool_name:
+            try:
+                tool = executor.registry.get(decision.tool_name) if hasattr(executor, "registry") else None
+            except Exception:
+                tool = None
+
+            if tool is not None:
+                try:
+                    arguments = self._build_tool_arguments(
+                        tool_name=decision.tool_name,
+                        query=query,
+                    )
+                    result = await executor.execute(
+                        tool_name=decision.tool_name,
+                        arguments=arguments,
+                        user_role=user_role,
+                    )
+                    tool_result = {
+                        "tool_name": decision.tool_name,
+                        "arguments": arguments,
+                        "result": result,
+                    }
+                except Exception as exc:
+                    logger.warning("Deterministic tool execution failed: %s", str(exc))
+
+        if tool_result is None:
+            tool_result = await self.tools.execute_requested_tool(
+                query=query,
+                user_role=user_role,
+            )
 
         if not tool_result:
             return self._response(
@@ -176,6 +205,12 @@ Tool result:
             "tool_arguments": tool_result["arguments"],
             "tool_result": tool_result["result"],
         }
+
+    @staticmethod
+    def _build_tool_arguments(tool_name: str, query: str) -> dict:
+        if tool_name != "calculator":
+            raise ValueError("No deterministic argument builder is registered for this tool.")
+        return {"expression": query.strip()}
 
     async def _answer_web_query(
         self,
