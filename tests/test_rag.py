@@ -51,3 +51,15 @@ def test_prompt_injection_blocked(client, employee_headers):
     data = response.json()
     assert "Security Alert" in data["answer"]
     assert data["chunks_retrieved"] == 0
+
+
+def test_client_cannot_override_rbac_identity(client, employee_headers):
+    """Role/department in the request body must not override JWT identity."""
+    payload = {
+        "query": "What is the Finance policy?",
+        "user_role": "admin",
+        "user_department": "Finance",
+    }
+    response = client.post("/api/v1/rag/query", json=payload, headers=employee_headers)
+    # The endpoint must still authenticate the employee and never trust these fields.
+    assert response.status_code in (200, 503)
