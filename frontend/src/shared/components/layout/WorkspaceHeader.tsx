@@ -4,18 +4,11 @@ import { Button } from "@/shared/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
 import { useAuth } from "@/auth/auth-context";
 import { useUserProfile } from "@/auth/use-user-profile";
+import { WorkspaceCommandPalette } from "./WorkspaceCommandPalette";
 
 const PAGE_LABELS: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/assistant": "AI Assistant",
-  "/documents": "Documents",
-  "/upload": "Upload Document",
-  "/users": "User Management",
-  "/audit": "Audit Logs",
-  "/access": "Access Control",
-  "/account": "Account",
-  "/admin": "Admin Dashboard",
-  "/admin/documents": "Document Management",
+  "/dashboard": "Dashboard", "/assistant": "AI Assistant", "/documents": "Documents", "/upload": "Upload Document",
+  "/users": "User Management", "/audit": "Audit Logs", "/access": "Access Control", "/account": "Account", "/admin": "Admin Dashboard", "/admin/documents": "Document Management",
 };
 
 export function WorkspaceHeader() {
@@ -40,16 +33,11 @@ export function WorkspaceHeader() {
             <p className="hidden truncate text-[10px] text-muted-foreground sm:block">Secure enterprise knowledge workspace</p>
           </div>
         </div>
-
         <div className="flex items-center gap-1.5">
-          <Button variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground" aria-label="Notifications">
-            <Bell className="size-4" />
-          </Button>
+          <WorkspaceCommandPalette />
+          <Button variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground" aria-label="Notifications"><Bell className="size-4" /></Button>
           <Link to="/account" className="ml-1 rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring">
-            <Avatar className="size-8 border border-hairline">
-              <AvatarImage src={identity?.avatarUrl} alt={identity?.name ?? "Account"} />
-              <AvatarFallback className="bg-secondary text-[10px] font-medium">{initials}</AvatarFallback>
-            </Avatar>
+            <Avatar className="size-8 border border-hairline"><AvatarImage src={identity?.avatarUrl} alt={identity?.name ?? "Account"} /><AvatarFallback className="bg-secondary text-[10px] font-medium">{initials}</AvatarFallback></Avatar>
           </Link>
         </div>
       </div>
