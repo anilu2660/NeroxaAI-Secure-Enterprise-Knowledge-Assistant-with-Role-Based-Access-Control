@@ -61,13 +61,12 @@ class CrossEncoderReranker:
                 for key in ("document_id", "page_number", "parent_id", "chunk_index")
             )
 
-        # Legacy payloads without a stable point/chunk identifier should not
-        # cause unrelated results to be deduplicated together.
         return f"legacy:{id(chunk)}"
 
     def rerank(self, query: str, chunks: list[dict]) -> list[dict]:
         if not chunks:
             return chunks
+
         if len(chunks) == 1:
             result = dict(chunks[0])
             result["reranker_score"] = None
@@ -86,21 +85,35 @@ class CrossEncoderReranker:
 
             seen_reranked = set()
             reranked = []
+            filtered_count = 0
+            min_score = settings.RERANKER_MIN_SCORE
+            threshold_enabled = settings.RERANKER_ENABLE_THRESHOLD
+
             for score, chunk in scored:
+                score_float = float(score)
+                if threshold_enabled and score_float < min_score:
+                    filtered_count += 1
+                    continue
+
                 key = self._chunk_identity(chunk)
                 if key in seen_reranked:
                     continue
                 seen_reranked.add(key)
+
                 enriched = dict(chunk)
-                enriched["reranker_score"] = round(float(score), 4)
+                enriched["reranker_score"] = round(score_float, 4)
                 reranked.append(enriched)
+
                 if len(reranked) >= self.top_n:
                     break
 
             logger.info(
-                "Reranked %d → %d chunks | best=%.4f",
+                "Reranked %d → %d chunks | filtered=%d | threshold=%s %.4f | best=%.4f",
                 len(chunks),
                 len(reranked),
+                filtered_count,
+                threshold_enabled,
+                min_score,
                 float(scored[0][0]) if scored else 0.0,
             )
             return reranked
@@ -115,7 +128,13 @@ class CrossEncoderReranker:
     def check_health(self) -> dict:
         try:
             _ = self.model
-            return {"status": "healthy", "model": self.model_name, "top_n": self.top_n}
+            return {
+                "status": "healthy",
+                "model": self.model_name,
+                "top_n": self.top_n,
+                "threshold_enabled": settings.RERANKER_ENABLE_THRESHOLD,
+                "min_score": settings.RERANKER_MIN_SCORE,
+            }
         except Exception as e:
             return {"status": "unhealthy", "model": self.model_name, "error": str(e)}
 
