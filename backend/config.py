@@ -63,9 +63,13 @@ class Settings:
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     REDIS_CONNECT_TIMEOUT_SECONDS: float = float(os.getenv("REDIS_CONNECT_TIMEOUT_SECONDS", "2"))
     REDIS_TIMEOUT_SECONDS: float = float(os.getenv("REDIS_TIMEOUT_SECONDS", "2"))
-    CACHE_NAMESPACE: str = os.getenv("CACHE_NAMESPACE", "neroxaai:v1")
+    CACHE_NAMESPACE: str = os.getenv("CACHE_NAMESPACE", "neroxaai:v2")
     CACHE_TTL_SECONDS: int = int(os.getenv("CACHE_TTL_SECONDS", "300"))
     CACHE_MAX_ENTRIES_PER_SCOPE: int = int(os.getenv("CACHE_MAX_ENTRIES_PER_SCOPE", "50"))
+
+    # Increment when chunking/retrieval semantics change so stale semantic-cache
+    # entries cannot mask retrieval fixes.
+    RETRIEVAL_PIPELINE_VERSION: str = os.getenv("RETRIEVAL_PIPELINE_VERSION", "2")
 
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5")
