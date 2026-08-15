@@ -1,15 +1,32 @@
 [
-  {
-    "id": "finance-001",
-    "query": "Where does the University obtain its funds from?",
-    "document": "finance_policy.pdf",
-    "pages": [4]
-  },
-  {
-    "id": "finance-002",
-    "query": "What are the sources of University funds?",
-    "document": "finance_policy.pdf",
-    "pages": [4]
-  },
-  {
-    "id": "finance
+  {"id":"finance-001","query":"Where does the University obtain its funds from?","document":"finance_policy.pdf","pages":[4]},
+  {"id":"finance-002","query":"What are the sources of University funds?","document":"finance_policy.pdf","pages":[4]},
+  {"id":"finance-003","query":"How are University funds deposited after they are received?","document":"finance_policy.pdf","pages":[4]},
+  {"id":"finance-004","query":"What is the maximum petty cash float?","document":"finance_policy.pdf","pages":[6]},
+  {"id":"finance-005","query":"Who can authorize an increase in the petty cash float?","document":"finance_policy.pdf","pages":[6]},
+  {"id":"finance-006","query":"What approvals are required to establish a new source of University revenue?","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-007","query":"If the University wants to establish a new source of income, who must approve it?","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-008","query":"Whose report must be considered before approving a new source of revenue?","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-009","query":"What financial implications must be considered when establishing a new source of revenue?","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-010","query":"Can a department independently create a new source of University income?","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-011","query":"What is the University financial year?","document":"finance_policy.pdf","pages":[3]},
+  {"id":"finance-012","query":"Who has overall responsibility for managing University financial resources?","document":"finance_policy.pdf","pages":[3]},
+  {"id":"finance-013","query":"Which bodies have overall responsibility for University financial resources?","document":"finance_policy.pdf","pages":[3]},
+  {"id":"finance-014","query":"Who can receive delegated financial management responsibilities?","document":"finance_policy.pdf","pages":[3]},
+  {"id":"finance-015","query":"Can financial management responsibilities be delegated within the University?","document":"finance_policy.pdf","pages":[3]},
+  {"id":"finance-016","query":"What are the responsibilities of the Finance Officer?","document":"finance_policy.pdf","pages":[3]},
+  {"id":"finance-017","query":"What types of research grants can the University receive?","document":"finance_policy.pdf","pages":[4]},
+  {"id":"finance-018","query":"Does the University receive income from investments and other services?","document":"finance_policy.pdf","pages":[4]},
+  {"id":"finance-019","query":"Can donations and endowments be sources of University funds?","document":"finance_policy.pdf","pages":[4]},
+  {"id":"finance-020","query":"Can the University obtain loans from financial institutions?","document":"finance_policy.pdf","pages":[4]},
+  {"id":"finance-021","query":"What is the role of the Board of Management in financial matters?","document":"finance_policy.pdf","pages":[3,9]},
+  {"id":"finance-022","query":"What is the role of the Board of Governors in financial matters?","document":"finance_policy.pdf","pages":[3,9]},
+  {"id":"finance-023","query":"What approvals are needed before varying an existing source of revenue?","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-024","query":"What happens before a proposal to establish a new revenue source is adopted?","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-025","query":"Which authority considers the financial implications of a proposal for a new revenue source?","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-026","query":"Who approves proposals that vary an existing revenue source or establish a new one?","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-027","query":"What are the University's main sources of income and what approval is required for a new source?","document":"finance_policy.pdf","pages":[4,9]},
+  {"id":"finance-028","query":"Explain the difference between an existing source of revenue and a newly established source under the policy.","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-029","query":"If a new revenue proposal has financial implications, what must happen before approval?","document":"finance_policy.pdf","pages":[9]},
+  {"id":"finance-030","query":"Who manages University finances, and who approves a new source of University revenue?","document":"finance_policy.pdf","pages":[3,9]}
+]
