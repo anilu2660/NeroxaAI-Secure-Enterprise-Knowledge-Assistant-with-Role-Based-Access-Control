@@ -38,12 +38,29 @@ class SemanticCacheService:
         return float(np.dot(a, b) / (norm_a * norm_b))
 
     @staticmethod
-    def _scope_key(user_id: str, user_role: str, user_department: str) -> str:
-        scope = f"{user_id}|{user_role}|{user_department}"
+    def _scope_key(
+        user_id: str,
+        user_role: str,
+        user_department: str,
+        department_filter: str | None = None,
+    ) -> str:
+        scope = "|".join([
+            settings.RETRIEVAL_PIPELINE_VERSION,
+            user_id,
+            user_role,
+            user_department,
+            department_filter or "*",
+        ])
         return hashlib.sha256(scope.encode("utf-8")).hexdigest()
 
-    def _key(self, user_id: str, user_role: str, user_department: str) -> str:
-        return f"{self.namespace}:semantic:{self._scope_key(user_id, user_role, user_department)}"
+    def _key(
+        self,
+        user_id: str,
+        user_role: str,
+        user_department: str,
+        department_filter: str | None = None,
+    ) -> str:
+        return f"{self.namespace}:semantic:{self._scope_key(user_id, user_role, user_department, department_filter)}"
 
     async def _read_entries(self, key: str) -> list[dict[str, Any]]:
         raw = await self.client.get(key)
@@ -56,12 +73,21 @@ class SemanticCacheService:
             logger.warning("Invalid semantic cache payload encountered.")
             return []
 
-    async def get(self, query: str, user_id: str, user_role: str, user_department: str) -> dict[str, Any] | None:
+    async def get(
+        self,
+        query: str,
+        user_id: str,
+        user_role: str,
+        user_department: str,
+        department_filter: str | None = None,
+    ) -> dict[str, Any] | None:
         if not user_id:
             return None
         try:
             query_vec = await asyncio.to_thread(embedding_service.embed_query, query)
-            entries = await self._read_entries(self._key(user_id, user_role, user_department))
+            entries = await self._read_entries(
+                self._key(user_id, user_role, user_department, department_filter)
+            )
             best_score = 0.0
             best_entry = None
             for entry in entries:
@@ -83,7 +109,18 @@ class SemanticCacheService:
             logger.warning("Semantic cache lookup failed; bypassing cache: %s", str(exc))
         return None
 
-    async def set(self, query: str, answer: str, sources: list[dict], model: str, chunks_retrieved: int, user_id: str, user_role: str, user_department: str) -> None:
+    async def set(
+        self,
+        query: str,
+        answer: str,
+        sources: list[dict],
+        model: str,
+        chunks_retrieved: int,
+        user_id: str,
+        user_role: str,
+        user_department: str,
+        department_filter: str | None = None,
+    ) -> None:
         if not user_id:
             return
         lowered = answer.lower()
@@ -91,7 +128,7 @@ class SemanticCacheService:
             return
         try:
             query_vec = await asyncio.to_thread(embedding_service.embed_query, query)
-            key = self._key(user_id, user_role, user_department)
+            key = self._key(user_id, user_role, user_department, department_filter)
             entries = await self._read_entries(key)
             entries.append({
                 "query": query,
@@ -106,9 +143,17 @@ class SemanticCacheService:
         except Exception as exc:
             logger.warning("Semantic cache write failed; continuing without cache: %s", str(exc))
 
-    async def clear_scope(self, user_id: str, user_role: str, user_department: str) -> None:
+    async def clear_scope(
+        self,
+        user_id: str,
+        user_role: str,
+        user_department: str,
+        department_filter: str | None = None,
+    ) -> None:
         try:
-            await self.client.delete(self._key(user_id, user_role, user_department))
+            await self.client.delete(
+                self._key(user_id, user_role, user_department, department_filter)
+            )
         except Exception as exc:
             logger.warning("Semantic cache scope invalidation failed: %s", str(exc))
 

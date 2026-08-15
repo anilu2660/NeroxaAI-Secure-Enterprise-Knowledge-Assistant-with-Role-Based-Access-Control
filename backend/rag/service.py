@@ -1,7 +1,8 @@
 """
 RAG Pipeline Service
 
-Orchestrates hybrid retrieval, reranking, generation, and user-scoped caching.
+Orchestrates query expansion, hybrid retrieval, reranking, section-context
+expansion, generation, and user-scoped caching.
 """
 
 import asyncio
@@ -50,31 +51,77 @@ class RAGService:
         self.cache = semantic_cache
 
     def _expand_query(self, query: str) -> str:
+        """Add domain synonyms without replacing the user's original wording."""
         q_lower = query.lower()
-        expansions = []
-        if "certifying officer" in q_lower or "invoice" in q_lower or "payment" in q_lower:
-            expansions.append("verifying passing scrutiny of bills vouchers sanctioning authority")
+        expansions: list[str] = []
+
+        if any(term in q_lower for term in ("certifying officer", "invoice", "payment", "bill", "voucher")):
+            expansions.append("verifying passing scrutiny bills vouchers sanctioning authority payment")
         if "imprest" in q_lower:
             expansions.append("advance cash limit surrender petty cash")
+        if any(term in q_lower for term in ("new source", "new source of income", "source of income", "revenue source")):
+            expansions.append("establish source of revenue university funds approval authorization financial implications proposal")
+        if any(term in q_lower for term in ("financial implication", "financial implications", "cost implication")):
+            expansions.append("financial impact cost budget expenditure funding")
+
         return f"{query} {' '.join(expansions)}" if expansions else query
 
     def _decompose_query(self, query: str) -> list[str]:
+        """Create a small set of focused retrieval queries for multi-part questions."""
         sub_queries = [query]
-        if len(query) > 60 and (" and " in query.lower() or " as well as " in query.lower() or " versus " in query.lower()):
-            parts = re.split(r"\b(and|as well as|versus)\b", query, flags=re.IGNORECASE)
-            valid_parts = [p.strip() for p in parts if len(p.strip()) > 15 and p.lower() not in ("and", "as well as", "versus")]
+        if len(query) > 60 and re.search(r"\b(and|as well as|versus|while|plus)\b", query, re.IGNORECASE):
+            parts = re.split(r"\b(and|as well as|versus|while|plus)\b", query, flags=re.IGNORECASE)
+            valid_parts = [
+                p.strip()
+                for p in parts
+                if len(p.strip()) > 15
+                and p.lower() not in ("and", "as well as", "versus", "while", "plus")
+            ]
             if len(valid_parts) > 1:
                 sub_queries.extend(valid_parts)
         return sub_queries[:3]
 
-    async def _retrieve_and_rerank(self, query: str, user_id: str, user_role: str, user_department: str, department_filter: str | None, top_k: int) -> list[dict]:
+    @staticmethod
+    def _chunk_identity(chunk: dict) -> str:
+        return ":".join(
+            str(chunk.get(key, ""))
+            for key in ("document_id", "page_number", "parent_id", "chunk_index")
+        )
+
+    @staticmethod
+    def _add_parent_context(chunks: list[dict]) -> list[dict]:
+        """Expand only after reranking, preserving the precise ranked chunk."""
+        resolved = []
+        for chunk in chunks:
+            enriched = dict(chunk)
+            precise = chunk.get("content") or chunk.get("raw_text", "")
+            parent = chunk.get("parent_content", "")
+            if parent and parent != precise:
+                enriched["retrieved_content"] = precise
+                enriched["content"] = parent
+            resolved.append(enriched)
+        return resolved
+
+    async def _retrieve_and_rerank(
+        self,
+        query: str,
+        user_id: str,
+        user_role: str,
+        user_department: str,
+        department_filter: str | None,
+        top_k: int,
+    ) -> list[dict]:
         sub_queries = self._decompose_query(query)
-        all_raw_chunks = []
-        seen_chunks = set()
+        all_raw_chunks: list[dict] = []
+        seen_chunks: set[str] = set()
+
         for sub_q in sub_queries:
             search_query = self._expand_query(sub_q)
-            q_emb = await asyncio.to_thread(self.embeddings.embed_query, sub_q)
-            candidate_k = max(top_k * 3, 15)
+            q_emb = await asyncio.to_thread(
+                self.embeddings.embed_query,
+                search_query,
+            )
+            candidate_k = max(top_k * 4, 20)
             chunks = await self.retriever.search(
                 query_embedding=q_emb,
                 user_role=user_role,
@@ -84,8 +131,9 @@ class RAGService:
                 top_k=candidate_k,
                 query_text=search_query,
             )
+
             for chunk in chunks:
-                key = f"{chunk.get('document_id')}:{chunk.get('page_number')}:{chunk.get('content', '')[:50]}"
+                key = self._chunk_identity(chunk)
                 if key not in seen_chunks:
                     seen_chunks.add(key)
                     all_raw_chunks.append(chunk)
@@ -93,17 +141,20 @@ class RAGService:
         if not all_raw_chunks:
             return []
 
-        resolved_chunks = []
-        for chunk in all_raw_chunks:
-            enriched = dict(chunk)
-            if chunk.get("parent_content"):
-                enriched["content"] = chunk["parent_content"]
-            resolved_chunks.append(enriched)
+        reranked_chunks = await self.reranker.async_rerank(query, all_raw_chunks)
+        reranked_chunks = reranked_chunks[:top_k]
+        return self._add_parent_context(reranked_chunks)
 
-        reranked_chunks = await self.reranker.async_rerank(query, resolved_chunks)
-        return reranked_chunks[:top_k]
-
-    async def query(self, query: str, user_id: str, user_role: str, user_department: str, department_filter: str | None = None, top_k: int = 5, temperature: float = 0.7) -> dict:
+    async def query(
+        self,
+        query: str,
+        user_id: str,
+        user_role: str,
+        user_department: str,
+        department_filter: str | None = None,
+        top_k: int = 5,
+        temperature: float = 0.7,
+    ) -> dict:
         query = query.strip()
         if not query or len(query) > 500:
             raise ValueError("Query must contain between 1 and 500 characters.")
@@ -126,11 +177,18 @@ class RAGService:
             user_id=user_id,
             user_role=user_role,
             user_department=user_department,
+            department_filter=department_filter,
         )
         if cached_result:
             return cached_result
 
-        logger.info("RAG query started | role=%s | department=%s | user_id=%s", user_role, user_department, user_id)
+        logger.info(
+            "RAG query started | role=%s | department=%s | user_id=%s | department_filter=%s",
+            user_role,
+            user_department,
+            user_id,
+            department_filter,
+        )
 
         if is_conversational_query(query):
             try:
@@ -184,10 +242,20 @@ class RAGService:
             user_id=user_id,
             user_role=user_role,
             user_department=user_department,
+            department_filter=department_filter,
         )
         return result
 
-    async def stream_query(self, query: str, user_id: str, user_role: str, user_department: str, department_filter: str | None = None, top_k: int = 5, temperature: float = 0.7):
+    async def stream_query(
+        self,
+        query: str,
+        user_id: str,
+        user_role: str,
+        user_department: str,
+        department_filter: str | None = None,
+        top_k: int = 5,
+        temperature: float = 0.7,
+    ):
         from backend.llm.prompts import detect_prompt_injection
         query = query.strip()
         if not query or len(query) > 500:
