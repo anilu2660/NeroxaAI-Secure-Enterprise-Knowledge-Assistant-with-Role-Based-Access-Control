@@ -142,7 +142,7 @@ class RetrieverService:
         )
 
         try:
-            results = []
+            dense_results = []
             limit = top_k * 3 if query_text and settings.ENABLE_HYBRID_SEARCH else top_k
 
             try:
@@ -154,7 +154,7 @@ class RetrieverService:
                     limit=limit,
                     score_threshold=0.1,
                 )
-                results = response.points
+                dense_results = response.points
             except Exception:
                 response = self.client.query_points(
                     collection_name=self.collection,
@@ -163,13 +163,13 @@ class RetrieverService:
                     limit=limit,
                     score_threshold=0.1,
                 )
-                results = response.points
+                dense_results = response.points
 
             sparse_results = []
             if query_text and settings.ENABLE_HYBRID_SEARCH:
                 try:
                     from backend.embeddings.sparse import bm25_encoder
-                    sparse_vector = bm25_encoder.encode(query_text)
+                    sparse_vector = bm25_encoder.encode_query(query_text)
                     if sparse_vector.indices:
                         sparse_resp = self.client.query_points(
                             collection_name=self.collection,
@@ -180,48 +180,47 @@ class RetrieverService:
                         )
                         sparse_results = sparse_resp.points
                 except Exception as sparse_err:
-                    logger.debug(
-                        "Sparse search skipped or unavailable: %s",
-                        sparse_err,
-                    )
+                    logger.debug("Sparse search skipped or unavailable: %s", sparse_err)
+
+            dense_rank: dict[str, int] = {}
+            dense_score: dict[str, float] = {}
+            sparse_rank: dict[str, int] = {}
+            sparse_score: dict[str, float] = {}
+            point_map: dict[str, Any] = {}
+            rrf_scores: dict[str, float] = {}
+
+            for rank, point in enumerate(dense_results, start=1):
+                pid = str(point.id)
+                dense_rank[pid] = rank
+                dense_score[pid] = float(getattr(point, "score", 0.0))
+                point_map[pid] = point
+                rrf_scores[pid] = rrf_scores.get(pid, 0.0) + 1.0 / (60 + rank)
+
+            for rank, point in enumerate(sparse_results, start=1):
+                pid = str(point.id)
+                sparse_rank[pid] = rank
+                sparse_score[pid] = float(getattr(point, "score", 0.0))
+                point_map[pid] = point
+                rrf_scores[pid] = rrf_scores.get(pid, 0.0) + 1.0 / (60 + rank)
 
             if sparse_results:
-                rrf_scores: dict[str, float] = {}
-                point_map: dict[str, Any] = {}
-
-                for rank, point in enumerate(results, start=1):
-                    pid = str(point.id)
-                    rrf_scores[pid] = rrf_scores.get(pid, 0.0) + 1.0 / (60 + rank)
-                    point_map[pid] = point
-
-                for rank, point in enumerate(sparse_results, start=1):
-                    pid = str(point.id)
-                    rrf_scores[pid] = rrf_scores.get(pid, 0.0) + 1.0 / (60 + rank)
-                    point_map[pid] = point
-
-                sorted_pids = sorted(
-                    rrf_scores,
-                    key=lambda k: rrf_scores[k],
-                    reverse=True,
-                )[:top_k]
+                sorted_pids = sorted(rrf_scores, key=rrf_scores.get, reverse=True)[:top_k]
                 final_points = [point_map[pid] for pid in sorted_pids]
             else:
-                final_points = results[:top_k]
+                final_points = dense_results[:top_k]
 
             chunks = []
             for point in final_points:
                 payload = point.payload or {}
+                pid = str(point.id)
                 chunks.append({
-                    # Preserve the original retrieval unit for reranking.
                     "content": payload.get("content", ""),
                     "raw_text": payload.get("raw_text", payload.get("content", "")),
-                    # Preserve parent/section context for post-rerank enrichment.
                     "parent_content": payload.get("parent_content", ""),
                     "parent_id": payload.get("parent_id", ""),
                     "section_title": payload.get("section_title", ""),
                     "section_index": payload.get("section_index", -1),
                     "chunk_index": payload.get("chunk_index", -1),
-                    # Document/security metadata.
                     "title": payload.get("title", "Unknown Document"),
                     "department": payload.get("department", "General"),
                     "page_number": payload.get("page_number", "N/A"),
@@ -229,16 +228,27 @@ class RetrieverService:
                     "owner": payload.get("owner", ""),
                     "owner_id": payload.get("owner_id", ""),
                     "shared_with": payload.get("shared_with", []),
-                    "score": getattr(point, "score", 0.0),
-                    "point_id": str(point.id),
+                    "score": dense_score.get(pid, sparse_score.get(pid, getattr(point, "score", 0.0))),
+                    "dense_score": dense_score.get(pid),
+                    "dense_rank": dense_rank.get(pid),
+                    "sparse_score": sparse_score.get(pid),
+                    "sparse_rank": sparse_rank.get(pid),
+                    "rrf_score": round(rrf_scores.get(pid, 0.0), 8),
+                    "retrieval_method": (
+                        "hybrid" if pid in dense_rank and pid in sparse_rank
+                        else "dense" if pid in dense_rank
+                        else "sparse"
+                    ),
+                    "point_id": pid,
                 })
 
             logger.info(
-                "Retrieved %d authorized chunks | role=%s | department=%s | user_id=%s | filter=%s",
+                "Retrieved %d authorized chunks | dense=%d sparse=%d | role=%s | department=%s | filter=%s",
                 len(chunks),
+                len(dense_results),
+                len(sparse_results),
                 user_role,
                 user_department,
-                user_id,
                 department_filter,
             )
             return chunks
@@ -267,7 +277,6 @@ class RetrieverService:
             collections = self.client.get_collections()
             collection_names = [c.name for c in collections.collections]
             collection_exists = self.collection in collection_names
-
             return {
                 "status": "healthy",
                 "host": f"{self.host}:{self.port}",
