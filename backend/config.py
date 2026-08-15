@@ -79,6 +79,10 @@ class Settings:
 
     RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
     RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "5"))
+    # Cross-encoder scores are model-specific logits, so keep the threshold
+    # configurable rather than hard-coding it in application logic.
+    RERANKER_MIN_SCORE: float = float(os.getenv("RERANKER_MIN_SCORE", "0.0"))
+    RERANKER_ENABLE_THRESHOLD: bool = os.getenv("RERANKER_ENABLE_THRESHOLD", "true").lower() == "true"
     ENABLE_HYBRID_SEARCH: bool = os.getenv("ENABLE_HYBRID_SEARCH", "true").lower() == "true"
 
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1200"))
