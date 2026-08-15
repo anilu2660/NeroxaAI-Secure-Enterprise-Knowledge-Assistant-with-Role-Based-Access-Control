@@ -212,9 +212,16 @@ class RetrieverService:
             for point in final_points:
                 payload = point.payload or {}
                 chunks.append({
+                    # Preserve the original retrieval unit for reranking.
                     "content": payload.get("content", ""),
+                    "raw_text": payload.get("raw_text", payload.get("content", "")),
+                    # Preserve parent/section context for post-rerank enrichment.
                     "parent_content": payload.get("parent_content", ""),
                     "parent_id": payload.get("parent_id", ""),
+                    "section_title": payload.get("section_title", ""),
+                    "section_index": payload.get("section_index", -1),
+                    "chunk_index": payload.get("chunk_index", -1),
+                    # Document/security metadata.
                     "title": payload.get("title", "Unknown Document"),
                     "department": payload.get("department", "General"),
                     "page_number": payload.get("page_number", "N/A"),
@@ -223,6 +230,7 @@ class RetrieverService:
                     "owner_id": payload.get("owner_id", ""),
                     "shared_with": payload.get("shared_with", []),
                     "score": getattr(point, "score", 0.0),
+                    "point_id": str(point.id),
                 })
 
             logger.info(
