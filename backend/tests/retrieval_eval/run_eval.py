@@ -44,7 +44,42 @@ def is_expected_source(chunk: dict, case: dict) -> bool:
     return page in {int(p) for p in case["pages"]}
 
 
+async def ensure_dataset_indexed() -> None:
+    from backend.documents.service import document_service
+    pdf_path = Path(__file__).resolve().parents[3] / "docs" / "finance_policy.pdf"
+    if not pdf_path.exists():
+        return
+
+    client = document_service.retriever.client
+    collection_name = document_service.retriever.collection
+    needs_ingest = False
+
+    try:
+        collections = client.get_collections()
+        c_names = [c.name for c in collections.collections]
+        if collection_name not in c_names:
+            needs_ingest = True
+        else:
+            count_res = client.count(collection_name=collection_name)
+            if count_res.count == 0:
+                needs_ingest = True
+    except Exception:
+        needs_ingest = True
+
+    if needs_ingest:
+        print(f"[*] Ingesting evaluation dataset '{pdf_path.name}' into Qdrant vector database...")
+        await document_service.ingest_document(
+            filename="finance_policy.pdf",
+            file_bytes=pdf_path.read_bytes(),
+            department="Finance",
+            owner="admin",
+            owner_id="admin-eval",
+        )
+        print("[+] Dataset document indexed successfully.")
+
+
 async def evaluate(args: argparse.Namespace) -> dict:
+    await ensure_dataset_indexed()
     cases = json.loads(DATASET.read_text(encoding="utf-8"))
     details = []
 

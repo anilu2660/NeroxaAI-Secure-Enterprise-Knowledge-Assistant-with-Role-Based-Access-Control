@@ -53,16 +53,28 @@ class QdrantManager:
                     check_compatibility=False,
                 )
             else:
-                if self.host == ":memory:" or self.host == "localhost" or not self.host:
-                    self._client = QdrantClient(path="./qdrant_storage")
+                if self.host == ":memory:":
+                    self._client = QdrantClient(location=":memory:")
+                elif self.host and self.host != "local":
+                    try:
+                        client = QdrantClient(
+                            host=self.host,
+                            port=self.port,
+                            prefer_grpc=False,
+                            timeout=3,
+                            check_compatibility=False,
+                        )
+                        client.get_collections()
+                        self._client = client
+                    except Exception:
+                        logger.info(
+                            "Qdrant server at %s:%s not reachable, using local storage './qdrant_storage'",
+                            self.host,
+                            self.port,
+                        )
+                        self._client = QdrantClient(path="./qdrant_storage")
                 else:
-                    self._client = QdrantClient(
-                        host=self.host,
-                        port=self.port,
-                        prefer_grpc=False,
-                        timeout=30,
-                        check_compatibility=False,
-                    )
+                    self._client = QdrantClient(path="./qdrant_storage")
         return self._client
 
     def ensure_collection_exists(self) -> bool:

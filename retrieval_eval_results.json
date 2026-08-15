@@ -1,0 +1,1036 @@
+{
+  "config": {
+    "user_id": "retrieval-eval-user",
+    "role": "admin",
+    "department": "General",
+    "top_k": 5
+  },
+  "metrics": {
+    "queries": 30,
+    "recall_at_5": 0.9,
+    "recall_at_10": 0.9,
+    "mrr": 0.8833333333333333
+  },
+  "details": [
+    {
+      "id": "finance-001",
+      "query": "Where does the University obtain its funds from?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        4
+      ],
+      "retrieved": [
+        {
+          "point_id": "1ca51d2b-151b-59e3-a79e-86732b44e810",
+          "document": "finance_policy.pdf",
+          "page": 4,
+          "section": "The funds of the University shall be derived from the following sources:",
+          "chunk_index": 13,
+          "dense_score": 0.8313957408690236,
+          "dense_rank": 1,
+          "sparse_score": 3.2967190742492676,
+          "sparse_rank": 4,
+          "rrf_score": 0.03201844,
+          "reranker_score": 4.6986,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-002",
+      "query": "What are the sources of University funds?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        4
+      ],
+      "retrieved": [
+        {
+          "point_id": "1ca51d2b-151b-59e3-a79e-86732b44e810",
+          "document": "finance_policy.pdf",
+          "page": 4,
+          "section": "The funds of the University shall be derived from the following sources:",
+          "chunk_index": 13,
+          "dense_score": 0.8546406330723402,
+          "dense_rank": 1,
+          "sparse_score": 7.7796478271484375,
+          "sparse_rank": 1,
+          "rrf_score": 0.03278689,
+          "reranker_score": 7.6989,
+          "expected_source": true
+        },
+        {
+          "point_id": "4cb7cc5f-bbe9-59d5-98d4-15f3bc63fc89",
+          "document": "finance_policy.pdf",
+          "page": 4,
+          "section": "main responsibilities shall be to:",
+          "chunk_index": 12,
+          "dense_score": 0.5919913222836446,
+          "dense_rank": 32,
+          "sparse_score": 5.71196174621582,
+          "sparse_rank": 2,
+          "rrf_score": 0.0269986,
+          "reranker_score": 1.0442,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-003",
+      "query": "How are University funds deposited after they are received?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        4
+      ],
+      "retrieved": [
+        {
+          "point_id": "6b75a5e1-6f44-5669-a7a9-78f37c064065",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 33,
+          "dense_score": 0.8058533437781988,
+          "dense_rank": 1,
+          "sparse_score": 6.8533616065979,
+          "sparse_rank": 3,
+          "rrf_score": 0.03226646,
+          "reranker_score": 5.2746,
+          "expected_source": false
+        },
+        {
+          "point_id": "1ca51d2b-151b-59e3-a79e-86732b44e810",
+          "document": "finance_policy.pdf",
+          "page": 4,
+          "section": "The funds of the University shall be derived from the following sources:",
+          "chunk_index": 13,
+          "dense_score": 0.7535666340379232,
+          "dense_rank": 2,
+          "sparse_score": 9.070093154907227,
+          "sparse_rank": 1,
+          "rrf_score": 0.03252247,
+          "reranker_score": 4.4997,
+          "expected_source": true
+        },
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.7289769034172935,
+          "dense_rank": 3,
+          "sparse_score": 7.691380023956299,
+          "sparse_rank": 2,
+          "rrf_score": 0.03200205,
+          "reranker_score": 0.5882,
+          "expected_source": false
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-004",
+      "query": "What is the maximum petty cash float?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        6
+      ],
+      "retrieved": [
+        {
+          "point_id": "9e9fc1d3-7db7-5e95-82a8-d594a00ae83c",
+          "document": "finance_policy.pdf",
+          "page": 7,
+          "section": "No further imprest shall be granted before the previous one has been accounted for:",
+          "chunk_index": 26,
+          "dense_score": 0.7620089270561782,
+          "dense_rank": 1,
+          "sparse_score": 23.13691520690918,
+          "sparse_rank": 1,
+          "rrf_score": 0.03278689,
+          "reranker_score": 3.3501,
+          "expected_source": false
+        }
+      ],
+      "hit_at_5": false,
+      "hit_at_10": false
+    },
+    {
+      "id": "finance-005",
+      "query": "Who can authorize an increase in the petty cash float?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        6
+      ],
+      "retrieved": [],
+      "hit_at_5": false,
+      "hit_at_10": false
+    },
+    {
+      "id": "finance-006",
+      "query": "What approvals are required to establish a new source of University revenue?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.7383474854044846,
+          "dense_rank": 2,
+          "sparse_score": 22.021459579467773,
+          "sparse_rank": 1,
+          "rrf_score": 0.03252247,
+          "reranker_score": 5.8835,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-007",
+      "query": "If the University wants to establish a new source of income, who must approve it?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.7639396660062028,
+          "dense_rank": 2,
+          "sparse_score": 25.635637283325195,
+          "sparse_rank": 1,
+          "rrf_score": 0.03252247,
+          "reranker_score": 5.3652,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-008",
+      "query": "Whose report must be considered before approving a new source of revenue?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.746721937646017,
+          "dense_rank": 5,
+          "sparse_score": 25.28628158569336,
+          "sparse_rank": 1,
+          "rrf_score": 0.03177806,
+          "reranker_score": 3.6523,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-009",
+      "query": "What financial implications must be considered when establishing a new source of revenue?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.7152269156388085,
+          "dense_rank": 7,
+          "sparse_score": 23.816560745239258,
+          "sparse_rank": 1,
+          "rrf_score": 0.03131882,
+          "reranker_score": 3.6986,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-010",
+      "query": "Can a department independently create a new source of University income?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.7763220669144542,
+          "dense_rank": 2,
+          "sparse_score": 25.65180206298828,
+          "sparse_rank": 1,
+          "rrf_score": 0.03252247,
+          "reranker_score": 2.1383,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-011",
+      "query": "What is the University financial year?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        3
+      ],
+      "retrieved": [
+        {
+          "point_id": "e3e44368-1984-5a8c-bf3e-b4c66448a7e4",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "5. Financial Administration",
+          "chunk_index": 7,
+          "dense_score": 0.8350956519835674,
+          "dense_rank": 1,
+          "sparse_score": 5.362190246582031,
+          "sparse_rank": 1,
+          "rrf_score": 0.03278689,
+          "reranker_score": 7.5164,
+          "expected_source": true
+        },
+        {
+          "point_id": "9b3a7dce-302d-5f29-b0e8-e27fddbdbccd",
+          "document": "finance_policy.pdf",
+          "page": 5,
+          "section": "and expenditure of the University for the ensuing financial year shall provide for:",
+          "chunk_index": 16,
+          "dense_score": 0.7331288829313248,
+          "dense_rank": 3,
+          "sparse_score": 4.7772698402404785,
+          "sparse_rank": 2,
+          "rrf_score": 0.03200205,
+          "reranker_score": 2.4337,
+          "expected_source": false
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-012",
+      "query": "Who has overall responsibility for managing University financial resources?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        3
+      ],
+      "retrieved": [
+        {
+          "point_id": "e3e44368-1984-5a8c-bf3e-b4c66448a7e4",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "5. Financial Administration",
+          "chunk_index": 7,
+          "dense_score": 0.7934101924551789,
+          "dense_rank": 2,
+          "sparse_score": 14.6154203414917,
+          "sparse_rank": 1,
+          "rrf_score": 0.03252247,
+          "reranker_score": 7.6656,
+          "expected_source": true
+        },
+        {
+          "point_id": "e8abc9c1-5b87-5f34-9750-93bf0ecb963d",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "responsibility to various persons as mentioned herein below:",
+          "chunk_index": 9,
+          "dense_score": 0.806217192958345,
+          "dense_rank": 1,
+          "sparse_score": 5.571592330932617,
+          "sparse_rank": 2,
+          "rrf_score": 0.03252247,
+          "reranker_score": 2.3216,
+          "expected_source": true
+        },
+        {
+          "point_id": "be67e06a-c5e7-57e9-aa52-a3723be087cc",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "Officer shall:",
+          "chunk_index": 10,
+          "dense_score": 0.785341280853301,
+          "dense_rank": 4,
+          "sparse_score": 4.879509925842285,
+          "sparse_rank": 3,
+          "rrf_score": 0.03149802,
+          "reranker_score": 0.3077,
+          "expected_source": true
+        },
+        {
+          "point_id": "c0471b73-d23f-5d2f-8b20-4d3f44d854b3",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "(BoG). The Board of Management and Board of Governors has the following functions:",
+          "chunk_index": 8,
+          "dense_score": 0.7430600626516974,
+          "dense_rank": 9,
+          "sparse_score": 4.517795562744141,
+          "sparse_rank": 6,
+          "rrf_score": 0.02964427,
+          "reranker_score": 0.2005,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-013",
+      "query": "Which bodies have overall responsibility for University financial resources?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        3
+      ],
+      "retrieved": [
+        {
+          "point_id": "e3e44368-1984-5a8c-bf3e-b4c66448a7e4",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "5. Financial Administration",
+          "chunk_index": 7,
+          "dense_score": 0.7815095534252913,
+          "dense_rank": 3,
+          "sparse_score": 12.184176445007324,
+          "sparse_rank": 1,
+          "rrf_score": 0.03226646,
+          "reranker_score": 6.5891,
+          "expected_source": true
+        },
+        {
+          "point_id": "e8abc9c1-5b87-5f34-9750-93bf0ecb963d",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "responsibility to various persons as mentioned herein below:",
+          "chunk_index": 9,
+          "dense_score": 0.7868382181995235,
+          "dense_rank": 2,
+          "sparse_score": 3.5034427642822266,
+          "sparse_rank": 4,
+          "rrf_score": 0.03175403,
+          "reranker_score": 0.0987,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-014",
+      "query": "Who can receive delegated financial management responsibilities?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        3
+      ],
+      "retrieved": [],
+      "hit_at_5": false,
+      "hit_at_10": false
+    },
+    {
+      "id": "finance-015",
+      "query": "Can financial management responsibilities be delegated within the University?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        3
+      ],
+      "retrieved": [
+        {
+          "point_id": "c0471b73-d23f-5d2f-8b20-4d3f44d854b3",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "(BoG). The Board of Management and Board of Governors has the following functions:",
+          "chunk_index": 8,
+          "dense_score": 0.7744277410763847,
+          "dense_rank": 5,
+          "sparse_score": 14.06721019744873,
+          "sparse_rank": 2,
+          "rrf_score": 0.03151365,
+          "reranker_score": 2.8832,
+          "expected_source": true
+        },
+        {
+          "point_id": "e8abc9c1-5b87-5f34-9750-93bf0ecb963d",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "responsibility to various persons as mentioned herein below:",
+          "chunk_index": 9,
+          "dense_score": 0.8228332613056768,
+          "dense_rank": 1,
+          "sparse_score": 17.528125762939453,
+          "sparse_rank": 1,
+          "rrf_score": 0.03278689,
+          "reranker_score": 1.3698,
+          "expected_source": true
+        },
+        {
+          "point_id": "e3e44368-1984-5a8c-bf3e-b4c66448a7e4",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "5. Financial Administration",
+          "chunk_index": 7,
+          "dense_score": 0.770158195467171,
+          "dense_rank": 6,
+          "sparse_score": 11.378119468688965,
+          "sparse_rank": 4,
+          "rrf_score": 0.03077652,
+          "reranker_score": 1.3516,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-016",
+      "query": "What are the responsibilities of the Finance Officer?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        3
+      ],
+      "retrieved": [
+        {
+          "point_id": "e8abc9c1-5b87-5f34-9750-93bf0ecb963d",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "responsibility to various persons as mentioned herein below:",
+          "chunk_index": 9,
+          "dense_score": 0.843640191472198,
+          "dense_rank": 1,
+          "sparse_score": 3.230894088745117,
+          "sparse_rank": 1,
+          "rrf_score": 0.03278689,
+          "reranker_score": 8.0425,
+          "expected_source": true
+        },
+        {
+          "point_id": "be67e06a-c5e7-57e9-aa52-a3723be087cc",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "Officer shall:",
+          "chunk_index": 10,
+          "dense_score": 0.7442482945024138,
+          "dense_rank": 4,
+          "sparse_score": 2.6687965393066406,
+          "sparse_rank": 5,
+          "rrf_score": 0.03100962,
+          "reranker_score": 2.3842,
+          "expected_source": true
+        },
+        {
+          "point_id": "458462cd-565e-56d2-8a46-1ade4ca9bc86",
+          "document": "finance_policy.pdf",
+          "page": 12,
+          "section": "17. Insurance",
+          "chunk_index": 43,
+          "dense_score": 0.7098861288456768,
+          "dense_rank": 6,
+          "sparse_score": 2.886467695236206,
+          "sparse_rank": 2,
+          "rrf_score": 0.03128055,
+          "reranker_score": 0.6719,
+          "expected_source": false
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-017",
+      "query": "What types of research grants can the University receive?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        4
+      ],
+      "retrieved": [
+        {
+          "point_id": "1ca51d2b-151b-59e3-a79e-86732b44e810",
+          "document": "finance_policy.pdf",
+          "page": 4,
+          "section": "The funds of the University shall be derived from the following sources:",
+          "chunk_index": 13,
+          "dense_score": 0.7350113537628131,
+          "dense_rank": 1,
+          "sparse_score": 10.217569351196289,
+          "sparse_rank": 1,
+          "rrf_score": 0.03278689,
+          "reranker_score": 1.6347,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-018",
+      "query": "Does the University receive income from investments and other services?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        4
+      ],
+      "retrieved": [
+        {
+          "point_id": "1ca51d2b-151b-59e3-a79e-86732b44e810",
+          "document": "finance_policy.pdf",
+          "page": 4,
+          "section": "The funds of the University shall be derived from the following sources:",
+          "chunk_index": 13,
+          "dense_score": 0.7441089516634605,
+          "dense_rank": 2,
+          "sparse_score": 11.618959426879883,
+          "sparse_rank": 1,
+          "rrf_score": 0.03252247,
+          "reranker_score": 5.2812,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-019",
+      "query": "Can donations and endowments be sources of University funds?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        4
+      ],
+      "retrieved": [
+        {
+          "point_id": "1ca51d2b-151b-59e3-a79e-86732b44e810",
+          "document": "finance_policy.pdf",
+          "page": 4,
+          "section": "The funds of the University shall be derived from the following sources:",
+          "chunk_index": 13,
+          "dense_score": 0.8153543522496104,
+          "dense_rank": 1,
+          "sparse_score": 15.394430160522461,
+          "sparse_rank": 1,
+          "rrf_score": 0.03278689,
+          "reranker_score": 6.4802,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-020",
+      "query": "Can the University obtain loans from financial institutions?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        4
+      ],
+      "retrieved": [
+        {
+          "point_id": "1ca51d2b-151b-59e3-a79e-86732b44e810",
+          "document": "finance_policy.pdf",
+          "page": 4,
+          "section": "The funds of the University shall be derived from the following sources:",
+          "chunk_index": 13,
+          "dense_score": 0.7316175980072113,
+          "dense_rank": 1,
+          "sparse_score": 8.454832077026367,
+          "sparse_rank": 1,
+          "rrf_score": 0.03278689,
+          "reranker_score": 3.183,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-021",
+      "query": "What is the role of the Board of Management in financial matters?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        3,
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "c0471b73-d23f-5d2f-8b20-4d3f44d854b3",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "(BoG). The Board of Management and Board of Governors has the following functions:",
+          "chunk_index": 8,
+          "dense_score": 0.7652678952952408,
+          "dense_rank": 1,
+          "sparse_score": 6.919429779052734,
+          "sparse_rank": 2,
+          "rrf_score": 0.03252247,
+          "reranker_score": 5.0895,
+          "expected_source": true
+        },
+        {
+          "point_id": "e8abc9c1-5b87-5f34-9750-93bf0ecb963d",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "responsibility to various persons as mentioned herein below:",
+          "chunk_index": 9,
+          "dense_score": 0.6816713596854129,
+          "dense_rank": 5,
+          "sparse_score": 9.156746864318848,
+          "sparse_rank": 1,
+          "rrf_score": 0.03177806,
+          "reranker_score": 1.4555,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-022",
+      "query": "What is the role of the Board of Governors in financial matters?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        3,
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "c0471b73-d23f-5d2f-8b20-4d3f44d854b3",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "(BoG). The Board of Management and Board of Governors has the following functions:",
+          "chunk_index": 8,
+          "dense_score": 0.7849368592008645,
+          "dense_rank": 1,
+          "sparse_score": 7.162559509277344,
+          "sparse_rank": 2,
+          "rrf_score": 0.03252247,
+          "reranker_score": 6.1102,
+          "expected_source": true
+        },
+        {
+          "point_id": "e8abc9c1-5b87-5f34-9750-93bf0ecb963d",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "responsibility to various persons as mentioned herein below:",
+          "chunk_index": 9,
+          "dense_score": 0.6648152865620616,
+          "dense_rank": 7,
+          "sparse_score": 9.002047538757324,
+          "sparse_rank": 1,
+          "rrf_score": 0.03131882,
+          "reranker_score": 2.0741,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-023",
+      "query": "What approvals are needed before varying an existing source of revenue?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.6499437632993907,
+          "dense_rank": 8,
+          "sparse_score": 14.29776668548584,
+          "sparse_rank": 1,
+          "rrf_score": 0.03109932,
+          "reranker_score": 4.3329,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-024",
+      "query": "What happens before a proposal to establish a new revenue source is adopted?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.7264539802679261,
+          "dense_rank": 3,
+          "sparse_score": 24.310544967651367,
+          "sparse_rank": 1,
+          "rrf_score": 0.03226646,
+          "reranker_score": 3.8991,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-025",
+      "query": "Which authority considers the financial implications of a proposal for a new revenue source?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.6994833855015737,
+          "dense_rank": 11,
+          "sparse_score": 23.816560745239258,
+          "sparse_rank": 1,
+          "rrf_score": 0.03047795,
+          "reranker_score": 4.2696,
+          "expected_source": true
+        },
+        {
+          "point_id": "27c809d7-9400-513d-b87c-2c5639917ba9",
+          "document": "finance_policy.pdf",
+          "page": 8,
+          "section": "11. Capital Expenditure",
+          "chunk_index": 29,
+          "dense_score": 0.74941915753973,
+          "dense_rank": 2,
+          "sparse_score": 21.031238555908203,
+          "sparse_rank": 2,
+          "rrf_score": 0.03225806,
+          "reranker_score": 0.6827,
+          "expected_source": false
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-026",
+      "query": "Who approves proposals that vary an existing revenue source or establish a new one?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.7155785260914518,
+          "dense_rank": 5,
+          "sparse_score": 28.72442054748535,
+          "sparse_rank": 1,
+          "rrf_score": 0.03177806,
+          "reranker_score": 6.5353,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-027",
+      "query": "What are the University's main sources of income and what approval is required for a new source?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        4,
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.7613774914590994,
+          "dense_rank": 2,
+          "sparse_score": 25.635637283325195,
+          "sparse_rank": 1,
+          "rrf_score": 0.03252247,
+          "reranker_score": 2.168,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-028",
+      "query": "Explain the difference between an existing source of revenue and a newly established source under the policy.",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.6842667317548037,
+          "dense_rank": 2,
+          "sparse_score": 11.844684600830078,
+          "sparse_rank": 1,
+          "rrf_score": 0.03252247,
+          "reranker_score": 1.3681,
+          "expected_source": true
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-029",
+      "query": "If a new revenue proposal has financial implications, what must happen before approval?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.663180772019483,
+          "dense_rank": 12,
+          "sparse_score": 14.337227821350098,
+          "sparse_rank": 2,
+          "rrf_score": 0.03001792,
+          "reranker_score": 2.9598,
+          "expected_source": true
+        },
+        {
+          "point_id": "27c809d7-9400-513d-b87c-2c5639917ba9",
+          "document": "finance_policy.pdf",
+          "page": 8,
+          "section": "11. Capital Expenditure",
+          "chunk_index": 29,
+          "dense_score": 0.7532192920615628,
+          "dense_rank": 1,
+          "sparse_score": 17.22067642211914,
+          "sparse_rank": 1,
+          "rrf_score": 0.03278689,
+          "reranker_score": 1.6402,
+          "expected_source": false
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    },
+    {
+      "id": "finance-030",
+      "query": "Who manages University finances, and who approves a new source of University revenue?",
+      "expected_document": "finance_policy.pdf",
+      "expected_pages": [
+        3,
+        9
+      ],
+      "retrieved": [
+        {
+          "point_id": "f3786672-d84c-5a67-bce5-4a556c51c050",
+          "document": "finance_policy.pdf",
+          "page": 9,
+          "section": "13. Control, Collection and Recovery of Income",
+          "chunk_index": 32,
+          "dense_score": 0.7714901347437726,
+          "dense_rank": 2,
+          "sparse_score": 22.031585693359375,
+          "sparse_rank": 1,
+          "rrf_score": 0.03252247,
+          "reranker_score": 4.2044,
+          "expected_source": true
+        },
+        {
+          "point_id": "c0471b73-d23f-5d2f-8b20-4d3f44d854b3",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "(BoG). The Board of Management and Board of Governors has the following functions:",
+          "chunk_index": 8,
+          "dense_score": 0.7411481214507,
+          "dense_rank": 8,
+          "sparse_score": 8.081648826599121,
+          "sparse_rank": 4,
+          "rrf_score": 0.03033088,
+          "reranker_score": 2.8465,
+          "expected_source": true
+        },
+        {
+          "point_id": "e3e44368-1984-5a8c-bf3e-b4c66448a7e4",
+          "document": "finance_policy.pdf",
+          "page": 3,
+          "section": "5. Financial Administration",
+          "chunk_index": 7,
+          "dense_score": 0.7123311065921327,
+          "dense_rank": 21,
+          "sparse_score": 4.940727233886719,
+          "sparse_rank": 15,
+          "rrf_score": 0.02567901,
+          "reranker_score": 1.0408,
+          "expected_source": true
+        },
+        {
+          "point_id": "b548d7cf-36ec-5fcc-a026-bb8aa4e7012c",
+          "document": "finance_policy.pdf",
+          "page": 4,
+          "section": "3 | P a g e",
+          "chunk_index": 11,
+          "dense_score": 0.7379568259173999,
+          "dense_rank": 9,
+          "sparse_score": 5.940989017486572,
+          "sparse_rank": 12,
+          "rrf_score": 0.02838164,
+          "reranker_score": 0.9607,
+          "expected_source": false
+        }
+      ],
+      "hit_at_5": true,
+      "hit_at_10": true
+    }
+  ]
+}
