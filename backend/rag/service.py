@@ -23,7 +23,7 @@ _CONVERSATIONAL_PATTERNS = re.compile(
     r"(how\s+are\s+you|how\s+do\s+you\s+do|nice\s+to\s+(meet|see)\s+you|pleased\s+to\s+meet)|"
     r"(what\s+(can\s+you\s+do|are\s+you\s+capable|do\s+you\s+do|can\s+you\s+help|is\s+your\s+purpose)|who\s+are\s+you|tell\s+me\s+about\s+yourself|introduce\s+yourself)|"
     r"(thank(s|\s+you)|bye|goodbye|see\s+you|take\s+care|have\s+a\s+good)|"
-    r"(can\s+you\s+help\s+me\??$|help\s*\??$|what\s+can\s+i\s+ask\??$)|"
+    r"(can\s+you\s+help\s+me\??$|help\s*\??$)|"
     r"(nice|okay|ok|sure|great|wow|cool|awesome|understood|got\s+it)\s*\.?$",
     re.IGNORECASE,
 )
@@ -51,7 +51,6 @@ class RAGService:
         self.cache = semantic_cache
 
     def _expand_query(self, query: str) -> str:
-        """Add domain synonyms without replacing the user's original wording."""
         q_lower = query.lower()
         expansions: list[str] = []
 
@@ -67,7 +66,6 @@ class RAGService:
         return f"{query} {' '.join(expansions)}" if expansions else query
 
     def _decompose_query(self, query: str) -> list[str]:
-        """Create a small set of focused retrieval queries for multi-part questions."""
         sub_queries = [query]
         if len(query) > 60 and re.search(r"\b(and|as well as|versus|while|plus)\b", query, re.IGNORECASE):
             parts = re.split(r"\b(and|as well as|versus|while|plus)\b", query, flags=re.IGNORECASE)
@@ -83,6 +81,9 @@ class RAGService:
 
     @staticmethod
     def _chunk_identity(chunk: dict) -> str:
+        point_id = str(chunk.get("point_id") or "").strip()
+        if point_id:
+            return f"point:{point_id}"
         return ":".join(
             str(chunk.get(key, ""))
             for key in ("document_id", "page_number", "parent_id", "chunk_index")
@@ -90,7 +91,6 @@ class RAGService:
 
     @staticmethod
     def _add_parent_context(chunks: list[dict]) -> list[dict]:
-        """Expand only after reranking, preserving the precise ranked chunk."""
         resolved = []
         for chunk in chunks:
             enriched = dict(chunk)
@@ -117,10 +117,7 @@ class RAGService:
 
         for sub_q in sub_queries:
             search_query = self._expand_query(sub_q)
-            q_emb = await asyncio.to_thread(
-                self.embeddings.embed_query,
-                search_query,
-            )
+            q_emb = await asyncio.to_thread(self.embeddings.embed_query, search_query)
             candidate_k = max(top_k * 4, 20)
             chunks = await self.retriever.search(
                 query_embedding=q_emb,
@@ -141,8 +138,7 @@ class RAGService:
         if not all_raw_chunks:
             return []
 
-        reranked_chunks = await self.reranker.async_rerank(query, all_raw_chunks)
-        reranked_chunks = reranked_chunks[:top_k]
+        reranked_chunks = await self.reranker.async_rerank(query, all_raw_chunks, top_n=top_k)
         return self._add_parent_context(reranked_chunks)
 
     async def query(
