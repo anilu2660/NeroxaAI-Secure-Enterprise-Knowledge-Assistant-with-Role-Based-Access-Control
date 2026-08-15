@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Info } from "lucide-react";
+import { Activity, Database, FileText, Info, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { AiComposer } from "@/rag/components/AiComposer";
 import { RecentActivityPanel } from "@/audit/components/RecentActivityPanel";
 import { RecentDocumentsPanel } from "@/documents/components/RecentDocumentsPanel";
@@ -11,30 +11,16 @@ import { AccessPanel } from "@/roles/components/AccessPanel";
 import { useAuth } from "@/auth/auth-context";
 import { useUserProfile } from "@/auth/use-user-profile";
 import type { AssistantAnswer } from "@/api/types";
-import {
-  getAccessProfile,
-  getKnowledgeOverview,
-  getLastAnswer,
-  getRecentActivity,
-  getRecentDocuments,
-  getSuggestedQueries,
-} from "@/api/workspace-service";
+import { getAccessProfile, getKnowledgeOverview, getLastAnswer, getRecentActivity, getRecentDocuments, getSuggestedQueries } from "@/api/workspace-service";
+import { MetricCard } from "@/shared/components/ui/metric-card";
+import { PageHeader } from "@/shared/components/ui/page-header";
+import { StatusPill } from "@/shared/components/ui/status-pill";
 
 export const Route = createFileRoute("/_workspace/dashboard")({
   head: () => ({
     meta: [
       { title: "Workspace Dashboard — NeroxaAI" },
-      {
-        name: "description",
-        content:
-          "Your NeroxaAI workspace prototype: ask questions and review your configured access scope.",
-      },
-      { property: "og:title", content: "Workspace Dashboard — NeroxaAI" },
-      {
-        property: "og:description",
-        content:
-          "Ask questions and review the access scope your administrator assigned to your account.",
-      },
+      { name: "description", content: "Your NeroxaAI enterprise knowledge workspace." },
     ],
   }),
   component: DashboardPage,
@@ -46,81 +32,65 @@ function DashboardPage() {
   const [lastAnswerOverride, setLastAnswerOverride] = useState<AssistantAnswer | null>(null);
   const actor = profile?.name ?? session?.user.name ?? "";
   const user = session?.user ?? null;
-
-  // Scope identity comes from the administered user record, so the dashboard,
-  // Documents library, and Your Access panel all agree on what is accessible.
   const scopeKey = profile ? `${profile.role}:${profile.accessScope.join("|")}` : "";
   const identity = profile ? { role: profile.role, accessScope: profile.accessScope } : null;
 
-  const documents = useQuery({
-    queryKey: ["recent-documents", scopeKey],
-    queryFn: () => getRecentDocuments(identity),
-    enabled: !!profile,
-  });
-  const activity = useQuery({
-    queryKey: ["recent-activity", actor, lastAnswerOverride?.id ?? ""],
-    queryFn: () => getRecentActivity(actor),
-    enabled: !!actor,
-  });
-  const overview = useQuery({
-    queryKey: ["knowledge-overview", scopeKey],
-    queryFn: () => getKnowledgeOverview(identity),
-    enabled: !!profile,
-  });
+  const documents = useQuery({ queryKey: ["recent-documents", scopeKey], queryFn: () => getRecentDocuments(identity), enabled: !!profile });
+  const activity = useQuery({ queryKey: ["recent-activity", actor, lastAnswerOverride?.id ?? ""], queryFn: () => getRecentActivity(actor), enabled: !!actor });
+  const overview = useQuery({ queryKey: ["knowledge-overview", scopeKey], queryFn: () => getKnowledgeOverview(identity), enabled: !!profile });
   const lastAnswer = useQuery({ queryKey: ["last-answer"], queryFn: getLastAnswer });
-  const access = useQuery({
-    queryKey: [
-      "access-profile",
-      profile?.id ?? user?.id ?? "",
-      profile?.accessScope.join("|") ?? "",
-    ],
-    queryFn: () => getAccessProfile(profile ?? user),
-    enabled: !!user,
-  });
+  const access = useQuery({ queryKey: ["access-profile", profile?.id ?? user?.id ?? "", profile?.accessScope.join("|") ?? ""], queryFn: () => getAccessProfile(profile ?? user), enabled: !!user });
   const suggestions = useQuery({ queryKey: ["suggested-queries"], queryFn: getSuggestedQueries });
-
   const answer = lastAnswerOverride ?? lastAnswer.data ?? null;
 
+  const documentCount = overview.data?.totalDocuments ?? documents.data?.length ?? 0;
+  const sourceCount = overview.data?.totalSources ?? overview.data?.totalDocuments ?? 0;
+
   return (
-    <div className="flex flex-col gap-4 pt-1 xl:flex-row">
-      <div className="min-w-0 flex-1 space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hairline bg-card/60 px-5 py-4 backdrop-blur-xl">
-          <div className="min-w-0">
-            <h1 className="font-display text-[23px] font-medium tracking-tight text-foreground">
-              Welcome back, {profile?.name ?? session?.user.name ?? ""}.
-            </h1>
-            <p className="mt-1 text-[12.5px] text-muted-foreground">
-              Connected to local Ollama LLM and Enterprise RAG Knowledge Base.
-            </p>
-          </div>
-          <span className="flex items-center gap-2 rounded-full border border-allowed/40 bg-allowed/10 px-3 py-1 text-[11.5px] text-allowed">
-            <Info className="size-3.5" />
-            Connected · Local LLM & RAG Active
-          </span>
-        </header>
+    <div className="space-y-5">
+      <PageHeader
+        eyebrow="Enterprise knowledge workspace"
+        title={`Welcome back, ${profile?.name ?? session?.user.name ?? "there"}`}
+        description="Search authorized organizational knowledge, inspect sources, and manage your workspace from one secure surface."
+        actions={<StatusPill tone="success" icon={<span className="size-1.5 rounded-full bg-current" />}>RAG services operational</StatusPill>}
+      />
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-          <AiComposer
-            suggestions={suggestions.data ?? []}
-            actor={actor}
-            onAnswer={setLastAnswerOverride}
-          />
-          <RecentActivityPanel entries={activity.data ?? []} />
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1fr)]">
-          <RecentDocumentsPanel documents={documents.data ?? []} />
-          {overview.data ? <KnowledgeOverviewPanel overview={overview.data} /> : null}
-          <LastAiAnswerPanel answer={answer} />
-        </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Knowledge" value={documentCount} detail="Authorized documents" icon={<FileText className="size-4" />} />
+        <MetricCard label="Sources" value={sourceCount} detail="Indexed knowledge sources" icon={<Database className="size-4" />} />
+        <MetricCard label="Access" value={profile?.roleLabel?.split("·").pop()?.trim() ?? "Protected"} detail={profile?.department ?? "Role-aware workspace"} icon={<ShieldCheck className="size-4" />} />
+        <MetricCard label="Workspace" value="Active" detail="Local AI + secure retrieval" icon={<Activity className="size-4" />} />
       </div>
 
-      {access.data && (profile ?? session) ? (
-        <AccessPanel
-          user={profile ?? (session as NonNullable<typeof session>).user}
-          profile={access.data}
-        />
-      ) : null}
+      <section className="relative overflow-hidden rounded-3xl border border-primary/15 bg-gradient-to-br from-card/90 via-card/60 to-primary/[0.08] p-1 shadow-window backdrop-blur-xl">
+        <div className="relative rounded-[20px] border border-white/[0.04] bg-background/35 p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="grid size-8 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary"><Sparkles className="size-4" /></span>
+                <div>
+                  <h2 className="font-display text-sm font-semibold text-foreground">Ask your enterprise knowledge base</h2>
+                  <p className="text-[10.5px] text-muted-foreground">Answers are scoped to the access assigned to your account.</p>
+                </div>
+              </div>
+            </div>
+            <StatusPill tone="accent" icon={<Info className="size-3" />}>RBAC aware</StatusPill>
+          </div>
+          <AiComposer suggestions={suggestions.data ?? []} actor={actor} onAnswer={setLastAnswerOverride} />
+        </div>
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+        <RecentActivityPanel entries={activity.data ?? []} />
+        <LastAiAnswerPanel answer={answer} />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <RecentDocumentsPanel documents={documents.data ?? []} />
+        {overview.data ? <KnowledgeOverviewPanel overview={overview.data} /> : null}
+      </div>
+
+      {access.data && (profile ?? session) ? <AccessPanel user={profile ?? (session as NonNullable<typeof session>).user} profile={access.data} /> : null}
     </div>
   );
 }

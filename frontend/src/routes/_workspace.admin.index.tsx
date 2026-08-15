@@ -7,6 +7,7 @@ import { AdminControlsPanel } from "@/shared/components/admin/AdminControlsPanel
 import { AdminActivityPanel } from "@/audit/components/AdminActivityPanel";
 import { AdminDocumentsOverviewPanel } from "@/documents/components/AdminDocumentsOverviewPanel";
 import { AdminSecurityCard } from "@/shared/components/admin/AdminSecurityCard";
+import { AdminSecurityPosture } from "@/shared/components/admin/AdminSecurityPosture";
 import { useAuth } from "@/auth/auth-context";
 import {
   getAdminActivity,
@@ -28,8 +29,7 @@ export const Route = createFileRoute("/_workspace/admin/")({
       { property: "og:title", content: "Admin Dashboard — NeroxaAI" },
       {
         property: "og:description",
-        content:
-          "Manage users, documents, access, and auditability from the NeroxaAI admin console.",
+        content: "Manage users, documents, access, and auditability from the NeroxaAI admin console.",
       },
     ],
   }),
@@ -60,6 +60,10 @@ function AdminDashboardPage() {
     enabled: !!user,
   });
 
+  const metricValues = metrics.data ?? [];
+  const userCount = metricValues.find((item: any) => /user/i.test(item.label))?.value;
+  const documentCount = metricValues.find((item: any) => /document|knowledge/i.test(item.label))?.value;
+
   return (
     <div className="space-y-3.5 pt-1">
       <header className="grid gap-3 rounded-2xl border border-hairline bg-card/60 px-5 py-4 backdrop-blur-xl xl:grid-cols-[minmax(0,1fr)_minmax(0,380px)] xl:items-center">
@@ -76,7 +80,7 @@ function AdminDashboardPage() {
           <p className="mt-1 text-[12.5px] text-muted-foreground">
             You are signed in as {user?.roleLabel ?? ""}
           </p>
-          <p className="mt-1 text-[12.5px] text-muted-foreground">
+          <p className="mt-1 max-w-[720px] text-[12.5px] leading-relaxed text-muted-foreground">
             Manage users, documents, access, and auditability across your organization's knowledge
             system.
           </p>
@@ -84,10 +88,19 @@ function AdminDashboardPage() {
         <AdminSecurityCard context={security.data ?? null} />
       </header>
 
-      <AdminMetricCards metrics={metrics.data ?? []} />
+      <AdminMetricCards metrics={metricValues} />
 
-      <div className="grid gap-3.5 xl:grid-cols-3">
+      <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <AdminSecurityPosture
+          securityLabel={security.data?.status?.label ?? "Workspace security posture"}
+          securityDetail={security.data?.status?.detail}
+          userCount={userCount}
+          documentCount={documentCount}
+        />
         <AdminControlsPanel />
+      </div>
+
+      <div className="grid gap-3.5 xl:grid-cols-2">
         <AdminActivityPanel entries={activity.data ?? []} />
         <AdminDocumentsOverviewPanel overview={documents.data ?? null} />
       </div>
