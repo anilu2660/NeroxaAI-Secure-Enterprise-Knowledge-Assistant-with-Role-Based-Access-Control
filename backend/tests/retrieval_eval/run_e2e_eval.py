@@ -3,15 +3,10 @@
 Runs the same 30-query Finance Policy benchmark through the complete pipeline:
 query routing -> retrieval -> reranking -> context construction -> Ollama LLM.
 
-This is intentionally a diagnostic runner, not an automatic answer grader.
-Retrieval correctness is measured separately by run_eval.py. This runner
-records the generated answer and the cited sources so answer quality can be
-reviewed without pretending that a simple string match is a reliable judge.
-
-Requirements:
-- Qdrant indexed with the current Finance Policy documents
-- Ollama running with the configured model
-- backend dependencies installed
+This is a diagnostic runner, not an automatic answer grader. Retrieval
+correctness is measured separately by run_eval.py. This runner records the
+answer and citations so answer quality can be reviewed without pretending a
+simple string match is a reliable semantic judge.
 
 Run from repository root:
     python -m backend.tests.retrieval_eval.run_e2e_eval
@@ -19,6 +14,7 @@ Run from repository root:
 
 import asyncio
 import json
+import re
 from pathlib import Path
 
 from backend.rag.service import rag_service
@@ -26,6 +22,39 @@ from backend.rag.service import rag_service
 
 DATASET = Path(__file__).with_name("finance_policy_eval.json")
 OUTPUT = Path(__file__).with_name("e2e_eval_results.json")
+
+
+def _normalize_page(value):
+    """Normalize page values so int/string representations compare equally."""
+    if value is None:
+        return None
+    match = re.search(r"\d+", str(value))
+    return int(match.group()) if match else None
+
+
+def _normalize_document(value):
+    """Normalize document names without weakening the identity check."""
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", Path(str(value)).name.strip().lower())
+
+
+def _source_hit(sources: list[dict], expected_document: str, expected_pages: list[int]) -> bool:
+    expected_doc = _normalize_document(expected_document)
+    expected_page_set = {_normalize_page(page) for page in expected_pages}
+
+    for source in sources:
+        source_doc = _normalize_document(
+            source.get("title")
+            or source.get("document_title")
+            or source.get("documentTitle")
+        )
+        source_page = _normalize_page(source.get("page") or source.get("page_number"))
+
+        if source_doc == expected_doc and source_page in expected_page_set:
+            return True
+
+    return False
 
 
 async def evaluate() -> None:
@@ -49,18 +78,17 @@ async def evaluate() -> None:
             )
 
             sources = result.get("sources", [])
-            source_pages = [
-                source.get("page") or source.get("page_number")
-                for source in sources
-            ]
-            expected_pages = item.get("pages", [])
-            source_hit = any(page in expected_pages for page in source_pages)
+            source_hit = _source_hit(
+                sources,
+                item.get("document", ""),
+                item.get("pages", []),
+            )
 
             results.append({
                 "id": item["id"],
                 "query": item["query"],
                 "expected_document": item.get("document"),
-                "expected_pages": expected_pages,
+                "expected_pages": item.get("pages", []),
                 "answer": result.get("answer", ""),
                 "model": result.get("model"),
                 "sources": sources,
@@ -102,10 +130,12 @@ async def evaluate() -> None:
     print("\nNeroxaAI End-to-End RAG Evaluation")
     print("==================================")
     print(f"Queries          : {len(results)}")
-    print(f"Expected source : {source_hits}/{len(results)} ({payload['source_hit_rate']:.1%})")
+    print(f"Expected source  : {source_hits}/{len(results)} ({payload['source_hit_rate']:.1%})")
     print(f"LLM errors       : {errors}")
     print(f"Results          : {OUTPUT}")
-    print("\nReview the generated answers in e2e_eval_results.json for correctness,\nfaithfulness, citation accuracy, and hallucinations.")
+    print("\nSource matching is normalized for page/document representation. Review")
+    print("e2e_eval_results.json for generated-answer correctness, faithfulness,")
+    print("citation accuracy, and hallucinations.")
 
 
 if __name__ == "__main__":
