@@ -17,6 +17,7 @@ from qdrant_client.models import (
     PayloadSchemaType,
     SparseVectorParams,
     SparseIndexParams,
+    Modifier,
 )
 from backend.config import settings
 
@@ -80,7 +81,8 @@ class QdrantManager:
                     },
                     sparse_vectors_config={
                         "sparse": SparseVectorParams(
-                            index=SparseIndexParams(on_disk=False)
+                            modifier=Modifier.IDF,
+                            index=SparseIndexParams(on_disk=False),
                         )
                     },
                 )
@@ -220,7 +222,7 @@ class QdrantManager:
                             key="document_id",
                             match=MatchValue(value=document_id),
                         )
-                    ]
+                    ],
                 ),
                 limit=500,
                 with_payload=True,
