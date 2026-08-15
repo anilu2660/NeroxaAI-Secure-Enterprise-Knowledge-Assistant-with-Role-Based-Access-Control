@@ -56,8 +56,23 @@ class RAGService:
 
         if any(term in q_lower for term in ("certifying officer", "invoice", "payment", "bill", "voucher")):
             expansions.append("verifying passing scrutiny bills vouchers sanctioning authority payment")
-        if "imprest" in q_lower:
-            expansions.append("advance cash limit surrender petty cash")
+
+        # Petty cash policy uses the term "imprest" and discusses the float,
+        # Head of Accounting Services, and written consent. Add these exact
+        # policy concepts even when the user uses only "petty cash" language.
+        if any(term in q_lower for term in ("petty cash", "petty-cash", "cash float", "cash limit", "imprest")):
+            expansions.append(
+                "imprest petty cash float maximum limit Head Accounting Services written consent increase"
+            )
+
+        # Delegation questions use policy language that may differ from the
+        # user's wording. Expand toward the exact concepts in the delegation
+        # section without inventing an authority or responsibility.
+        if any(term in q_lower for term in ("delegated financial", "financial management responsibilities", "delegate financial", "delegation of financial")):
+            expansions.append(
+                "delegate financial management responsibilities Finance Officer Board of Management Board of Governors Chairman Chancellor assigned"
+            )
+
         if any(term in q_lower for term in ("new source", "new source of income", "source of income", "revenue source")):
             expansions.append("establish source of revenue university funds approval authorization financial implications proposal")
         if any(term in q_lower for term in ("financial implication", "financial implications", "cost implication")):
