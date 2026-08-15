@@ -117,7 +117,6 @@ class RAGService:
 
         for sub_q in sub_queries:
             search_query = self._expand_query(sub_q)
-            # IMPORTANT: the expanded query is now used for dense retrieval too.
             q_emb = await asyncio.to_thread(
                 self.embeddings.embed_query,
                 search_query,
@@ -142,13 +141,8 @@ class RAGService:
         if not all_raw_chunks:
             return []
 
-        # Rerank the precise retrieval chunks. Do NOT replace them with the
-        # parent section before scoring; that used to hide relevant text.
         reranked_chunks = await self.reranker.async_rerank(query, all_raw_chunks)
         reranked_chunks = reranked_chunks[:top_k]
-
-        # Only after ranking do we expand to the section-level context that the
-        # LLM needs for complete policy rules and conditions.
         return self._add_parent_context(reranked_chunks)
 
     async def query(
@@ -183,15 +177,17 @@ class RAGService:
             user_id=user_id,
             user_role=user_role,
             user_department=user_department,
+            department_filter=department_filter,
         )
         if cached_result:
             return cached_result
 
         logger.info(
-            "RAG query started | role=%s | department=%s | user_id=%s",
+            "RAG query started | role=%s | department=%s | user_id=%s | department_filter=%s",
             user_role,
             user_department,
             user_id,
+            department_filter,
         )
 
         if is_conversational_query(query):
@@ -246,6 +242,7 @@ class RAGService:
             user_id=user_id,
             user_role=user_role,
             user_department=user_department,
+            department_filter=department_filter,
         )
         return result
 
