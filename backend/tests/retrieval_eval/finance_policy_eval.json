@@ -1,0 +1,15 @@
+[
+  {
+    "id": "finance-001",
+    "query": "Where does the University obtain its funds from?",
+    "document": "finance_policy.pdf",
+    "pages": [4]
+  },
+  {
+    "id": "finance-002",
+    "query": "What are the sources of University funds?",
+    "document": "finance_policy.pdf",
+    "pages": [4]
+  },
+  {
+    "id": "finance
