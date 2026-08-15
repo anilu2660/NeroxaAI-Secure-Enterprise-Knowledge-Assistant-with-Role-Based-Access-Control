@@ -47,10 +47,11 @@ class DocumentService:
         if db:
             try:
                 from backend.models.document import Document
+                from sqlalchemy import func
                 existing = (
                     db.query(Document)
                     .filter(
-                        Document.filename == safe_filename,
+                        func.lower(Document.filename) == safe_filename.lower(),
                         Document.department == department,
                         Document.status == "indexed",
                     )
@@ -59,6 +60,12 @@ class DocumentService:
                 if existing:
                     has_vectors = await self.retriever.has_document_chunks(existing.id)
                     if has_vectors:
+                        logger.info(
+                            "Document '%s' already exists in department '%s' (id=%s). Ingestion skipped.",
+                            safe_filename,
+                            department,
+                            existing.id,
+                        )
                         return {
                             "document_id": existing.id,
                             "title": existing.title,
@@ -70,6 +77,56 @@ class DocumentService:
                     db.commit()
             except Exception as dup_err:
                 logger.warning("Duplicate check query failed: %s", str(dup_err))
+
+        existing_qdrant_id = await self.retriever.find_existing_document_id(safe_filename, department)
+        if existing_qdrant_id:
+            content_info = self.retriever.get_document_content(existing_qdrant_id)
+            total_chunks = content_info.get("total_chunks", 0)
+            if total_chunks > 0:
+                logger.info(
+                    "Qdrant vectors already exist for '%s' in '%s' (id=%s). Ingestion skipped.",
+                    safe_filename,
+                    department,
+                    existing_qdrant_id,
+                )
+                if db:
+                    try:
+                        from backend.models.document import Document
+                        db_existing = (
+                            db.query(Document)
+                            .filter(Document.id == existing_qdrant_id)
+                            .first()
+                        )
+                        if not db_existing:
+                            doc_record = Document(
+                                id=existing_qdrant_id,
+                                title=safe_filename,
+                                filename=safe_filename,
+                                file_size=len(file_bytes),
+                                mime_type=(
+                                    "application/pdf"
+                                    if safe_filename.lower().endswith(".pdf")
+                                    else "text/plain"
+                                ),
+                                department=department,
+                                owner_id=owner_id or "admin",
+                                qdrant_document_id=existing_qdrant_id,
+                                total_chunks=total_chunks,
+                                status="indexed",
+                                shared_with=[],
+                            )
+                            db.add(doc_record)
+                            db.commit()
+                    except Exception as db_sync_err:
+                        logger.warning("DB sync for existing Qdrant document failed: %s", str(db_sync_err))
+
+                return {
+                    "document_id": existing_qdrant_id,
+                    "title": safe_filename,
+                    "department": department,
+                    "chunks_created": total_chunks,
+                    "status": "already_exists",
+                }
 
         logger.info(
             "Ingesting document '%s' (id=%s, dept=%s, owner_id=%s)",
