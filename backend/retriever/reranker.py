@@ -31,7 +31,7 @@ class CrossEncoderReranker:
 
     @staticmethod
     def _rerank_text(chunk: dict) -> str:
-        """Use the precise chunk text for scoring; fall back safely for legacy points."""
+        """Use the precise retrieval chunk for scoring; fall back safely for legacy points."""
         return (
             chunk.get("raw_text")
             or chunk.get("content")
@@ -41,11 +41,29 @@ class CrossEncoderReranker:
 
     @staticmethod
     def _chunk_identity(chunk: dict) -> str:
-        """Keep distinct chunks from the same page; dedupe only the same chunk."""
-        return ":".join(
-            str(chunk.get(key, ""))
-            for key in ("document_id", "page_number", "parent_id", "chunk_index")
-        )
+        """
+        Identify the exact retrieval unit.
+
+        Distinct chunks from the same page/section must remain eligible for the
+        final ranking. If chunk metadata is unavailable on a legacy result,
+        use the Qdrant point id rather than collapsing unrelated chunks into
+        the same empty metadata key.
+        """
+        point_id = str(chunk.get("point_id") or "").strip()
+        chunk_index = chunk.get("chunk_index", -1)
+
+        if point_id:
+            return f"point:{point_id}"
+
+        if chunk_index not in (None, -1, "", "N/A"):
+            return ":".join(
+                str(chunk.get(key, ""))
+                for key in ("document_id", "page_number", "parent_id", "chunk_index")
+            )
+
+        # Legacy payloads without a stable point/chunk identifier should not
+        # cause unrelated results to be deduplicated together.
+        return f"legacy:{id(chunk)}"
 
     def rerank(self, query: str, chunks: list[dict]) -> list[dict]:
         if not chunks:
