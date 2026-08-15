@@ -41,14 +41,6 @@ class CrossEncoderReranker:
 
     @staticmethod
     def _chunk_identity(chunk: dict) -> str:
-        """
-        Identify the exact retrieval unit.
-
-        Distinct chunks from the same page/section must remain eligible for the
-        final ranking. If chunk metadata is unavailable on a legacy result,
-        use the Qdrant point id rather than collapsing unrelated chunks into
-        the same empty metadata key.
-        """
         point_id = str(chunk.get("point_id") or "").strip()
         chunk_index = chunk.get("chunk_index", -1)
 
@@ -63,9 +55,15 @@ class CrossEncoderReranker:
 
         return f"legacy:{id(chunk)}"
 
-    def rerank(self, query: str, chunks: list[dict]) -> list[dict]:
-        if not chunks:
-            return chunks
+    def rerank(
+        self,
+        query: str,
+        chunks: list[dict],
+        top_n: int | None = None,
+    ) -> list[dict]:
+        limit = top_n if top_n is not None else self.top_n
+        if limit <= 0 or not chunks:
+            return []
 
         if len(chunks) == 1:
             result = dict(chunks[0])
@@ -104,7 +102,7 @@ class CrossEncoderReranker:
                 enriched["reranker_score"] = round(score_float, 4)
                 reranked.append(enriched)
 
-                if len(reranked) >= self.top_n:
+                if len(reranked) >= limit:
                     break
 
             logger.info(
@@ -120,10 +118,15 @@ class CrossEncoderReranker:
 
         except Exception as e:
             logger.warning("Reranking failed, returning original order: %s", str(e))
-            return chunks[: self.top_n]
+            return chunks[:limit]
 
-    async def async_rerank(self, query: str, chunks: list[dict]) -> list[dict]:
-        return await asyncio.to_thread(self.rerank, query, chunks)
+    async def async_rerank(
+        self,
+        query: str,
+        chunks: list[dict],
+        top_n: int | None = None,
+    ) -> list[dict]:
+        return await asyncio.to_thread(self.rerank, query, chunks, top_n)
 
     def check_health(self) -> dict:
         try:
