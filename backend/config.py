@@ -66,9 +66,7 @@ class Settings:
     CACHE_TTL_SECONDS: int = int(os.getenv("CACHE_TTL_SECONDS", "300"))
     CACHE_MAX_ENTRIES_PER_SCOPE: int = int(os.getenv("CACHE_MAX_ENTRIES_PER_SCOPE", "50"))
 
-    # Increment when chunking/retrieval semantics change so stale semantic-cache
-    # entries cannot mask retrieval fixes.
-    RETRIEVAL_PIPELINE_VERSION: str = os.getenv("RETRIEVAL_PIPELINE_VERSION", "3")
+    RETRIEVAL_PIPELINE_VERSION: str = os.getenv("RETRIEVAL_PIPELINE_VERSION", "4")
 
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5")
@@ -79,7 +77,9 @@ class Settings:
     RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
     RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "5"))
     RERANKER_MIN_SCORE: float = float(os.getenv("RERANKER_MIN_SCORE", "0.0"))
-    RERANKER_ENABLE_THRESHOLD: bool = os.getenv("RERANKER_ENABLE_THRESHOLD", "true").lower() == "true"
+    # Disabled until score distributions are measured and a model-specific
+    # threshold is calibrated. Cross-encoder logits can legitimately be below 0.
+    RERANKER_ENABLE_THRESHOLD: bool = os.getenv("RERANKER_ENABLE_THRESHOLD", "false").lower() == "true"
     ENABLE_HYBRID_SEARCH: bool = os.getenv("ENABLE_HYBRID_SEARCH", "true").lower() == "true"
 
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1200"))
