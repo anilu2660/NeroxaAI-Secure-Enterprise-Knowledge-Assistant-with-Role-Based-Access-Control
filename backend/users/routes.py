@@ -73,6 +73,26 @@ def update_user(
     return user_service.update_user(db, user_id, update_data)
 
 
+@router.post(
+    "/{user_id}/approve",
+    response_model=UserResponse,
+    summary="Approve user role request (Admin only)",
+)
+def approve_user_role(
+    user_id: str,
+    role_id: str | None = None,
+    db: Session = Depends(get_db),
+    admin_role: str = Depends(require_admin),
+):
+    """
+    Approve user account and assign active role (requested role or admin-chosen role).
+    """
+    user = user_service.get_by_id(db, user_id)
+    assigned_role = role_id or user.requested_role_id or "employee"
+    update_data = UserUpdate(is_approved=True, role_id=assigned_role)
+    return user_service.update_user(db, user_id, update_data)
+
+
 @router.delete(
     "/{user_id}",
     summary="Delete user (Admin only)",

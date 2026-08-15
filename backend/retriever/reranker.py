@@ -72,18 +72,23 @@ class CrossEncoderReranker:
             # Zip scores with chunks and sort by score descending
             scored = sorted(zip(scores.tolist(), chunks), key=lambda x: x[0], reverse=True)
 
+            seen_reranked = set()
             reranked = []
-            for score, chunk in scored[: self.top_n]:
-                enriched = dict(chunk)
-                enriched["reranker_score"] = round(float(score), 4)
-                reranked.append(enriched)
+            for score, chunk in scored:
+                key = f"{chunk.get('document_id')}:{chunk.get('page_number')}"
+                if key not in seen_reranked:
+                    seen_reranked.add(key)
+                    enriched = dict(chunk)
+                    enriched["reranker_score"] = round(float(score), 4)
+                    reranked.append(enriched)
+                if len(reranked) >= self.top_n:
+                    break
 
             logger.info(
-                "Reranked %d → %d chunks | best=%.4f | worst=%.4f",
+                "Reranked %d → %d chunks | best=%.4f",
                 len(chunks),
                 len(reranked),
-                scored[0][0],
-                scored[min(self.top_n - 1, len(scored) - 1)][0],
+                scored[0][0] if scored else 0.0,
             )
             return reranked
 

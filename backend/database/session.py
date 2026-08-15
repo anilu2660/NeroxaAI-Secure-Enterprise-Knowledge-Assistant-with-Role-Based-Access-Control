@@ -78,6 +78,7 @@ def seed_initial_data(db: Session) -> None:
                     department="General",
                     role_id="admin",
                     is_active=True,
+                    is_verified=True,
                     is_superuser=True,
                 )
                 db.add(admin_user)
@@ -116,6 +117,24 @@ def _ensure_chat_message_metadata_column() -> None:
         raise
 
 
+def _ensure_user_approval_columns() -> None:
+    """Idempotently add requested_role_id and is_approved columns to users table."""
+    try:
+        inspector = inspect(engine)
+        columns = {column["name"] for column in inspector.get_columns("users")}
+        with engine.begin() as connection:
+            if "requested_role_id" not in columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN requested_role_id VARCHAR(50);"))
+                logger.info("Added users.requested_role_id column.")
+            if "is_approved" not in columns:
+                bool_default = "FALSE" if not is_sqlite else "0"
+                connection.execute(text(f"ALTER TABLE users ADD COLUMN is_approved BOOLEAN DEFAULT {bool_default};"))
+                connection.execute(text("UPDATE users SET is_approved = TRUE WHERE is_approved IS NULL;"))
+                logger.info("Added users.is_approved column.")
+    except Exception as e:
+        logger.error("Failed to upgrade users schema: %s", str(e))
+
+
 def init_db() -> None:
     """Create tables, apply small compatibility upgrades, and seed initial data."""
     try:
@@ -123,6 +142,7 @@ def init_db() -> None:
         import backend.models  # noqa: F401
         Base.metadata.create_all(bind=engine)
         _ensure_chat_message_metadata_column()
+        _ensure_user_approval_columns()
         logger.info("Database tables initialized successfully.")
 
         db = SessionLocal()

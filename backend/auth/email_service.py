@@ -7,6 +7,13 @@ from backend.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _is_placeholder(val: str) -> bool:
+    if not val:
+        return True
+    val_lower = val.strip().lower()
+    return val_lower.startswith("your-") or val_lower.startswith("replace-") or "example" in val_lower
+
+
 class EmailService:
     """
     Gmail SMTP Email Service for user registration and OTP verification.
@@ -46,8 +53,12 @@ class EmailService:
 
         text_content = f"Hello {recipient_name},\n\nYour NeroxaAI registration OTP code is: {otp_code}\nThis code is valid for 10 minutes."
 
-        # If Gmail SMTP user and password are set, send real email via smtplib
-        if settings.SMTP_USER and settings.SMTP_PASSWORD:
+        use_smtp = (
+            not _is_placeholder(settings.SMTP_USER)
+            and not _is_placeholder(settings.SMTP_PASSWORD)
+        )
+
+        if use_smtp:
             try:
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = subject
@@ -66,9 +77,10 @@ class EmailService:
                 return True
             except Exception as err:
                 logger.error("Failed to send Gmail SMTP email to %s: %s", to_email, str(err))
-                # Log fallback
-                print(f"\n[GMAIL SMTP FALLBACK - EMAIL OTP FOR {to_email}]: {otp_code}\n")
-                return False
+                print(f"\n=======================================================")
+                print(f"  GMAIL SMTP FALLBACK [EMAIL OTP FOR {to_email}]: {otp_code}")
+                print(f"=======================================================\n")
+                return settings.DEBUG
         else:
             # Local development fallback
             logger.info("Gmail SMTP credentials not set. Logging OTP code: %s for %s", otp_code, to_email)
@@ -79,3 +91,4 @@ class EmailService:
 
 
 email_service = EmailService()
+

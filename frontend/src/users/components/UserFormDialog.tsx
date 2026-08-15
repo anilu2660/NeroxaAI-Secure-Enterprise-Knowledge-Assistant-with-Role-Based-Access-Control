@@ -158,7 +158,7 @@ export function UserFormDialog({
               setDraft({ ...draft, status: event.target.value as ManagedUserStatus })
             }
           >
-            {(["active", "inactive", "disabled"] as ManagedUserStatus[]).map((value) => (
+            {(["active", "inactive", "disabled", "pending_approval"] as ManagedUserStatus[]).map((value) => (
               <option key={value} value={value}>
                 {statusLabel[value]}
               </option>

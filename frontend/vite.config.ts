@@ -18,6 +18,12 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:8000",
         changeOrigin: true,
+        // Rewrite cookie domain so HttpOnly cookies set by the backend
+        // are accepted by the browser when accessed via the Vite dev server.
+        cookieDomainRewrite: { "localhost:8000": "localhost" },
+        // Don't let the proxy follow 3xx redirects — let the browser handle them
+        // so OAuth state cookies on the callback path are preserved correctly.
+        followRedirects: false,
       },
     },
   },

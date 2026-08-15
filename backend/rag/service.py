@@ -93,19 +93,12 @@ class RAGService:
         if not all_raw_chunks:
             return []
 
-        parent_seen = set()
         resolved_chunks = []
         for chunk in all_raw_chunks:
-            parent_id = chunk.get("parent_id")
-            parent_content = chunk.get("parent_content")
-            if parent_id and parent_content:
-                if parent_id not in parent_seen:
-                    parent_seen.add(parent_id)
-                    parent_chunk = dict(chunk)
-                    parent_chunk["content"] = parent_content
-                    resolved_chunks.append(parent_chunk)
-            else:
-                resolved_chunks.append(chunk)
+            enriched = dict(chunk)
+            if chunk.get("parent_content"):
+                enriched["content"] = chunk["parent_content"]
+            resolved_chunks.append(enriched)
 
         reranked_chunks = await self.reranker.async_rerank(query, resolved_chunks)
         return reranked_chunks[:top_k]

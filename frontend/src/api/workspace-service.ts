@@ -129,7 +129,7 @@ function scopedDocuments(identity: ScopeIdentity | null): DocumentRecord[] {
  * the same call shape when this becomes GET /documents?search=&department=...
  */
 export async function listDocuments(query: DocumentQuery = {}): Promise<DocumentRecord[]> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return [];
 
   try {
@@ -197,9 +197,9 @@ export async function getDocumentFilterOptions(): Promise<DocumentFilterOptions>
 
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
-  const token = localStorage.getItem("neroxa.token");
+  const token = sessionStorage.getItem("neroxa.token");
   if (token) return token;
-  const sessionStr = localStorage.getItem("neroxa.session");
+  const sessionStr = sessionStorage.getItem("neroxa.session");
   if (sessionStr) {
     try {
       const sess = JSON.parse(sessionStr);
@@ -399,7 +399,7 @@ export function isDocumentInUserScope(
 export async function getRecentDocuments(
   identity: ScopeIdentity | null = null,
 ): Promise<DocumentSummary[]> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (token) {
     try {
       const res = await fetch("/api/v1/documents/", {
@@ -439,7 +439,7 @@ export async function getRecentDocuments(
 const sessionActivity: ActivityEntry[] = [];
 
 export async function getRecentActivity(actor: string): Promise<ActivityEntry[]> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
 
   // Try fetching user's recent DB chat messages
   if (token) {
@@ -479,7 +479,7 @@ export async function getRecentActivity(actor: string): Promise<ActivityEntry[]>
 export async function getKnowledgeOverview(
   identity: ScopeIdentity | null = null,
 ): Promise<KnowledgeOverview> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
 
   let accessibleCount = 0;
   let activeDeptCount = 0;
@@ -619,6 +619,7 @@ export async function initiateRegistration(payload: {
   full_name: string;
   phone_number: string;
   department: string;
+  requested_role?: string;
 }): Promise<{ session_token: string; message: string }> {
   const res = await fetch("/api/v1/auth/register/initiate", {
     method: "POST",
@@ -652,7 +653,7 @@ export async function verifyOTPAndRegister(payload: {
 
   const data = await res.json();
   if (data.access_token && typeof window !== "undefined") {
-    localStorage.setItem("neroxa.token", data.access_token);
+    sessionStorage.setItem("neroxa.token", data.access_token);
   }
   return data;
 }
@@ -722,6 +723,35 @@ export interface AskAssistantInput {
 const NO_PROVIDER_MESSAGE =
   "No AI provider is configured in this deployment, so this question was not answered. Your question was recorded in this session only — no retrieval, no inference, and no sources were involved.";
 
+async function getOrCreateActiveChatSessionId(token: string | null): Promise<string> {
+  if (typeof window === "undefined") return "default-session";
+  let activeId = sessionStorage.getItem("neroxa.active_chat_session_id");
+  if (activeId) return activeId;
+
+  try {
+    const res = await fetch("/api/v1/chat/sessions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ title: "New Assistant Session" }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      activeId = data.id;
+      sessionStorage.setItem("neroxa.active_chat_session_id", activeId!);
+      return activeId!;
+    }
+  } catch {
+    /* fallback to local ID */
+  }
+
+  activeId = `sess_${Date.now()}`;
+  sessionStorage.setItem("neroxa.active_chat_session_id", activeId);
+  return activeId;
+}
+
 export async function askAssistant({
   question,
   actor,
@@ -734,44 +764,78 @@ export async function askAssistant({
   void webSearch;
   void toolIds;
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
 
   try {
-    const response = await fetch("/api/v1/rag/query", {
+    let sessionId = await getOrCreateActiveChatSessionId(token);
+
+    let response = await fetch("/api/v1/chat/message", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ query: question }),
+      body: JSON.stringify({ session_id: sessionId, message: question }),
     });
+
+    if (response.status === 404) {
+      if (typeof window !== "undefined") sessionStorage.removeItem("neroxa.active_chat_session_id");
+      sessionId = await getOrCreateActiveChatSessionId(token);
+      response = await fetch("/api/v1/chat/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ session_id: sessionId, message: question }),
+      });
+    }
 
     if (!response.ok) {
       const errData = await response.json().catch(() => null);
-      throw new Error(errData?.detail || "Knowledge base query failed.");
+      throw new Error(errData?.detail || "Chat orchestrator query failed.");
     }
 
     const data = await response.json();
+    const meta = data.execution_metadata || {};
+    const route = meta.route || "enterprise";
+
     const citations: Citation[] = (data.sources || []).map((src: any, idx: number) => ({
       id: src.id || `cit_${idx}`,
-      documentId: src.id || `doc_${idx}`,
-      documentTitle: src.title || "Document",
+      documentId: src.id || src.url || `doc_${idx}`,
+      documentTitle: src.title || src.documentTitle || (src.type === "web" ? "Web Source" : "Document"),
       snippet: src.snippet,
       department: src.department,
+      url: src.url,
+      type: src.type,
     }));
 
+    let retrievalStatusLabel = "Retrieved securely (RBAC filtered)";
+    if (route === "casual") retrievalStatusLabel = "Conversational Response";
+    else if (route === "web") retrievalStatusLabel = "Live Web Search";
+    else if (route === "tool") retrievalStatusLabel = `Tool: ${meta.tool_name || "Calculator"}`;
+    else if (route === "agent") retrievalStatusLabel = "Multi-step Agent Execution";
+    else if (route === "hybrid") retrievalStatusLabel = "Enterprise Knowledge + Web Search";
+
     const answerObj: AssistantAnswer = {
-      id: `ans_${Date.now()}`,
+      id: data.id || `ans_${Date.now()}`,
       query: question,
-      answer: data.answer || "No response received.",
+      answer: data.content || "No response received.",
       status: "live",
       keyReferences: (data.sources || []).map((s: any) => s.snippet).filter(Boolean).slice(0, 3),
       citations,
-      grounded: citations.length > 0,
-      retrievalStatus: citations.length > 0 ? "Retrieved securely (RBAC filtered)" : "Direct LLM Response",
-      createdAt: new Date().toISOString(),
+      grounded: citations.length > 0 || route === "casual",
+      retrievalStatus: retrievalStatusLabel,
+      createdAt: data.created_at || new Date().toISOString(),
       modelId: modelId || "qwen2.5-local",
-      modelLabel: `Ollama (${data.model || "Qwen 2.5 Local"})`,
+      modelLabel: `Ollama (${meta.model || "Qwen 2.5 Local"})`,
+      execution: {
+        route,
+        routeConfidence: meta.route_confidence ?? 0.95,
+        rewrittenQuery: meta.rewritten_query,
+        chunksRetrieved: meta.chunks_retrieved ?? 0,
+        cached: meta.cached ?? false,
+      } as any,
     };
 
     sessionLastAnswer = answerObj;
@@ -827,7 +891,7 @@ export interface DbChatSession {
 }
 
 export async function fetchUserChatSessions(): Promise<DbChatSession[]> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return [];
   try {
     const res = await fetch("/api/v1/chat/sessions", {
@@ -841,7 +905,7 @@ export async function fetchUserChatSessions(): Promise<DbChatSession[]> {
 }
 
 export async function createDbChatSession(title: string = "New Conversation"): Promise<DbChatSession | null> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return null;
   try {
     const res = await fetch("/api/v1/chat/sessions", {
@@ -860,7 +924,7 @@ export async function createDbChatSession(title: string = "New Conversation"): P
 }
 
 export async function fetchDbChatSessionDetails(sessionId: string): Promise<DbChatSession | null> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return null;
   try {
     const res = await fetch(`/api/v1/chat/sessions/${sessionId}`, {
@@ -874,7 +938,7 @@ export async function fetchDbChatSessionDetails(sessionId: string): Promise<DbCh
 }
 
 export async function deleteDbChatSession(sessionId: string): Promise<boolean> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return false;
   try {
     const res = await fetch(`/api/v1/chat/sessions/${sessionId}`, {
@@ -888,7 +952,7 @@ export async function deleteDbChatSession(sessionId: string): Promise<boolean> {
 }
 
 export async function sendDbChatMessage(sessionId: string, message: string): Promise<DbChatMessage | null> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return null;
   try {
     const res = await fetch("/api/v1/chat/message", {
@@ -914,7 +978,7 @@ export async function submitFeedbackToDb(payload: {
   chunks_retrieved?: number;
   department?: string;
 }): Promise<boolean> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return false;
   try {
     const res = await fetch("/api/v1/feedback/", {
@@ -941,7 +1005,7 @@ export async function submitFeedbackToDb(payload: {
  * ------------------------------------------------------------------ */
 
 export async function getAdminMetrics(): Promise<AdminMetric[]> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   let userCount = 0;
   let docCount = 0;
   let recentUploads = 0;
@@ -1005,7 +1069,7 @@ export async function getAdminMetrics(): Promise<AdminMetric[]> {
 }
 
 export async function getAdminActivity(): Promise<AdminActivityEntry[]> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (token) {
     try {
       const res = await fetch("/api/v1/admin/audit-logs/", {
@@ -1030,7 +1094,7 @@ export async function getAdminActivity(): Promise<AdminActivityEntry[]> {
 }
 
 export async function getAdminDocumentOverview(): Promise<AdminDocumentOverview> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   let total = 0;
   if (token) {
     try {
@@ -1092,7 +1156,7 @@ const NOT_PERSISTED =
   "No identity backend is connected, so this change was not saved. It exists in this browser session only.";
 
 export async function listManagedUsers(query: ManagedUserQuery = {}): Promise<ManagedUser[]> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return [];
 
   try {
@@ -1198,7 +1262,7 @@ export async function updateManagedUser(
   userId: string,
   draft: ManagedUserDraft,
 ): Promise<ManagedUserMutationResult> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return { user: null, persisted: false, message: "Unauthenticated" };
 
   try {
@@ -1246,7 +1310,7 @@ export async function setManagedUserStatus(
   userId: string,
   status: ManagedUserStatus,
 ): Promise<ManagedUserMutationResult> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return { user: null, persisted: false, message: "Unauthenticated" };
 
   try {
@@ -1288,7 +1352,7 @@ export async function setManagedUserStatus(
 }
 
 export async function deleteManagedUser(userId: string): Promise<ManagedUserMutationResult> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return { user: null, persisted: false, message: "Unauthenticated" };
 
   try {
@@ -1327,7 +1391,7 @@ const DOC_NOT_PERSISTED =
   "No document backend is connected, so this change was not saved. It applies to this browser session only.";
 
 export async function listAdminDocuments(query: AdminDocumentQuery = {}): Promise<AdminDocument[]> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
 
   if (token) {
     try {
@@ -1404,7 +1468,7 @@ export async function listAdminDocuments(query: AdminDocumentQuery = {}): Promis
 export async function getAdminDocumentFilterOptions(): Promise<AdminDocumentFilterOptions> {
   const unique = (values: string[]) => [...new Set(values)].sort();
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (token) {
     try {
       const res = await fetch("/api/v1/documents/", {
@@ -1508,7 +1572,7 @@ export async function setAdminDocumentStatus(
 export async function deleteAdminDocument(
   documentId: string,
 ): Promise<AdminDocumentMutationResult> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
 
   if (token) {
     const res = await fetch(`/api/v1/documents/${documentId}`, {
@@ -1716,7 +1780,7 @@ export async function submitDocumentUpload(
   payload: DocumentUploadPayload,
   file: File,
 ): Promise<DocumentUploadSubmission> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) {
     return {
       accepted: false,
@@ -1852,7 +1916,7 @@ export function defaultAuditQuery(): AuditEventQuery {
 }
 
 export async function listAuditEvents(query: AuditEventQuery): Promise<AuditEventPage> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
 
   if (!token) {
     return {
@@ -1960,7 +2024,7 @@ export async function listAuditEvents(query: AuditEventQuery): Promise<AuditEven
  * ------------------------------------------------------------------ */
 
 export async function getAccessControlModel(): Promise<AccessControlModel> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("neroxa.token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   const { prototypeAccessControlModel } = await import("@/roles/mock/access-control-mock");
   let users: any[] = [];
   try {
@@ -1990,6 +2054,9 @@ export async function getAccessControlModel(): Promise<AccessControlModel> {
           badge: r.name?.toLowerCase() === "admin" ? "Administrative" : "Standard",
           assignedUsers: userCount,
           departmentExamples: depts.length > 0 ? depts : ["General"],
+          permissions: r.permissions || [],
+          accessScopes: r.access_scopes || ["General"],
+          editable: false,
         };
       });
 

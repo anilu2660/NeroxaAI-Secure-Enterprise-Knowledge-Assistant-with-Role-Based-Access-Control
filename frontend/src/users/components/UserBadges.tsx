@@ -11,18 +11,21 @@ const statusTone: Record<ManagedUserStatus, string> = {
   active: "border-allowed/30 bg-allowed/10 text-allowed",
   inactive: "border-amber-400/30 bg-amber-400/10 text-amber-300",
   disabled: "border-destructive/35 bg-destructive/10 text-destructive",
+  pending_approval: "border-purple-400/30 bg-purple-400/10 text-purple-300",
 };
 
 const statusDot: Record<ManagedUserStatus, string> = {
   active: "bg-allowed",
   inactive: "bg-amber-400",
   disabled: "bg-destructive",
+  pending_approval: "bg-purple-400",
 };
 
 export const statusLabel: Record<ManagedUserStatus, string> = {
   active: "Active",
   inactive: "Inactive",
   disabled: "Disabled",
+  pending_approval: "Pending Approval",
 };
 
 export function RoleBadge({ role }: { role: Role }) {

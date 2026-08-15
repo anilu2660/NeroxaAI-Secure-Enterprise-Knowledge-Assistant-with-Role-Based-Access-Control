@@ -3,12 +3,29 @@ import logging
 import re
 
 from backend.llm.service import llm_service
-from backend.router.schemas import QueryRoute, QueryRoutingDecision
+from backend.router.schemas import QueryCategory, QueryRoute, QueryRoutingDecision
 
 logger = logging.getLogger(__name__)
 
 
 class QueryRouter:
+    """
+    2-Stage Hierarchical Query Router:
+    
+    Query
+      │
+      ▼
+    Is it current/live?
+        /          \
+      YES           NO
+       │             │
+      WEB      Could enterprise KB answer this?
+                    /          \
+                  YES           NO
+                   │             │
+                  RAG       GENERAL LLM
+    """
+
     def __init__(self):
         self.llm = llm_service
 
@@ -16,29 +33,19 @@ class QueryRouter:
         text = query.strip().lower()
         words = set(re.findall(r"[a-z0-9']+", text))
 
-        casual_patterns = (
-            r"^(hi|hello|hey|good morning|good afternoon|good evening|thanks|thank you|bye)\b",
-            r"\bhow are you\b",
-            r"\bwho are you\b",
-            r"\bwhat can you do\b",
-        )
-        if any(re.search(pattern, text) for pattern in casual_patterns):
-            return QueryRoutingDecision(
-                route=QueryRoute.CASUAL,
-                confidence=0.99,
-                reason="Recognized conversational request.",
-            )
-
+        # Check for explicit arithmetic / tool request
         calculator_pattern = re.fullmatch(r"[\d\s+\-*/%.()]+", text)
         if calculator_pattern and any(char.isdigit() for char in text):
             return QueryRoutingDecision(
+                category=QueryCategory.GENERAL_KNOWLEDGE,
                 route=QueryRoute.TOOL,
                 confidence=0.99,
-                reason="Query is a pure arithmetic expression.",
+                reason="Query is a pure arithmetic calculation.",
                 requires_tool=True,
                 tool_name="calculator",
             )
 
+        # Check multi-step agent request
         multi_step_signals = (
             ("according to" in text and ("calculate" in text or "compute" in text)),
             ("policy" in text and ("calculate" in text or "percentage" in text or "%" in text)),
@@ -48,11 +55,19 @@ class QueryRouter:
         )
         if any(multi_step_signals):
             return QueryRoutingDecision(
+                category=QueryCategory.INTERNAL_KNOWLEDGE,
                 route=QueryRoute.AGENT,
                 confidence=0.94,
-                reason="Query requires multiple dependent retrieval, web, or tool steps.",
+                reason="Multi-step internal retrieval and tool execution required.",
                 requires_agent=True,
             )
+
+        # Step 1: Is it current/live information?
+        current_info_terms = {
+            "today", "weather", "stock price", "market price", "2026",
+            "yesterday", "breaking news", "live score", "current price",
+        }
+        is_current_live = any(term in text for term in current_info_terms)
 
         enterprise_terms = {
             "company", "enterprise", "internal", "employee", "policy",
@@ -61,38 +76,64 @@ class QueryRouter:
             "guideline", "approval", "benefit", "reimbursement", "travel",
             "organization",
         }
-        web_terms = {
-            "latest", "today", "current", "recent", "news", "weather",
-            "stock", "price", "market", "2026", "yesterday", "breaking",
-            "live", "now", "currently",
-        }
+        could_enterprise_answer = bool(words & enterprise_terms)
 
-        enterprise_hit = bool(words & enterprise_terms)
-        web_hit = bool(words & web_terms)
-
-        if enterprise_hit and web_hit:
+        if is_current_live and could_enterprise_answer:
             return QueryRoutingDecision(
+                category=QueryCategory.CURRENT_INFORMATION,
                 route=QueryRoute.HYBRID,
-                confidence=0.78,
-                reason="Query contains both enterprise and current-information signals.",
+                confidence=0.88,
+                reason="Query requires internal enterprise knowledge and live current information.",
                 requires_rag=True,
                 requires_web=True,
             )
 
-        if enterprise_hit:
+        if is_current_live:
             return QueryRoutingDecision(
-                route=QueryRoute.ENTERPRISE,
-                confidence=0.82,
-                reason="Query contains enterprise knowledge signals.",
-                requires_rag=True,
-            )
-
-        if web_hit:
-            return QueryRoutingDecision(
+                category=QueryCategory.CURRENT_INFORMATION,
                 route=QueryRoute.WEB,
-                confidence=0.82,
-                reason="Query contains current-information signals.",
+                confidence=0.92,
+                reason="Step 1: Is it current/live? -> YES -> Route to WEB.",
                 requires_web=True,
+                requires_rag=False,
+            )
+
+        # Step 2: Could enterprise KB answer this?
+        if could_enterprise_answer:
+            return QueryRoutingDecision(
+                category=QueryCategory.INTERNAL_KNOWLEDGE,
+                route=QueryRoute.ENTERPRISE,
+                confidence=0.90,
+                reason="Step 2: Could enterprise KB answer this? -> YES -> Route to RAG.",
+                requires_rag=True,
+                requires_web=False,
+            )
+
+        casual_patterns = (
+            r"^(hi|hello|hey|good morning|good afternoon|good evening|thanks|thank you|bye)\b",
+            r"\bhow are you\b",
+            r"\bwho are you\b",
+            r"\bwhat can you do\b",
+        )
+        if any(re.search(pattern, text) for pattern in casual_patterns):
+            return QueryRoutingDecision(
+                category=QueryCategory.GENERAL_KNOWLEDGE,
+                route=QueryRoute.CASUAL,
+                confidence=0.99,
+                reason="Step 2: Could enterprise KB answer this? -> NO -> Conversational greeting -> GENERAL LLM.",
+                requires_rag=False,
+                requires_web=False,
+            )
+
+        # Short/Ambiguous single terms default to RAG for safety
+        if len(words) <= 2:
+            return QueryRoutingDecision(
+                category=QueryCategory.AMBIGUOUS,
+                route=QueryRoute.ENTERPRISE,
+                confidence=0.80,
+                reason="Step 2: Ambiguous/short query -> Searching internal enterprise KB first. WEB search disabled.",
+                requires_rag=True,
+                requires_web=False,
             )
 
         return None
@@ -102,27 +143,47 @@ class QueryRouter:
             raise ValueError("Query cannot be empty.")
 
         heuristic = self._heuristic_route(query)
-        if heuristic and heuristic.confidence >= 0.94:
+        if heuristic and heuristic.confidence >= 0.75:
             return heuristic
 
         prompt = f"""
-Classify the user's query into exactly one route: casual, enterprise, web, hybrid, tool, or agent.
+Evaluate the query following this EXACT 2-step decision tree:
 
-casual: normal conversation with no external retrieval.
-enterprise: organization's private/internal knowledge base.
-web: current, live, recent, or public internet information.
-hybrid: both private enterprise knowledge and current web information.
-tool: one registered application tool is sufficient.
-agent: multiple dependent steps are required, such as RAG followed by a calculator, or web search followed by a calculation.
+                    Query
+                      │
+                      ▼
+             Is it current/live?
+                 /          \\
+               YES           NO
+                │             │
+               WEB      Could enterprise KB answer this?
+                            /          \\
+                          YES           NO
+                           │             │
+                          RAG       GENERAL LLM
 
-Never invent a tool. Only classify as tool or agent when registered capabilities are clearly required.
-Prefer agent when the user explicitly asks for a sequence of dependent actions.
+Decision Rules:
+- STEP 1: Is it current/live?
+  - YES -> category: "CURRENT_INFORMATION", route: "web" (requires_web: true, requires_rag: false)
+    (e.g., today's weather, real-time stock prices, live news, 2026 breaking updates).
+  - NO  -> Proceed to STEP 2.
 
-Return JSON only:
+- STEP 2: Could enterprise KB answer this?
+  - YES -> category: "INTERNAL_KNOWLEDGE", route: "enterprise" (requires_rag: true, requires_web: false)
+    (e.g., company policies, HR rules, reimbursement, department guidelines, employee documents, or internal code/procedures).
+  - NO  -> category: "GENERAL_KNOWLEDGE", route: "casual" (requires_rag: false, requires_web: false)
+    (e.g., greetings, general programming questions, math, general science, world facts).
+
+- AMBIGUOUS QUERIES: If the query is vague or ambiguous, treat "Could enterprise KB answer this?" as YES -> route to "enterprise" (RAG). NEVER trigger web search for ambiguous queries.
+
+Return valid JSON only:
 {{
-  "route": "casual|enterprise|web|hybrid|tool|agent",
-  "confidence": 0.0,
-  "reason": "short reason",
+  "category": "CURRENT_INFORMATION|INTERNAL_KNOWLEDGE|GENERAL_KNOWLEDGE|AMBIGUOUS",
+  "route": "web|enterprise|casual|hybrid|tool|agent",
+  "confidence": 0.95,
+  "reason": "Step 1 & Step 2 evaluation summary",
+  "requires_rag": true,
+  "requires_web": false,
   "requires_tool": false,
   "tool_name": null,
   "requires_agent": false
@@ -144,33 +205,31 @@ User query:
 
             decision = QueryRoutingDecision.model_validate(json.loads(match.group(0)))
 
-            if decision.route == QueryRoute.CASUAL:
-                decision.requires_rag = decision.requires_web = decision.requires_tool = decision.requires_agent = False
-            elif decision.route == QueryRoute.ENTERPRISE:
-                decision.requires_rag = True
-                decision.requires_web = decision.requires_tool = decision.requires_agent = False
-            elif decision.route == QueryRoute.WEB:
+            if decision.category == QueryCategory.CURRENT_INFORMATION or decision.route == QueryRoute.WEB:
                 decision.requires_web = True
-                decision.requires_rag = decision.requires_tool = decision.requires_agent = False
-            elif decision.route == QueryRoute.HYBRID:
-                decision.requires_rag = decision.requires_web = True
-                decision.requires_tool = decision.requires_agent = False
-            elif decision.route == QueryRoute.TOOL:
-                decision.requires_tool = True
-                decision.requires_rag = decision.requires_web = decision.requires_agent = False
-            elif decision.route == QueryRoute.AGENT:
-                decision.requires_agent = True
-                decision.requires_rag = decision.requires_web = decision.requires_tool = False
+                decision.requires_rag = False
+            elif decision.category == QueryCategory.INTERNAL_KNOWLEDGE or decision.route == QueryRoute.ENTERPRISE:
+                decision.requires_rag = True
+                decision.requires_web = False
+            elif decision.category == QueryCategory.GENERAL_KNOWLEDGE or decision.route == QueryRoute.CASUAL:
+                decision.requires_rag = False
+                decision.requires_web = False
+            elif decision.category == QueryCategory.AMBIGUOUS:
+                decision.route = QueryRoute.ENTERPRISE
+                decision.requires_rag = True
+                decision.requires_web = False
 
             return decision
 
         except Exception as exc:
             logger.warning("LLM query routing failed: %s", str(exc))
             return QueryRoutingDecision(
+                category=QueryCategory.AMBIGUOUS,
                 route=QueryRoute.ENTERPRISE,
                 confidence=0.51,
-                reason="Router fallback; enterprise retrieval is the safer default for an enterprise assistant.",
+                reason="Router fallback: Could enterprise KB answer this? -> YES -> RAG.",
                 requires_rag=True,
+                requires_web=False,
             )
 
 

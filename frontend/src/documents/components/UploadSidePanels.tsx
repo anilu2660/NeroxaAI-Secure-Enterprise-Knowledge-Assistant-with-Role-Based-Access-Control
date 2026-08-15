@@ -34,8 +34,8 @@ export function SecurityAccessContextPanel({
   department,
   accessScopeLabel,
 }: {
-  department: string;
-  accessScopeLabel: string;
+  department?: string;
+  accessScopeLabel?: string;
 }) {
   return (
     <PanelCard title="Security & Access Context" icon={<ShieldCheck className="size-4" />}>
@@ -101,12 +101,12 @@ export function UploadWorkflowPanel({
   serviceStatus,
 }: {
   stages: UploadWorkflowStage[];
-  serviceStatus: DocumentServiceStatus;
+  serviceStatus?: DocumentServiceStatus | null;
 }) {
   return (
     <PanelCard title="Upload Workflow (Planned)" icon={<ListOrdered className="size-4" />}>
       <ol className="space-y-1.5">
-        {stages.map((stage, index) => {
+        {(stages ?? []).map((stage, index) => {
           const available = stage.state === "available";
           return (
             <li key={stage.id} className="flex items-center gap-2.5" title={stage.detail}>
@@ -141,7 +141,7 @@ export function UploadWorkflowPanel({
         })}
       </ol>
       <p className="mt-2.5 border-t border-hairline pt-2.5 text-[11px] leading-relaxed text-muted-foreground">
-        {serviceStatus.state === "connected"
+        {serviceStatus?.state === "connected"
           ? serviceStatus.detail
           : "Backend stages will run after document-service integration. No stage has executed for any document."}
       </p>

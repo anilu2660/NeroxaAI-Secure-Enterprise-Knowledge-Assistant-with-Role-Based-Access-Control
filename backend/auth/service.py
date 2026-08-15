@@ -89,12 +89,15 @@ class AuthService:
         email_otp_hash = hash_password(email_otp)
         mobile_otp_hash = hash_password(mobile_otp)
 
+        requested_role = getattr(request, "requested_role", "employee").strip().lower() or "employee"
+
         OTP_SESSIONS[session_token] = {
             "email": email_clean,
             "hashed_password": hashed_password,
             "full_name": full_name,
             "phone_number": phone_number,
             "department": department,
+            "requested_role": requested_role,
             "email_otp_hash": email_otp_hash,
             "mobile_otp_hash": mobile_otp_hash,
             "expires_at": expires_at,
@@ -209,7 +212,8 @@ class AuthService:
             raise CredentialsException("Invalid verification code.")
 
         try:
-            mobile_valid = verify_password(
+            mobile_valid = sms_service.verify_mobile_otp(
+                session_data["phone_number"],
                 mobile_otp,
                 session_data["mobile_otp_hash"],
             )
@@ -234,6 +238,7 @@ class AuthService:
                 "An account with this email already exists."
             )
 
+        requested_role = session_data.get("requested_role", "employee")
         new_user = User(
             email=email_clean,
             hashed_password=session_data["hashed_password"],
@@ -241,6 +246,8 @@ class AuthService:
             phone_number=session_data["phone_number"],
             department=session_data["department"],
             role_id="employee",
+            requested_role_id=requested_role,
+            is_approved=False,
             is_active=True,
             is_verified=True,
         )

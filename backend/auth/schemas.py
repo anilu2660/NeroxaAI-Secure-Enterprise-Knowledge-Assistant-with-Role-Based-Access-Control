@@ -54,6 +54,7 @@ class InitiateRegistrationRequest(BaseModel):
     full_name: str = Field(..., min_length=2, description="User's full name.")
     phone_number: str = Field(..., min_length=10, description="Mobile phone number with country code (e.g. +91 9876543210).")
     department: str = Field(default="General", description="Department (HR, Finance, Engineering, Sales, General).")
+    requested_role: str = Field(default="employee", description="Preferred role requested by user (employee, manager, analyst, admin, etc.).")
 
     @field_validator("password")
     @classmethod
@@ -97,6 +98,8 @@ class TokenResponse(BaseModel):
     email: str
     role: str
     department: str
+    is_approved: bool = True
+    requested_role: str | None = None
 
 
 class UserAuthInfo(BaseModel):
@@ -108,4 +111,6 @@ class UserAuthInfo(BaseModel):
     role: str
     department: str
     is_active: bool
+    is_approved: bool = True
+    requested_role: str | None = None
     created_at: datetime

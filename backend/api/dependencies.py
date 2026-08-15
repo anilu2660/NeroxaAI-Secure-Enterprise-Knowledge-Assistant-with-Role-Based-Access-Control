@@ -30,6 +30,9 @@ def _get_token_from_request(
         return bearer_token
     if cookie_token:
         return cookie_token
+    query_token = request.query_params.get("token")
+    if query_token:
+        return query_token
     return request.cookies.get("neroxa_access_token")
 
 

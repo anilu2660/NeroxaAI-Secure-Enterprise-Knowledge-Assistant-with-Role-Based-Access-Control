@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { askAssistant, getAssistantTools } from "@/api/workspace-service";
 import type { AssistantAnswer } from "@/api/types";
 import { AssistantComposer, type ComposerSubmission } from "@/rag/components/AssistantComposer";
@@ -18,6 +19,7 @@ export function AiComposer({
   actor?: string;
   onAnswer?: (answer: AssistantAnswer) => void;
 }) {
+  const navigate = useNavigate();
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const tools = useQuery({ queryKey: ["assistant-tools"], queryFn: getAssistantTools });
@@ -35,11 +37,9 @@ export function AiComposer({
         ...(actor ? { actor } : {}),
       });
       onAnswer?.(answer);
-      setNotice(
-        answer.status === "live"
-          ? "Answer updated below."
-          : "Question recorded in this session. No AI provider or retrieval service is connected, so no answer or sources were generated.",
-      );
+      void navigate({ to: "/assistant" });
+    } catch {
+      setNotice("Failed to reach AI Assistant.");
     } finally {
       setPending(false);
     }

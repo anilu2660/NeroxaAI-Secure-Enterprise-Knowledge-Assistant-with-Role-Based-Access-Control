@@ -31,7 +31,7 @@ class Document(Base, TimestampMixin):
     file_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     mime_type: Mapped[str] = mapped_column(String(100), nullable=False, default="application/pdf")
     department: Mapped[str] = mapped_column(String(100), nullable=False, default="General", index=True)
-    owner_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
+    owner_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     qdrant_document_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     total_chunks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="indexed")

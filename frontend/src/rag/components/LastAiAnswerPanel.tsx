@@ -41,7 +41,11 @@ export function LastAiAnswerPanel({ answer }: { answer: AssistantAnswer | null }
             </>
           ) : (
             <p className="mt-3 text-[10.5px] text-muted-foreground">
-              No sources — retrieval is not connected in this build.
+              {answer.execution?.route === "casual"
+                ? "Conversational response — no external retrieval required."
+                : answer.execution?.route === "web"
+                  ? "Web search response — web sources used."
+                  : "Direct response from Ollama local LLM."}
             </p>
           )}
         </div>

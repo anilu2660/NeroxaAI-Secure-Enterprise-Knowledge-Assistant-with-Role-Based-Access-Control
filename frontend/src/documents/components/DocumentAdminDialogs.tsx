@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Info } from "lucide-react";
-import type { AdminDocument, AdminDocumentScopeOption } from "@/api/types";
+import type { AdminDocument, AdminDocumentScopeOption, DocumentRecord } from "@/api/types";
 import { ModalShell } from "@/users/components/UserFormDialog";
+import { DocumentViewer } from "./DocumentViewer";
 import { scopeHint } from "./DocumentBadges";
 import { cn } from "@/shared/utils/utils";
 
@@ -244,6 +245,68 @@ export function DocumentScopeDialog({
         >
           Update scope
         </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+import { useQuery } from "@tanstack/react-query";
+import { getDocumentPreviewPage } from "@/api/workspace-service";
+
+/** Admin Adobe PDF Viewer Modal for inspecting documents directly inside Admin console. */
+export function AdminDocumentViewerDialog({
+  document,
+  onClose,
+}: {
+  document: AdminDocument | null;
+  onClose: () => void;
+}) {
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [document]);
+
+  const preview = useQuery({
+    queryKey: ["document-preview", document?.id, page],
+    queryFn: () => getDocumentPreviewPage(document!.id, page),
+    enabled: !!document,
+  });
+
+  if (!document) return null;
+
+  const docRecord: DocumentRecord = {
+    id: document.id,
+    title: document.name,
+    kind: (document.fileKind?.toUpperCase() as any) || "PDF",
+    department: document.department,
+    documentType: document.documentType,
+    accessScope: document.accessScopeLabel,
+    status: document.status === "archived" ? "archived" : "available",
+    pageCount: document.pageCount ?? 1,
+    description: document.description,
+    version: "1.0",
+    prototype: document.prototype,
+    updatedDateLabel: document.updatedDateLabel ?? undefined,
+    rawUrl: `/api/v1/documents/${document.id}/raw`,
+  };
+
+  return (
+    <ModalShell
+      title={`Adobe PDF View · ${document.name}`}
+      description={`Department: ${document.department} · Scope: ${document.accessScopeLabel}`}
+      onClose={onClose}
+      width="max-w-[1100px]"
+    >
+      <div className="h-[74vh] min-h-[500px]">
+        <DocumentViewer
+          doc={docRecord}
+          page={page}
+          preview={preview.data ?? null}
+          loading={preview.isLoading}
+          citation={null}
+          onPageChange={setPage}
+        />
       </div>
     </ModalShell>
   );

@@ -60,10 +60,10 @@ export function RoleOverviewCards({
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] text-muted-foreground">Capabilities</span>
             <span className="rounded-md border border-hairline bg-secondary/35 px-1.5 py-0.5 text-[11px] text-foreground/85">
-              {role.permissions.length}
+              {role.permissions?.length ?? 0}
             </span>
             <span className="ml-1.5 text-[11px] text-muted-foreground">Scopes</span>
-            {role.accessScopes.map((scope) => (
+            {(role.accessScopes ?? []).map((scope) => (
               <span
                 key={scope}
                 className="rounded-md border border-hairline bg-secondary/35 px-1.5 py-0.5 text-[11px] capitalize text-foreground/85"

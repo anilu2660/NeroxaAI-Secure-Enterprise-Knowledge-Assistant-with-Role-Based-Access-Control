@@ -13,6 +13,7 @@ import {
 import { RoleGuard } from "@/roles/components/RoleGuard";
 import { AdminDocumentsTable } from "@/documents/components/AdminDocumentsTable";
 import {
+  AdminDocumentViewerDialog,
   DocumentMetadataDialog,
   DocumentScopeDialog,
 } from "@/documents/components/DocumentAdminDialogs";
@@ -64,6 +65,7 @@ const selectClass =
 
 type DialogState =
   | { kind: "none" }
+  | { kind: "view"; doc: AdminDocument }
   | { kind: "metadata"; doc: AdminDocument }
   | { kind: "scope"; doc: AdminDocument }
   | { kind: "archive"; doc: AdminDocument }
@@ -357,12 +359,8 @@ function DocumentManagementPage() {
         <>
           <AdminDocumentsTable
             documents={rows}
-            onView={(doc) =>
-              navigate({ to: "/documents/$documentId", params: { documentId: doc.id } })
-            }
-            onDetails={(doc) =>
-              navigate({ to: "/documents/$documentId", params: { documentId: doc.id } })
-            }
+            onView={(doc) => setDialog({ kind: "view", doc })}
+            onDetails={(doc) => setDialog({ kind: "view", doc })}
             onEditMetadata={(doc) => setDialog({ kind: "metadata", doc })}
             onChangeScope={(doc) => setDialog({ kind: "scope", doc })}
             onToggleArchive={(doc) => setDialog({ kind: "archive", doc })}
@@ -388,6 +386,11 @@ function DocumentManagementPage() {
         document has been parsed, embedded, or indexed, and access scope is configuration only —
         retrieval permissions are not enforced yet.
       </p>
+
+      <AdminDocumentViewerDialog
+        document={dialog.kind === "view" ? dialog.doc : null}
+        onClose={() => setDialog({ kind: "none" })}
+      />
 
       <DocumentMetadataDialog
         document={dialog.kind === "metadata" ? dialog.doc : null}

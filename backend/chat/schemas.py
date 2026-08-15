@@ -20,6 +20,7 @@ class ChatExecutionMetadata(BaseModel):
     cached: bool = False
     model: str | None = None
     chunks_retrieved: int = 0
+    sources: list[dict] = Field(default_factory=list)
     tool_name: str | None = None
     tool_status: str | None = None
     tool_result: Any = None

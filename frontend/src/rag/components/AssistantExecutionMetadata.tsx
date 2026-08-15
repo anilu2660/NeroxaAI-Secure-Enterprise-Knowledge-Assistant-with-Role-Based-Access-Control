@@ -1,4 +1,4 @@
-import { Bot, ChevronDown, ChevronRight, Globe, Database, Wrench, Zap, CheckCircle2, XCircle, MinusCircle } from "lucide-react";
+import { Bot, ChevronDown, ChevronRight, Globe, Database, Wrench, Zap, CheckCircle2, XCircle, MinusCircle, FileText } from "lucide-react";
 import { useState } from "react";
 import type { AgentExecutionStep, AssistantQueryResponse } from "@/api/assistant-types";
 
@@ -50,6 +50,21 @@ export function AssistantExecutionMetadata({ data }: { data: AssistantQueryRespo
   const steps = data.agentSteps.length ? data.agentSteps : data.agentPlan?.steps ?? [];
   const isAgent = data.route === "agent" || steps.length > 0;
   const toolResult = safeToolResult(data.toolResult);
+  const hasSources = Array.isArray(data.sources) && data.sources.length > 0;
+
+  const hasExtraInfo =
+    data.cached ||
+    data.chunksRetrieved > 0 ||
+    Boolean(data.toolName && data.toolStatus) ||
+    data.webSearchStatus === "success" ||
+    isAgent ||
+    Boolean(data.rewrittenQuery) ||
+    Boolean(toolResult) ||
+    hasSources;
+
+  if (data.route === "casual" && !hasExtraInfo) {
+    return null;
+  }
 
   return (
     <div className="mt-2 rounded-xl border border-hairline bg-secondary/20">
@@ -63,7 +78,7 @@ export function AssistantExecutionMetadata({ data }: { data: AssistantQueryRespo
         {data.chunksRetrieved > 0 ? <span className="rounded-md border border-hairline bg-secondary/35 px-2 py-1 text-[10.5px] text-muted-foreground">{data.chunksRetrieved} retrieved</span> : null}
         {data.toolName && data.toolStatus ? <span className="rounded-md border border-hairline bg-secondary/35 px-2 py-1 text-[10.5px] text-muted-foreground">{data.toolName}: {data.toolStatus}</span> : null}
         {data.webSearchStatus === "success" ? <span className="rounded-md border border-hairline bg-secondary/35 px-2 py-1 text-[10.5px] text-muted-foreground">Web sources used</span> : null}
-        {(isAgent || data.rewrittenQuery || toolResult) ? (
+        {(isAgent || data.rewrittenQuery || toolResult || hasSources) ? (
           <button type="button" onClick={() => setExpanded((value) => !value)} className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10.5px] text-muted-foreground hover:bg-accent/60 hover:text-foreground" aria-expanded={expanded}>
             {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
             {expanded ? "Hide execution" : "View execution"}
@@ -77,6 +92,46 @@ export function AssistantExecutionMetadata({ data }: { data: AssistantQueryRespo
             <div>
               <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Rewritten query</p>
               <p className="mt-1 rounded-lg border border-hairline bg-card/40 px-2.5 py-2 text-[11.5px] text-foreground/80">{data.rewrittenQuery}</p>
+            </div>
+          ) : null}
+
+          {hasSources ? (
+            <div>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Retrieved Context Chunks ({data.sources.length})
+                </p>
+              </div>
+              <div className="mt-1.5 space-y-1.5">
+                {data.sources.map((source: any, index: number) => {
+                  const title = source.title || source.documentTitle || source.document_title || "Document";
+                  const page = source.page ?? source.page_number;
+                  const dept = source.department || "Enterprise Knowledge";
+                  const snippet = source.snippet || source.content || "";
+
+                  return (
+                    <div
+                      key={source.id || index}
+                      className="rounded-lg border border-hairline bg-card/40 p-2.5 text-[11.5px]"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-[10.5px] font-medium text-foreground/90">
+                        <span className="flex items-center gap-1.5">
+                          <FileText className="size-3 text-primary" />
+                          <span className="truncate max-w-[320px] font-semibold">{title}</span>
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {dept} {page ? `· Page ${page}` : ""}
+                        </span>
+                      </div>
+                      {snippet ? (
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/90 bg-secondary/20 p-2 rounded border border-hairline/40 font-mono text-[10.5px] whitespace-pre-wrap">
+                          {snippet}
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
 

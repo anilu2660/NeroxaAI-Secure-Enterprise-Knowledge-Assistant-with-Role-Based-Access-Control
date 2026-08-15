@@ -75,6 +75,16 @@ function persistSession(session: Session, token?: string) {
   }
 }
 
+function getStoredSession(): Session | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as Session) : null;
+  } catch {
+    return null;
+  }
+}
+
 function clearSession() {
   try {
     sessionStorage.removeItem(TOKEN_KEY);
@@ -107,12 +117,24 @@ async function fetchCurrentUser(token?: string): Promise<Session | null> {
 
 export const jwtAuthAdapter: AuthProviderAdapter = {
   async restore(): Promise<Session | null> {
-    const session = await fetchCurrentUser(getStoredToken() || undefined);
+    const token = getStoredToken();
+    const cached = getStoredSession();
+
+    // Nothing in storage — skip the network call entirely.
+    if (!token && !cached) return null;
+
+    // If we have a cached session but no token, re-use the cache.
+    // The cookie (set by the backend) will authenticate future requests.
+    if (!token && cached) return cached;
+
+    // We have a token — re-validate with the backend to get fresh user data.
+    const session = await fetchCurrentUser(token!);
     if (session) {
-      persistSession(session, getStoredToken() || undefined);
+      persistSession(session, token!);
       return session;
     }
 
+    // Token is stale / backend rejected it.
     clearSession();
     return null;
   },

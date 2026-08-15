@@ -166,7 +166,9 @@ export function DocumentViewer({
   };
 
   const isPdf = doc.kind === "PDF" || doc.title.toLowerCase().endsWith(".pdf");
-  const rawUrl = doc.rawUrl || `/api/v1/documents/${doc.id}/raw`;
+  const token = typeof window !== "undefined" ? (sessionStorage.getItem("neroxa_access_token") || localStorage.getItem("neroxa_access_token")) : "";
+  const baseUrl = doc.rawUrl || `/api/v1/documents/${doc.id}/raw`;
+  const rawUrl = token ? (baseUrl.includes("?") ? `${baseUrl}&token=${token}` : `${baseUrl}?token=${token}`) : baseUrl;
 
   return (
     <div

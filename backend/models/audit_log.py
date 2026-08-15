@@ -33,7 +33,7 @@ class AuditLog(Base, TimestampMixin):
         default=lambda: str(uuid.uuid4()),
     )
     event_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     user_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     user_role: Mapped[str | None] = mapped_column(String(50), nullable=True)
     action: Mapped[str] = mapped_column(String(255), nullable=False)

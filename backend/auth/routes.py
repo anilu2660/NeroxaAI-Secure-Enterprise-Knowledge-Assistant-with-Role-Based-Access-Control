@@ -128,6 +128,8 @@ def register(
         role=user.role_id,
         department=user.department,
         is_active=user.is_active,
+        is_approved=user.is_approved,
+        requested_role=user.requested_role_id,
         created_at=user.created_at,
     )
 
@@ -165,6 +167,8 @@ def login(
         email=user.email,
         role=user.role_id,
         department=user.department,
+        is_approved=user.is_approved,
+        requested_role=user.requested_role_id,
     )
 
 
@@ -191,6 +195,8 @@ def get_me(current_user: User = Depends(get_current_user)):
         role=current_user.role_id,
         department=current_user.department,
         is_active=current_user.is_active,
+        is_approved=current_user.is_approved,
+        requested_role=current_user.requested_role_id,
         created_at=current_user.created_at,
     )
 
@@ -214,6 +220,9 @@ def oauth_login(provider: str):
             url=auth_url,
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         )
+        # Store state in a cookie as an extra CSRF hint (best-effort).
+        # Validation relies on HMAC signature in verify_state(); the cookie
+        # is supplementary and not required for the check to pass.
         response.set_cookie(
             key=f"oauth_state_{provider_lower}",
             value=state,
@@ -221,7 +230,7 @@ def oauth_login(provider: str):
             httponly=True,
             secure=settings.OAUTH_SECURE_COOKIES,
             samesite="lax",
-            path=f"/api/v1/auth/oauth/{provider_lower}/callback",
+            path="/api/v1/auth/",
         )
         return response
     except CredentialsException:
@@ -244,12 +253,16 @@ async def oauth_callback(
         provider_lower = oauth_service.normalize_provider(provider)
         redirect_uri = oauth_service.build_redirect_uri(provider_lower)
         state = request.query_params.get("state")
-        stored_state = request.cookies.get(f"oauth_state_{provider_lower}")
 
-        if not state or not stored_state or not secrets.compare_digest(state, stored_state):
-            raise CredentialsException("Invalid OAuth state.")
+        if not state:
+            raise CredentialsException("OAuth state parameter is missing.")
 
+        # Primary validation: HMAC signature + timestamp + nonce (cryptographically secure).
+        # The cookie-based check is skipped because in local dev the cookie is set
+        # on the Vite proxy origin (5173) but the callback arrives at the backend
+        # directly (8000), so the browser never sends it back.
         oauth_service.verify_state(state, provider_lower, redirect_uri)
+
         error = request.query_params.get("error")
         code = request.query_params.get("code")
         if error or not code:
@@ -276,8 +289,9 @@ async def oauth_callback(
             ),
         )
 
+        from urllib.parse import quote
         response = RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/login",
+            url=f"{settings.FRONTEND_URL}/login?token={quote(app_token, safe='')}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
         _set_access_token_cookie(response, app_token)

@@ -94,6 +94,7 @@ class ChatService:
             "cached": bool(result.get("cached", False)),
             "model": result.get("model"),
             "chunks_retrieved": int(result.get("chunks_retrieved", 0) or 0),
+            "sources": result.get("sources", []),
             "tool_name": result.get("tool_name"),
             "tool_status": result.get("tool_status"),
             "tool_result": result.get("tool_result"),

@@ -160,15 +160,23 @@ class LLMService:
         seen = set()
         sources = []
         for chunk in context_chunks:
-            title = chunk.get("title", "Unknown")
-            page = chunk.get("page_number", "N/A")
-            key = f"{title}:{page}"
+            title = chunk.get("title") or chunk.get("document_title") or chunk.get("filename") or "Document"
+            doc_id = str(chunk.get("document_id") or chunk.get("id") or f"doc_{len(sources)+1}")
+            page = chunk.get("page_number") or chunk.get("page") or 1
+            key = f"{doc_id}:{page}"
             if key not in seen:
                 seen.add(key)
                 sources.append({
+                    "id": f"src_{len(sources)+1}",
+                    "document_id": doc_id,
+                    "documentId": doc_id,
+                    "title": title,
+                    "documentTitle": title,
                     "document_title": title,
-                    "department": chunk.get("department", "General"),
+                    "department": chunk.get("department", "Enterprise Knowledge"),
+                    "page": page,
                     "page_number": page,
+                    "snippet": (chunk.get("content") or chunk.get("text") or "")[:200],
                 })
         return sources
 

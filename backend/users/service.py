@@ -46,12 +46,18 @@ class UserService:
             user.department = update_data.department
         if update_data.role_id is not None:
             user.role_id = update_data.role_id
+        if update_data.requested_role_id is not None:
+            user.requested_role_id = update_data.requested_role_id
+        if update_data.is_approved is not None:
+            user.is_approved = update_data.is_approved
+            if update_data.is_approved and user.requested_role_id:
+                user.role_id = user.requested_role_id
         if update_data.is_active is not None:
             user.is_active = update_data.is_active
 
         db.commit()
         db.refresh(user)
-        logger.info("Updated user '%s' (role=%s, dept=%s)", user.email, user.role_id, user.department)
+        logger.info("Updated user '%s' (role=%s, approved=%s, dept=%s)", user.email, user.role_id, user.is_approved, user.department)
         return user
 
     @staticmethod

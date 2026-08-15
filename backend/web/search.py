@@ -40,25 +40,45 @@ class WebSearchService:
         if not settings.SERPAPI_KEY:
             raise RuntimeError("SERPAPI_KEY is not configured.")
 
-        import serpapi
+        raw_results = []
+        try:
+            import serpapi
+            client = serpapi.Client(
+                api_key=settings.SERPAPI_KEY,
+                timeout=self.timeout_seconds,
+            )
+            params = {
+                "engine": "google",
+                "q": query,
+                "num": self.max_results,
+                "hl": self.language,
+                "gl": self.country,
+            }
+            if self.location:
+                params["location"] = self.location
 
-        client = serpapi.Client(
-            api_key=settings.SERPAPI_KEY,
-            timeout=self.timeout_seconds,
-        )
+            results = client.search(params)
+            raw_results = results.get("organic_results", [])
+        except Exception as err:
+            logger.info("serpapi package search failed, trying httpx fallback: %s", str(err))
+            import httpx
+            params = {
+                "api_key": settings.SERPAPI_KEY,
+                "engine": "google",
+                "q": query,
+                "num": self.max_results,
+                "hl": self.language,
+                "gl": self.country,
+            }
+            if self.location:
+                params["location"] = self.location
 
-        params = {
-            "engine": "google",
-            "q": query,
-            "num": self.max_results,
-            "hl": self.language,
-            "gl": self.country,
-        }
-        if self.location:
-            params["location"] = self.location
-
-        results = client.search(params)
-        raw_results = results.get("organic_results", [])
+            with httpx.Client(timeout=self.timeout_seconds) as client:
+                res = client.get("https://serpapi.com/search.json", params=params)
+                if res.status_code == 200:
+                    raw_results = res.json().get("organic_results", [])
+                else:
+                    logger.error("SerpAPI HTTP request failed with status %s: %s", res.status_code, res.text)
 
         normalized: list[WebSearchResult] = []
         for item in raw_results:

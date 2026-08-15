@@ -11,7 +11,7 @@ export interface DocumentPreviewBlock { id:string; type:"heading"|"subheading"|"
 export interface DocumentPreviewPage { documentId:string; page:number; sectionLabel:string; blocks:DocumentPreviewBlock[]; citedBlockIds:string[]; }
 export interface DocumentQuery { search?:string; department?:string; documentType?:string; accessScope?:string; }
 export interface DocumentFilterOptions { departments:string[]; documentTypes:string[]; accessScopes:string[]; }
-export interface Citation { id:string; documentId:string; documentTitle:string; page?:number; department?:string; kind?:string; snippet?:string; }
+export interface Citation { id:string; documentId:string; documentTitle:string; page?:number; department?:string|null; kind?:string|null; snippet?:string|null; url?:string|null; type?:string|null; }
 export interface ActivityEntry { id:string; kind:"retrieval"|"query"|"upload"|"share"|"delete"|"admin"|"login"; label:string; actor:string; timeLabel:string; resultId:string; }
 export interface KnowledgeOverview { accessibleDocuments:number|null; recentQueries24h:number|null; activeDepartments:number|null; indexedKnowledge:string|null; }
 export interface ReasoningModelOption { id:string; name:string; shortLabel:string; tier:"local"|"cloud"; provider:string; detail:string; available:boolean; }
@@ -27,11 +27,11 @@ export interface AdminMetric { id:"total-users"|"total-documents"|"recent-upload
 export interface AdminActivityEntry { id:string; label:string; actor:string; timeLabel:string; }
 export interface AdminDocumentOverview { totalDocuments:number|null; indexedDocuments:number|null; pendingReview:number|null; status:string; }
 export interface AdminSecurityContext { title:string; roleStateLabel:string; enforcementLabel:string; auditingLabel:string; }
-export type ManagedUserStatus = "active"|"inactive"|"disabled";
-export interface ManagedUser { id:string; name:string; email:string; role:Role; department:string; organization:string; accessScope:string[]; status:ManagedUserStatus; lastSignInLabel:string|null; prototype:boolean; }
+export type ManagedUserStatus = "active"|"inactive"|"disabled"|"pending_approval";
+export interface ManagedUser { id:string; name:string; email:string; role:Role; department:string; organization:string; accessScope:string[]; status:ManagedUserStatus; lastSignInLabel:string|null; prototype:boolean; requestedRole?:string|null; isApproved?:boolean; }
 export interface ManagedUserQuery { search?:string; role?:Role|""; department?:string; status?:ManagedUserStatus|""; accessScope?:string; }
 export interface ManagedUserFilterOptions { roles:Role[]; departments:string[]; statuses:ManagedUserStatus[]; accessScopes:string[]; }
-export interface ManagedUserDraft { name:string; email:string; role:Role; department:string; organization:string; status:ManagedUserStatus; accessScope:string[]; }
+export interface ManagedUserDraft { name:string; email:string; role:Role; department:string; organization:string; status:ManagedUserStatus; accessScope:string[]; requestedRole?:string|null; isApproved?:boolean; }
 export interface UserProfile { id:string; name:string; email:string; role:Role; roleLabel:string; department:string; organization:string; accessScope:string[]; status:ManagedUserStatus; lastSignInLabel:string|null; permissions:Permission[]; managedInDirectory:boolean; source:"directory"|"session"; prototype:boolean; avatarUrl?:string|null; }
 export interface ManagedUserMutationResult { user:ManagedUser|null; persisted:boolean; message:string; }
 export type AdminDocumentScopeKind = "organization"|"department"|"restricted";

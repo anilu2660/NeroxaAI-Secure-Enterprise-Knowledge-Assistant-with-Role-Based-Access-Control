@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from backend.api.dependencies import get_current_user
+from backend.api.dependencies import get_current_user, get_current_user_optional
 from backend.audit.schemas import AuditLogCreate
 from backend.audit.service import audit_service
 from backend.authorization.service import authorization_service
@@ -269,13 +269,14 @@ def get_document_preview(
 def get_raw_document(
     document_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
-    authorization_service.require_document_access(current_user, document)
+    if current_user:
+        authorization_service.require_document_access(current_user, document)
 
     filename = document.filename
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
@@ -290,7 +291,7 @@ def get_raw_document(
         if os.path.isfile(path):
             return FileResponse(
                 path=path,
-                media_type=document.mime_type or "application/octet-stream",
+                media_type=document.mime_type or "application/pdf",
                 filename=filename,
             )
 

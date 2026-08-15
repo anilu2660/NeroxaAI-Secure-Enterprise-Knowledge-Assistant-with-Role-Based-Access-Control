@@ -35,6 +35,8 @@ class User(Base, TimestampMixin):
     department: Mapped[str] = mapped_column(String(100), nullable=False, default="General", index=True)
     phone_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     role_id: Mapped[str] = mapped_column(String(50), ForeignKey("roles.id"), nullable=False, default="employee")
+    requested_role_id: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)
+    is_approved: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

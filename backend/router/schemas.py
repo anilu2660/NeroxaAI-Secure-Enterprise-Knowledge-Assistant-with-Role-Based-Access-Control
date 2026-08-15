@@ -3,6 +3,13 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 
+class QueryCategory(str, Enum):
+    INTERNAL_KNOWLEDGE = "INTERNAL_KNOWLEDGE"
+    CURRENT_INFORMATION = "CURRENT_INFORMATION"
+    GENERAL_KNOWLEDGE = "GENERAL_KNOWLEDGE"
+    AMBIGUOUS = "AMBIGUOUS"
+
+
 class QueryRoute(str, Enum):
     CASUAL = "casual"
     ENTERPRISE = "enterprise"
@@ -13,6 +20,7 @@ class QueryRoute(str, Enum):
 
 
 class QueryRoutingDecision(BaseModel):
+    category: QueryCategory = QueryCategory.INTERNAL_KNOWLEDGE
     route: QueryRoute
     confidence: float = Field(ge=0.0, le=1.0)
     reason: str | None = None

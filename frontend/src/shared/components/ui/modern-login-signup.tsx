@@ -65,21 +65,29 @@ export function ModernLoginSignup() {
     email: "",
     phone: "+91 ",
     department: "General",
+    requestedRole: "employee",
     password: "",
     confirm: "",
     emailOtp: "",
     mobileOtp: "",
   });
 
-  // Handle URL callback parameters (e.g. ?token=... or ?error=... from OAuth redirect)
+  // Handle URL callback parameters (e.g. ?token=... or ?oauth_error=... from OAuth redirect)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
     const tokenParam = urlParams.get("token");
-    const errorParam = urlParams.get("error");
+    // Backend sends ?oauth_error=...; also support legacy ?error=
+    const errorParam = urlParams.get("oauth_error") || urlParams.get("error");
 
     if (errorParam) {
-      setErrors({ form: decodeURIComponent(errorParam) });
+      const msg =
+        errorParam === "authentication_failed"
+          ? "OAuth authentication failed. Please try again."
+          : errorParam === "configuration"
+            ? "OAuth is not configured for this provider."
+            : decodeURIComponent(errorParam);
+      setErrors({ form: msg });
       window.history.replaceState({}, document.title, window.location.pathname);
       return;
     }
@@ -99,6 +107,7 @@ export function ModernLoginSignup() {
         });
     }
   }, [authenticateToken]);
+
 
   const set = (key: keyof typeof values) => (event: { target: { value: string } }) =>
     setValues((prev) => ({ ...prev, [key]: event.target.value }));
@@ -148,6 +157,7 @@ export function ModernLoginSignup() {
         full_name: values.name,
         phone_number: values.phone,
         department: values.department,
+        requested_role: values.requestedRole,
       });
       setSessionToken(res.session_token);
       setOtpInfoMessage(res.message);
@@ -384,19 +394,38 @@ export function ModernLoginSignup() {
                   {errors.phone ? <p className="text-[11.5px] text-destructive">{errors.phone}</p> : null}
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="auth-department">Department</Label>
-                  <select
-                    id="auth-department"
-                    className="flex h-10 w-full rounded-md border border-input bg-card/60 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring/60"
-                    value={values.department}
-                    onChange={set("department")}
-                  >
-                    <option value="General">General</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="HR">HR</option>
-                  </select>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="auth-department">Department</Label>
+                    <select
+                      id="auth-department"
+                      className="flex h-10 w-full rounded-md border border-input bg-card/60 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring/60"
+                      value={values.department}
+                      onChange={set("department")}
+                    >
+                      <option value="General">General</option>
+                      <option value="Finance">Finance</option>
+                      <option value="Engineering">Engineering</option>
+                      <option value="HR">HR</option>
+                      <option value="Sales">Sales</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="auth-requested-role">Preferred Role</Label>
+                    <select
+                      id="auth-requested-role"
+                      className="flex h-10 w-full rounded-md border border-input bg-card/60 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring/60"
+                      value={values.requestedRole}
+                      onChange={set("requestedRole")}
+                    >
+                      <option value="employee">Employee</option>
+                      <option value="manager">Manager</option>
+                      <option value="analyst">Data Analyst</option>
+                      <option value="finance_lead">Finance Lead</option>
+                      <option value="hr_manager">HR Manager</option>
+                      <option value="admin">System Admin</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
