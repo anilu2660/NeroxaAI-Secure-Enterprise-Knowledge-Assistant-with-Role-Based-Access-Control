@@ -269,6 +269,9 @@ class RetrieverService:
     async def has_document_chunks(self, document_id: str) -> bool:
         return self.manager.has_document_chunks(document_id)
 
+    async def find_existing_document_id(self, title: str, department: str) -> str | None:
+        return self.manager.find_existing_document_id(title, department)
+
     def get_document_content(self, document_id: str) -> dict:
         return self.manager.get_document_content(document_id)
 

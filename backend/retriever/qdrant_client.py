@@ -223,6 +223,38 @@ class QdrantManager:
             )
             return False
 
+    def find_existing_document_id(self, title: str, department: str) -> str | None:
+        try:
+            self.ensure_collection_exists()
+            res = self.client.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="title",
+                            match=MatchValue(value=title),
+                        ),
+                        FieldCondition(
+                            key="department",
+                            match=MatchValue(value=department),
+                        ),
+                    ]
+                ),
+                limit=1,
+            )
+            points, _ = res
+            if points and points[0].payload:
+                return points[0].payload.get("document_id")
+            return None
+        except Exception as e:
+            logger.warning(
+                "Error finding existing document for title '%s' in '%s': %s",
+                title,
+                department,
+                str(e),
+            )
+            return None
+
     def get_document_content(self, document_id: str) -> dict:
         try:
             self.ensure_collection_exists()
