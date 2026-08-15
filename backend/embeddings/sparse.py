@@ -1,68 +1,67 @@
 """
-Deterministic BM25-style sparse encoder for Qdrant hybrid retrieval.
+Qdrant-compatible BM25 sparse encoder.
 
-This remains a lightweight TF/BM25-style encoder, but term indices are now
-stable across Python processes. Existing Qdrant sparse vectors must be rebuilt
-after this change because the sparse vocabulary mapping has changed.
+Uses FastEmbed's Qdrant/bm25 implementation for tokenization, stemming and
+BM25 term-frequency weighting. Qdrant applies the corpus-level IDF modifier
+at search time, so document/query token IDs stay compatible without a custom
+hash vocabulary.
 """
 
-import hashlib
-import re
-from collections import Counter
+from functools import lru_cache
 
+from fastembed import SparseTextEmbedding
 from qdrant_client.models import SparseVector
 
-BM25_K1 = 1.5
+BM25_K1 = 1.2
 BM25_B = 0.75
-AVG_DOC_LEN = 120
-
-STOP_WORDS = frozenset({
-    "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
-    "being", "have", "has", "had", "do", "does", "did", "will", "would",
-    "could", "should", "may", "might", "shall", "can", "this", "that",
-    "these", "those", "i", "you", "he", "she", "it", "we", "they",
-    "what", "which", "who", "whom", "how", "when", "where", "why", "not",
-    "its", "their", "our", "your", "his", "her", "as", "if", "then",
-})
+# This is deliberately configurable because BM25 length normalization should
+# reflect the indexed chunk distribution. Rebuild vectors when this changes.
+BM25_AVG_LEN = 120.0
 
 
 class BM25SparseEncoder:
-    VOCAB_SIZE = 2 ** 21
+    def __init__(self):
+        self.model_name = "Qdrant/bm25"
+        self._model: SparseTextEmbedding | None = None
 
-    def _tokenize(self, text: str) -> list[str]:
-        tokens = re.findall(r"\b[a-zA-Z0-9]+\b", text.lower())
-        return [t for t in tokens if t not in STOP_WORDS and len(t) > 1]
-
-    def _term_index(self, term: str) -> int:
-        """Stable term-to-index mapping shared by ingestion and query processes."""
-        digest = hashlib.blake2b(term.encode("utf-8"), digest_size=8).digest()
-        return int.from_bytes(digest, "big") % self.VOCAB_SIZE
-
-    def encode(self, text: str) -> SparseVector:
-        tokens = self._tokenize(text)
-        if not tokens:
-            return SparseVector(indices=[], values=[])
-
-        doc_len = len(tokens)
-        term_freq = Counter(tokens)
-        index_to_score: dict[int, float] = {}
-
-        for term, tf in term_freq.items():
-            idx = self._term_index(term)
-            bm25_tf = (tf * (BM25_K1 + 1)) / (
-                tf + BM25_K1 * (1 - BM25_B + BM25_B * (doc_len / AVG_DOC_LEN))
+    @property
+    def model(self) -> SparseTextEmbedding:
+        if self._model is None:
+            self._model = SparseTextEmbedding(
+                model_name=self.model_name,
+                k=BM25_K1,
+                b=BM25_B,
+                avg_len=BM25_AVG_LEN,
+                language="english",
             )
-            index_to_score[idx] = index_to_score.get(idx, 0.0) + bm25_tf
+        return self._model
 
-        sorted_items = sorted(index_to_score.items())
+    @staticmethod
+    def _to_sparse_vector(embedding) -> SparseVector:
+        indices = embedding.indices.tolist() if hasattr(embedding.indices, "tolist") else list(embedding.indices)
+        values = embedding.values.tolist() if hasattr(embedding.values, "tolist") else list(embedding.values)
         return SparseVector(
-            indices=[item[0] for item in sorted_items],
-            values=[round(item[1], 6) for item in sorted_items],
+            indices=[int(i) for i in indices],
+            values=[float(v) for v in values],
         )
 
+    def encode(self, text: str) -> SparseVector:
+        if not text or not text.strip():
+            return SparseVector(indices=[], values=[])
+        embedding = next(self.model.embed([text]))
+        return self._to_sparse_vector(embedding)
+
+    def encode_query(self, text: str) -> SparseVector:
+        if not text or not text.strip():
+            return SparseVector(indices=[], values=[])
+        embedding = next(self.model.query_embed(text))
+        return self._to_sparse_vector(embedding)
+
     def encode_batch(self, texts: list[str]) -> list[SparseVector]:
-        return [self.encode(text) for text in texts]
+        if not texts:
+            return []
+        embeddings = self.model.embed(texts, batch_size=256)
+        return [self._to_sparse_vector(embedding) for embedding in embeddings]
 
 
 bm25_encoder = BM25SparseEncoder()
