@@ -20,7 +20,7 @@ connect_args = {"check_same_thread": False} if is_sqlite else {}
 
 engine = create_engine(
     settings.DATABASE_URL,
-    echo="warning" if not settings.DEBUG else False,
+    echo=settings.DEBUG,
     pool_pre_ping=True,
     connect_args=connect_args,
 )
