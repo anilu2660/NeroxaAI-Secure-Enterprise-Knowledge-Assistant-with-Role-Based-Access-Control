@@ -765,11 +765,13 @@ export async function askAssistant({
   void toolIds;
 
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
+  const apiUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+  const chatEndpoint = apiUrl ? `${apiUrl}/api/v1/chat/message` : "/api/v1/chat/message";
 
   try {
     let sessionId = await getOrCreateActiveChatSessionId(token);
 
-    let response = await fetch("/api/v1/chat/message", {
+    let response = await fetch(chatEndpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -781,7 +783,7 @@ export async function askAssistant({
     if (response.status === 404) {
       if (typeof window !== "undefined") sessionStorage.removeItem("neroxa.active_chat_session_id");
       sessionId = await getOrCreateActiveChatSessionId(token);
-      response = await fetch("/api/v1/chat/message", {
+      response = await fetch(chatEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -851,18 +853,23 @@ export async function askAssistant({
     }
     return answerObj;
   } catch (err: any) {
+    const isOffline = !err?.message || err.message === "Failed to fetch" || err.message.includes("Chat orchestrator");
+    const fallbackMessage = isOffline
+      ? "The backend AI service is currently offline. To receive live AI answers grounded in your enterprise knowledge, deploy your FastAPI backend server and set VITE_API_URL on Vercel (or run .\\start.ps1 locally)."
+      : err.message;
+
     const fallbackAnswer: AssistantAnswer = {
       id: `err_${Date.now()}`,
       query: question,
-      answer: err?.message || "Failed to connect to local LLM backend.",
+      answer: fallbackMessage,
       status: "no-provider",
       keyReferences: [],
       citations: [],
       grounded: false,
-      retrievalStatus: "Pipeline Unavailable",
+      retrievalStatus: "Backend API Offline",
       createdAt: new Date().toISOString(),
-      modelId: null,
-      modelLabel: null,
+      modelId: modelId || "qwen2.5-local",
+      modelLabel: "Backend Server Required",
     };
     sessionLastAnswer = fallbackAnswer;
     return fallbackAnswer;
