@@ -206,11 +206,20 @@ def get_me(current_user: User = Depends(get_current_user)):
     summary="Redirect to social OAuth authorization URL",
     dependencies=[Depends(rate_limit_guard("auth"))],
 )
-def oauth_login(provider: str):
+def oauth_login(provider: str, request: Request):
     try:
         provider_lower = oauth_service.normalize_provider(provider)
         redirect_uri = oauth_service.build_redirect_uri(provider_lower)
-        state = oauth_service.create_state(provider_lower, redirect_uri)
+
+        referer = request.headers.get("referer") or request.headers.get("origin")
+        frontend_url = settings.FRONTEND_URL
+        if referer:
+            from urllib.parse import urlparse
+            parsed = urlparse(referer)
+            if parsed.scheme and parsed.netloc:
+                frontend_url = f"{parsed.scheme}://{parsed.netloc}"
+
+        state = oauth_service.create_state(provider_lower, redirect_uri, frontend_url=frontend_url)
         auth_url = oauth_service.get_authorization_url(
             provider_lower,
             redirect_uri,
@@ -249,6 +258,7 @@ async def oauth_callback(
     request: Request,
     db: Session = Depends(get_db),
 ):
+    target_frontend_url = settings.FRONTEND_URL
     try:
         provider_lower = oauth_service.normalize_provider(provider)
         redirect_uri = oauth_service.build_redirect_uri(provider_lower)
@@ -258,10 +268,9 @@ async def oauth_callback(
             raise CredentialsException("OAuth state parameter is missing.")
 
         # Primary validation: HMAC signature + timestamp + nonce (cryptographically secure).
-        # The cookie-based check is skipped because in local dev the cookie is set
-        # on the Vite proxy origin (5173) but the callback arrives at the backend
-        # directly (8000), so the browser never sends it back.
-        oauth_service.verify_state(state, provider_lower, redirect_uri)
+        state_payload = oauth_service.verify_state(state, provider_lower, redirect_uri)
+        if state_payload.get("frontend_url"):
+            target_frontend_url = state_payload["frontend_url"].rstrip("/")
 
         error = request.query_params.get("error")
         code = request.query_params.get("code")
@@ -291,7 +300,7 @@ async def oauth_callback(
 
         from urllib.parse import quote
         response = RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/login?token={quote(app_token, safe='')}",
+            url=f"{target_frontend_url}/login?token={quote(app_token, safe='')}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
         _set_access_token_cookie(response, app_token)
@@ -303,7 +312,7 @@ async def oauth_callback(
 
     except CredentialsException:
         response = RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/login?oauth_error=authentication_failed",
+            url=f"{target_frontend_url}/login?oauth_error=authentication_failed",
             status_code=status.HTTP_303_SEE_OTHER,
         )
         try:
@@ -317,6 +326,6 @@ async def oauth_callback(
         return response
     except Exception:
         return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/login?oauth_error=authentication_failed",
+            url=f"{target_frontend_url}/login?oauth_error=authentication_failed",
             status_code=status.HTTP_303_SEE_OTHER,
         )

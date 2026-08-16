@@ -1,9 +1,10 @@
-"""
-Enterprise RAG Application - Main Entry Point
+import sys
+from pathlib import Path
 
-Production-style Enterprise Retrieval-Augmented Generation (RAG) platform
-with Role-Based Access Control (RBAC).
-"""
+# Ensure project root is in sys.path so 'backend' module is always found regardless of CWD
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 import logging
 from contextlib import asynccontextmanager

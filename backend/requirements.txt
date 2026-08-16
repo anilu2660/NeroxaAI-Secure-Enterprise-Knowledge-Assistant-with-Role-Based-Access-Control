@@ -17,22 +17,21 @@ python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 bcrypt==5.0.0
 
-# Vector Database
+# Vector Database & Embeddings
 qdrant-client==1.18.0
 fastembed==0.7.4
-
-# Embeddings
 sentence-transformers==5.6.1
 
-# LLM
+# LLM Provider
 ollama==0.6.2
 
 # Document Processing
 pypdf==6.14.2
 python-docx==1.2.0
 
-# Web Search
+# External Integrations
 serpapi==0.1.5
+twilio==9.4.2
 
 # Cache
 redis==7.1.0
@@ -43,7 +42,7 @@ pydantic==2.13.4
 pydantic-settings==2.14.2
 email-validator==2.3.0
 
-# Testing
+# Testing & Client
 pytest==9.1.1
 pytest-asyncio==1.4.0
 httpx==0.28.1

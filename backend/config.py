@@ -1,14 +1,13 @@
-"""
-Backend configuration settings.
-
-Loads environment variables and provides application-wide configuration.
-"""
-
+import sys
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
+# Ensure project root is in sys.path
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
+from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=True)
 

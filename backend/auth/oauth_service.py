@@ -55,12 +55,13 @@ class OAuthService:
         return f"{settings.BACKEND_URL}/api/v1/auth/oauth/{provider_lower}/callback"
 
     @staticmethod
-    def create_state(provider: str, redirect_uri: str) -> str:
+    def create_state(provider: str, redirect_uri: str, frontend_url: str | None = None) -> str:
         provider_lower = OAuthService.normalize_provider(provider)
         nonce = secrets.token_urlsafe(32)
         payload = {
             "provider": provider_lower,
             "redirect_uri": redirect_uri,
+            "frontend_url": (frontend_url or settings.FRONTEND_URL).rstrip("/"),
             "nonce": nonce,
             "iat": int(time.time()),
         }
@@ -76,7 +77,7 @@ class OAuthService:
         return f"{encoded}.{signature_encoded}"
 
     @staticmethod
-    def verify_state(state: str, provider: str, redirect_uri: str) -> None:
+    def verify_state(state: str, provider: str, redirect_uri: str) -> dict:
         if not state or "." not in state:
             raise CredentialsException("Invalid OAuth state.")
 
@@ -114,6 +115,8 @@ class OAuthService:
 
         if payload.get("redirect_uri") != redirect_uri:
             raise CredentialsException("OAuth redirect URI mismatch.")
+
+        return payload
 
     @classmethod
     def get_authorization_url(
