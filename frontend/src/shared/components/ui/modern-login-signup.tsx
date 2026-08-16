@@ -217,8 +217,16 @@ export function ModernLoginSignup() {
   };
 
   const handleSocialLogin = (provider: "google" | "github" | "microsoft") => {
+    const apiUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+    if (!apiUrl && typeof window !== "undefined" && !window.location.hostname.includes("localhost")) {
+      setErrors({
+        form: `${provider.charAt(0).toUpperCase() + provider.slice(1)} OAuth requires a running backend API. Set VITE_API_URL in your Vercel Environment Variables to point to your FastAPI backend server.`,
+      });
+      return;
+    }
     setLoading(true);
-    window.location.href = `/api/v1/auth/oauth/${provider}/login`;
+    const targetUrl = apiUrl ? `${apiUrl}/api/v1/auth/oauth/${provider}/login` : `/api/v1/auth/oauth/${provider}/login`;
+    window.location.href = targetUrl;
   };
 
   return (
