@@ -7,12 +7,18 @@ export function Logo({ className = "h-6 w-6" }: { className?: string }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path d="M4.5 19.5C4.5 10.9 10.2 4.4 19.5 3.5c-1.1 9.1-7 15.1-15 16Z" fill="currentColor" />
       <path
-        d="M8.5 15.5C10.8 11.3 14.3 8.4 19.5 3.5"
-        stroke="var(--background)"
-        strokeWidth="1.4"
+        d="M12 2L4 5v6c0 5.25 3.4 10.15 8 11 4.6-.85 8-5.75 8-11V5l-8-3z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 15l4-6 4 6V9"
+        stroke="currentColor"
+        strokeWidth="1.8"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
