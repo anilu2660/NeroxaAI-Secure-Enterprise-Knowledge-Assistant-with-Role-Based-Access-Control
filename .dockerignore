@@ -1,0 +1,45 @@
+# Version control
+.git
+.github
+
+# IDE / Editor
+.vscode
+*.code-workspace
+
+# Documentation
+*.md
+docs/
+
+# Python artifacts
+backend/myenv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/**/*.pyc
+**/*.pyc
+.pytest_cache/
+
+# Frontend artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.tanstack/
+
+# Environment files (never bake secrets into images)
+.env
+backend/.env
+frontend/.env
+
+# Local data / storage
+qdrant_storage/
+uploaded_files/
+
+# Test files
+tests/
+
+# Scripts (not needed in container)
+scripts/
+
+# Misc
+runtime.txt
+plan.md
+retrieval_eval_results.json

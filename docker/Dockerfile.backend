@@ -1,28 +1,37 @@
-# Backend Dockerfile for Enterprise RAG Platform
+# ============================================================
+# Backend Dockerfile - Enterprise RAG Platform
+# Build context: project root (e:\enterprise-rag)
+# Image: ajup738/neroxaai-backend
+# ============================================================
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for build tools and PostgreSQL driver
+# Install system deps: build tools + PostgreSQL client library
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Set Python path to ensure module imports resolve backend package
+# Python env settings
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# --- Layer cache: install dependencies before copying source ---
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# Copy application code
-COPY . .
+# Copy backend source (exclude myenv, __pycache__ via .dockerignore)
+COPY backend/ ./backend/
 
 # Expose FastAPI port
 EXPOSE 8000
 
-# Run FastAPI backend with Uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+# Run FastAPI with Uvicorn — module path: backend.main:app
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
