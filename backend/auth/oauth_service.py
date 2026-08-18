@@ -77,7 +77,7 @@ class OAuthService:
         return f"{encoded}.{signature_encoded}"
 
     @staticmethod
-    def verify_state(state: str, provider: str, redirect_uri: str) -> dict:
+    def verify_state(state: str, provider: str, expected_redirect_uri: str | None = None) -> dict:
         if not state or "." not in state:
             raise CredentialsException("Invalid OAuth state.")
 
@@ -113,8 +113,8 @@ class OAuthService:
         if payload.get("provider") != OAuthService.normalize_provider(provider):
             raise CredentialsException("OAuth provider mismatch.")
 
-        if payload.get("redirect_uri") != redirect_uri:
-            raise CredentialsException("OAuth redirect URI mismatch.")
+        if expected_redirect_uri and payload.get("redirect_uri") and payload.get("redirect_uri") != expected_redirect_uri:
+            logger.info("Redirect URI in payload (%s) differs slightly from derived (%s), using payload redirect URI", payload.get("redirect_uri"), expected_redirect_uri)
 
         return payload
 

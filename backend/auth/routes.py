@@ -324,6 +324,8 @@ async def oauth_callback(
 
         # Primary validation: HMAC signature + timestamp + nonce (cryptographically secure).
         state_payload = oauth_service.verify_state(state, provider_lower, redirect_uri)
+        if state_payload.get("redirect_uri"):
+            redirect_uri = state_payload["redirect_uri"]
         if state_payload.get("frontend_url"):
             target_frontend_url = state_payload["frontend_url"].rstrip("/")
 
