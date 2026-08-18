@@ -15,8 +15,8 @@ class RegisterRequest(BaseModel):
     email: EmailStr = Field(..., description="User's email address.")
     password: str = Field(
         ...,
-        min_length=12,
-        description="Password (min 12 characters, must contain uppercase, lowercase, digit, special char).",
+        min_length=8,
+        description="Password (min 8 characters, must contain uppercase, lowercase, digit, special char).",
     )
     full_name: str = Field(..., min_length=2, description="User's full name.")
     department: str = Field(default="General", description="Department (HR, Finance, Engineering, Sales, General).")
@@ -27,16 +27,18 @@ class RegisterRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
-        """Enforce enterprise password complexity policy."""
+        """Enforce enterprise password complexity policy allowing any special character."""
         errors = []
+        if len(v) < 8:
+            errors.append("at least 8 characters")
         if not re.search(r"[A-Z]", v):
             errors.append("at least one uppercase letter")
         if not re.search(r"[a-z]", v):
             errors.append("at least one lowercase letter")
         if not re.search(r"\d", v):
             errors.append("at least one digit")
-        if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':,./<>?]", v):
-            errors.append("at least one special character (!@#$%^&* etc.)")
+        if not re.search(r"[^A-Za-z0-9]", v):
+            errors.append("at least one special character or symbol")
         if errors:
             raise ValueError(f"Password must contain: {', '.join(errors)}.")
         return v
@@ -48,8 +50,8 @@ class InitiateRegistrationRequest(BaseModel):
     email: EmailStr = Field(..., description="User's email address.")
     password: str = Field(
         ...,
-        min_length=12,
-        description="Password (min 12 characters, must contain uppercase, lowercase, digit, special char).",
+        min_length=8,
+        description="Password (min 8 characters, must contain uppercase, lowercase, digit, special char).",
     )
     full_name: str = Field(..., min_length=2, description="User's full name.")
     phone_number: str = Field(..., min_length=10, description="Mobile phone number with country code (e.g. +91 9876543210).")
@@ -59,16 +61,18 @@ class InitiateRegistrationRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
-        """Enforce enterprise password complexity policy."""
+        """Enforce enterprise password complexity policy allowing any special character."""
         errors = []
+        if len(v) < 8:
+            errors.append("at least 8 characters")
         if not re.search(r"[A-Z]", v):
             errors.append("at least one uppercase letter")
         if not re.search(r"[a-z]", v):
             errors.append("at least one lowercase letter")
         if not re.search(r"\d", v):
             errors.append("at least one digit")
-        if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':,./<>?]", v):
-            errors.append("at least one special character (!@#$%^&* etc.)")
+        if not re.search(r"[^A-Za-z0-9]", v):
+            errors.append("at least one special character or symbol")
         if errors:
             raise ValueError(f"Password must contain: {', '.join(errors)}.")
         return v
@@ -110,7 +114,23 @@ class UserAuthInfo(BaseModel):
     full_name: str
     role: str
     department: str
+    phone_number: str | None = None
     is_active: bool
     is_approved: bool = True
     requested_role: str | None = None
-    created_at: datetime
+    created_at: datetime | None = None
+
+
+class SendPhoneOTPRequest(BaseModel):
+    """Schema for sending OTP to verify user's mobile number and onboarding preferences."""
+
+    phone_number: str = Field(..., min_length=10, description="Mobile phone number with country code.")
+    department: str = Field(default="General", description="User's enterprise department.")
+    requested_role: str = Field(default="employee", description="User's preferred role.")
+
+
+class VerifyPhoneOTPRequest(BaseModel):
+    """Schema for verifying 6-digit OTP code."""
+
+    phone_number: str = Field(..., min_length=10, description="Mobile phone number with country code.")
+    otp: str = Field(..., min_length=6, max_length=6, description="6-digit mobile SMS OTP.")

@@ -361,5 +361,88 @@ class AuthService:
 
         return user, access_token
 
+    @staticmethod
+    def send_phone_verification_otp(
+        user: User,
+        phone_number: str,
+        department: str = "General",
+        requested_role: str = "employee",
+    ) -> dict:
+        phone_clean = phone_number.strip()
+        if len(phone_clean) < 10:
+            raise CredentialsException("Invalid mobile phone number.")
 
+        mobile_otp = str(secrets.randbelow(900000) + 100000)
+        expires_at = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
+        mobile_otp_hash = hash_password(mobile_otp)
+
+        PHONE_OTP_SESSIONS[user.id] = {
+            "phone_number": phone_clean,
+            "department": department if department in ALLOWED_DEPARTMENTS else "General",
+            "requested_role": requested_role.strip().lower() or "employee",
+            "otp_hash": mobile_otp_hash,
+            "expires_at": expires_at,
+            "attempts": 0,
+        }
+
+        try:
+            sms_sent = sms_service.send_mobile_otp(phone_clean, mobile_otp)
+        except Exception as exc:
+            PHONE_OTP_SESSIONS.pop(user.id, None)
+            logger.exception("Failed to send phone verification OTP")
+            raise CredentialsException("Unable to send SMS verification code.") from exc
+
+        if not sms_sent:
+            PHONE_OTP_SESSIONS.pop(user.id, None)
+            raise CredentialsException("Unable to deliver SMS verification code. Please try again.")
+
+        return {
+            "message": f"Verification code sent to {phone_clean}.",
+            "phone_number": phone_clean,
+            "expires_in_minutes": OTP_EXPIRY_MINUTES,
+        }
+
+    @staticmethod
+    def verify_phone_otp(
+        db: Session,
+        user: User,
+        phone_number: str,
+        otp: str,
+    ) -> User:
+        session_data = PHONE_OTP_SESSIONS.get(user.id)
+        if not session_data:
+            raise CredentialsException("No active phone verification session. Please request a new code.")
+
+        if datetime.utcnow() > session_data["expires_at"]:
+            PHONE_OTP_SESSIONS.pop(user.id, None)
+            raise CredentialsException("Verification code has expired. Please request a new code.")
+
+        if session_data.get("attempts", 0) >= MAX_OTP_ATTEMPTS:
+            PHONE_OTP_SESSIONS.pop(user.id, None)
+            raise CredentialsException("Too many invalid attempts. Please request a new code.")
+
+        session_data["attempts"] = session_data.get("attempts", 0) + 1
+
+        otp_clean = otp.strip()
+        if not verify_password(otp_clean, session_data["otp_hash"]):
+            raise CredentialsException("Invalid 6-digit verification code.")
+
+        user.phone_number = session_data["phone_number"]
+        dept = session_data.get("department")
+        if dept and dept in ALLOWED_DEPARTMENTS:
+            user.department = dept
+
+        req_role = session_data.get("requested_role")
+        if req_role:
+            user.requested_role_id = req_role
+
+        db.commit()
+        db.refresh(user)
+
+        PHONE_OTP_SESSIONS.pop(user.id, None)
+        logger.info("Onboarding completed for user %s (Phone: %s, Dept: %s, RequestedRole: %s)", user.id, user.phone_number, user.department, user.requested_role_id)
+        return user
+
+
+PHONE_OTP_SESSIONS: dict[str, dict] = {}
 auth_service = AuthService()

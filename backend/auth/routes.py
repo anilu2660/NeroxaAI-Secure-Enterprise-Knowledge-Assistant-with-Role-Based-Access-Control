@@ -16,9 +16,11 @@ from backend.auth.schemas import (
     InitiateRegistrationRequest,
     LoginRequest,
     RegisterRequest,
+    SendPhoneOTPRequest,
     TokenResponse,
     UserAuthInfo,
     VerifyOTPRequest,
+    VerifyPhoneOTPRequest,
 )
 from backend.auth.service import auth_service
 from backend.config import settings
@@ -93,6 +95,54 @@ def verify_otp_and_register(
         email=user.email,
         role=user.role_id,
         department=user.department,
+    )
+
+
+@router.post(
+    "/phone/send-otp",
+    summary="Send SMS OTP to verify authenticated user's mobile number and onboarding preferences",
+    dependencies=[Depends(rate_limit_guard("auth"))],
+)
+def send_phone_otp(
+    request: SendPhoneOTPRequest,
+    current_user: User = Depends(get_current_user),
+):
+    return auth_service.send_phone_verification_otp(
+        current_user,
+        request.phone_number,
+        department=request.department,
+        requested_role=request.requested_role,
+    )
+
+
+@router.post(
+    "/phone/verify-otp",
+    response_model=UserAuthInfo,
+    summary="Verify SMS OTP and complete user onboarding",
+    dependencies=[Depends(rate_limit_guard("auth"))],
+)
+def verify_phone_otp(
+    request: VerifyPhoneOTPRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    updated_user = auth_service.verify_phone_otp(
+        db,
+        current_user,
+        request.phone_number,
+        request.otp,
+    )
+    return UserAuthInfo(
+        id=updated_user.id,
+        email=updated_user.email,
+        full_name=updated_user.full_name,
+        role=updated_user.role_id,
+        department=updated_user.department,
+        phone_number=updated_user.phone_number,
+        is_active=updated_user.is_active,
+        is_approved=updated_user.is_approved,
+        requested_role=updated_user.requested_role_id,
+        created_at=updated_user.created_at,
     )
 
 

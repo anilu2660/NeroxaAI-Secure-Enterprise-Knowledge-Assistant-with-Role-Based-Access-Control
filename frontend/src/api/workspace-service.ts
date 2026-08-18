@@ -667,6 +667,48 @@ export async function verifyOTPAndRegister(payload: {
   return data;
 }
 
+export async function sendPhoneOTP(payload: {
+  phone_number: string;
+  department?: string;
+  requested_role?: string;
+}): Promise<{ message: string; phone_number: string }> {
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
+  const res = await fetch(getApiUrl("/api/v1/auth/phone/send-otp"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to send SMS verification code.");
+  }
+
+  return res.json();
+}
+
+export async function verifyPhoneOTP(phoneNumber: string, otp: string): Promise<any> {
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
+  const res = await fetch(getApiUrl("/api/v1/auth/phone/verify-otp"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ phone_number: phoneNumber, otp }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Invalid mobile verification code.");
+  }
+
+  return res.json();
+}
+
 /**
  * Your Access panel data, derived from the same administered record as the
  * Account page so the two can never disagree.

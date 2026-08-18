@@ -4,7 +4,7 @@ import { Github, Loader2, Mail, Phone, ShieldCheck, ArrowLeft, RefreshCw, Lock, 
 import { Logo } from "@/shared/components/landing/Logo";
 import { useAuth } from "@/auth/auth-context";
 import { ROLE_HOME } from "@/auth/types";
-import { initiateRegistration, verifyOTPAndRegister } from "@/api/workspace-service";
+import { initiateRegistration, verifyOTPAndRegister, sendPhoneOTP, verifyPhoneOTP } from "@/api/workspace-service";
 
 // Shadcn UI Components
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -18,7 +18,7 @@ import { ShimmerButton } from "@/shared/components/magicui/shimmer-button";
 import { BorderBeam } from "@/shared/components/magicui/border-beam";
 
 type Mode = "signin" | "signup";
-type SignupStep = "details" | "verify_otp";
+type SignupStep = "details" | "verify_otp" | "oauth_phone_prompt" | "oauth_phone_otp";
 
 type Errors = Partial<Record<"email" | "password" | "name" | "phone" | "confirm" | "email_otp" | "mobile_otp" | "form", string>>;
 
@@ -59,6 +59,7 @@ export function ModernLoginSignup() {
   const [loading, setLoading] = useState(false);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [otpInfoMessage, setOtpInfoMessage] = useState<string | null>(null);
+  const [oauthUser, setOauthUser] = useState<{ email: string; name: string; role: string } | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [values, setValues] = useState({
     name: "",
@@ -77,7 +78,6 @@ export function ModernLoginSignup() {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
     const tokenParam = urlParams.get("token");
-    // Backend sends ?oauth_error=...; also support legacy ?error=
     const errorParam = urlParams.get("oauth_error") || urlParams.get("error");
 
     if (errorParam) {
@@ -97,9 +97,21 @@ export function ModernLoginSignup() {
       authenticateToken(tokenParam)
         .then((session) => {
           window.history.replaceState({}, document.title, window.location.pathname);
-          const roleStr = String(session.user.role).toLowerCase();
-          const targetPath = roleStr === "admin" ? "/admin" : "/dashboard";
-          window.location.href = targetPath;
+          const userPhone = (session.user as any)?.phoneNumber || (session.user as any)?.phone_number;
+          if (!userPhone) {
+            setOauthUser({
+              email: session.user.email,
+              name: session.user.name,
+              role: session.user.role,
+            });
+            setMode("signup");
+            setSignupStep("oauth_phone_prompt");
+            setLoading(false);
+          } else {
+            const roleStr = String(session.user.role).toLowerCase();
+            const targetPath = roleStr === "admin" ? "/admin" : "/dashboard";
+            window.location.href = targetPath;
+          }
         })
         .catch((err) => {
           setErrors({ form: err instanceof Error ? err.message : "OAuth authentication failed." });
@@ -113,12 +125,12 @@ export function ModernLoginSignup() {
     setValues((prev) => ({ ...prev, [key]: event.target.value }));
 
   const validatePasswordComplexity = (pwd: string): string | null => {
-    if (pwd.length < 12) return "Password must be at least 12 characters.";
+    if (pwd.length < 8) return "Password must be at least 8 characters.";
     if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter.";
     if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter.";
     if (!/\d/.test(pwd)) return "Password must contain at least one digit.";
-    if (!/[!@#$%^&*()_+\-=\[\]{};':,./<>?]/.test(pwd))
-      return "Password must contain at least one special character (!@#$%^&* etc.).";
+    if (!/[^A-Za-z0-9]/.test(pwd))
+      return "Password must contain at least one special character or symbol.";
     return null;
   };
 
@@ -190,6 +202,48 @@ export function ModernLoginSignup() {
     }
   };
 
+  // Handle OAuth Step 1: Send Phone OTP
+  const handleOAuthSendPhoneOTP = async () => {
+    if (values.phone.trim().length < 10) {
+      setErrors({ phone: "Enter a valid mobile phone number with country code." });
+      return;
+    }
+    setLoading(true);
+    setErrors({});
+    try {
+      const res = await sendPhoneOTP({
+        phone_number: values.phone,
+        department: values.department,
+        requested_role: values.requestedRole,
+      });
+      setOtpInfoMessage(res.message || `Verification code sent to ${values.phone}`);
+      setSignupStep("oauth_phone_otp");
+    } catch (error) {
+      setErrors({ form: error instanceof Error ? error.message : "Failed to send phone verification OTP." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle OAuth Step 2: Verify Phone OTP & Redirect
+  const handleOAuthVerifyPhoneOTP = async () => {
+    if (values.mobileOtp.trim().length !== 6) {
+      setErrors({ mobile_otp: "Enter the 6-digit SMS OTP." });
+      return;
+    }
+    setLoading(true);
+    setErrors({});
+    try {
+      await verifyPhoneOTP(values.phone, values.mobileOtp);
+      const roleStr = String(oauthUser?.role || "employee").toLowerCase();
+      const targetPath = roleStr === "admin" ? "/admin" : "/dashboard";
+      window.location.href = targetPath;
+    } catch (error) {
+      setErrors({ form: error instanceof Error ? error.message : "Invalid phone verification code." });
+      setLoading(false);
+    }
+  };
+
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (mode === "signin") {
@@ -210,8 +264,12 @@ export function ModernLoginSignup() {
     } else {
       if (signupStep === "details") {
         await handleInitiateRegistration();
-      } else {
+      } else if (signupStep === "verify_otp") {
         await handleVerifyOTP();
+      } else if (signupStep === "oauth_phone_prompt") {
+        await handleOAuthSendPhoneOTP();
+      } else if (signupStep === "oauth_phone_otp") {
+        await handleOAuthVerifyPhoneOTP();
       }
     }
   };
@@ -287,14 +345,22 @@ export function ModernLoginSignup() {
               ? "Sign in to your workspace"
               : signupStep === "details"
                 ? "Register a new user account"
-                : "Verify OTP Codes"}
+                : signupStep === "verify_otp"
+                  ? "Verify OTP Codes"
+                  : signupStep === "oauth_phone_prompt"
+                    ? "Verify Mobile Phone Number"
+                    : "Enter Mobile Verification Code"}
           </CardTitle>
           <CardDescription className="text-[12.5px]">
             {mode === "signin"
               ? "Access your enterprise AI RAG assistant & documents."
               : signupStep === "details"
-                ? "Enter your details to receive Gmail SMTP & Mobile SMS OTPs."
-                : `Verification codes sent to ${values.email} and ${values.phone}`}
+                ? "Enter your details or continue with Google/GitHub/Microsoft."
+                : signupStep === "verify_otp"
+                  ? `Verification codes sent to ${values.email} and ${values.phone}`
+                  : signupStep === "oauth_phone_prompt"
+                    ? `Welcome${oauthUser?.name ? `, ${oauthUser.name}` : ""}! Please verify your phone number to complete enterprise onboarding.`
+                    : `Enter the 6-digit SMS code sent to ${values.phone}`}
           </CardDescription>
         </CardHeader>
 
@@ -355,22 +421,120 @@ export function ModernLoginSignup() {
                     disabled={loading}
                     className="h-8 gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"
                   >
-                    <RefreshCw className={`size-3 ${loading ? "animate-spin" : ""}`} /> Resend OTPs
+                    <RefreshCw className="size-3" /> Resend Codes
                   </Button>
+                  <span className="text-[11px] text-muted-foreground">Expires in 10 minutes</span>
                 </div>
               </div>
-            ) : mode === "signup" ? (
-              /* Step 1: Registration Form */
+            ) : mode === "signup" && signupStep === "oauth_phone_prompt" ? (
+              /* OAuth Step 1: Request Phone Number, Department, and Role */
+              <div className="space-y-4 animate-in fade-in-50 duration-300">
+                <div className="flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/10 p-3 text-[12px] text-primary">
+                  <ShieldCheck className="size-4 shrink-0 mt-0.5" />
+                  <span>Authenticated via social login ({oauthUser?.email}). Set your enterprise department, role, and mobile number to complete verification.</span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="auth-oauth-phone">Mobile Phone Number</Label>
+                  <Input
+                    id="auth-oauth-phone"
+                    type="tel"
+                    className="h-10 border-input bg-card/60"
+                    value={values.phone}
+                    onChange={set("phone")}
+                    placeholder="+91 9876543210"
+                  />
+                  {errors.phone ? <p className="text-[11.5px] text-destructive">{errors.phone}</p> : null}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="auth-oauth-department">Department</Label>
+                    <select
+                      id="auth-oauth-department"
+                      className="flex h-10 w-full rounded-md border border-input bg-card/60 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring/60"
+                      value={values.department}
+                      onChange={set("department")}
+                    >
+                      <option value="General">General</option>
+                      <option value="Finance">Finance</option>
+                      <option value="Engineering">Engineering</option>
+                      <option value="HR">HR</option>
+                      <option value="Sales">Sales</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="auth-oauth-requested-role">Preferred Role</Label>
+                    <select
+                      id="auth-oauth-requested-role"
+                      className="flex h-10 w-full rounded-md border border-input bg-card/60 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring/60"
+                      value={values.requestedRole}
+                      onChange={set("requestedRole")}
+                    >
+                      <option value="employee">Employee</option>
+                      <option value="manager">Manager</option>
+                      <option value="analyst">Data Analyst</option>
+                      <option value="finance_lead">Finance Lead</option>
+                      <option value="hr_manager">HR Manager</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ) : mode === "signup" && signupStep === "oauth_phone_otp" ? (
+              /* OAuth Step 2: Verify Phone Number OTP */
+              <div className="space-y-4 animate-in fade-in-50 duration-300">
+                {otpInfoMessage ? (
+                  <div className="flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/10 p-3 text-[12px] text-primary">
+                    <ShieldCheck className="size-4 shrink-0 mt-0.5" />
+                    <span>{otpInfoMessage}</span>
+                  </div>
+                ) : null}
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="auth-oauth-mobile-otp" className="flex items-center gap-1.5 text-[12px]">
+                    <Phone className="size-3.5 text-primary" /> 6-Digit SMS Verification Code
+                  </Label>
+                  <Input
+                    id="auth-oauth-mobile-otp"
+                    type="text"
+                    maxLength={6}
+                    className="font-mono text-center tracking-widest text-[16px] h-10 border-input bg-card/60"
+                    value={values.mobileOtp}
+                    onChange={set("mobileOtp")}
+                    placeholder="123456"
+                  />
+                  {errors.mobile_otp ? (
+                    <p className="text-[11.5px] text-destructive">{errors.mobile_otp}</p>
+                  ) : null}
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleOAuthSendPhoneOTP}
+                    disabled={loading}
+                    className="h-8 gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"
+                  >
+                    <RefreshCw className="size-3" /> Resend SMS Code
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">Valid for 10 minutes</span>
+                </div>
+              </div>
+            ) : mode === "signup" && signupStep === "details" ? (
+              /* Step 1: Registration Form Details */
               <div className="space-y-3.5 animate-in fade-in-50 duration-300">
                 <div className="space-y-1.5">
                   <Label htmlFor="auth-name">Full Name</Label>
                   <Input
                     id="auth-name"
+                    type="text"
                     className="h-10 border-input bg-card/60"
                     value={values.name}
                     onChange={set("name")}
                     autoComplete="name"
-                    placeholder="Alex Morgan"
+                    placeholder="Anil Upadhyay"
                   />
                   {errors.name ? <p className="text-[11.5px] text-destructive">{errors.name}</p> : null}
                 </div>
@@ -397,6 +561,7 @@ export function ModernLoginSignup() {
                     className="h-10 border-input bg-card/60"
                     value={values.phone}
                     onChange={set("phone")}
+                    autoComplete="tel"
                     placeholder="+91 9876543210"
                   />
                   {errors.phone ? <p className="text-[11.5px] text-destructive">{errors.phone}</p> : null}
@@ -431,7 +596,6 @@ export function ModernLoginSignup() {
                       <option value="analyst">Data Analyst</option>
                       <option value="finance_lead">Finance Lead</option>
                       <option value="hr_manager">HR Manager</option>
-                      <option value="admin">System Admin</option>
                     </select>
                   </div>
                 </div>
@@ -523,18 +687,24 @@ export function ModernLoginSignup() {
                 ? "Sign In to Workspace"
                 : signupStep === "details"
                   ? "Send Verification OTPs"
-                  : "Verify & Complete Registration"}
+                  : signupStep === "verify_otp"
+                    ? "Verify & Complete Registration"
+                    : signupStep === "oauth_phone_prompt"
+                      ? "Send SMS Verification OTP"
+                      : "Verify & Enter Workspace"}
             </ShimmerButton>
           </form>
 
-          {mode === "signin" ? (
+          {mode === "signin" || (mode === "signup" && signupStep === "details") ? (
             <>
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t border-hairline" />
                 </div>
                 <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
-                  <span className="bg-surface-strong px-2 text-muted-foreground">or continue with</span>
+                  <span className="bg-surface-strong px-2 text-muted-foreground">
+                    {mode === "signin" ? "or continue with" : "or sign up with"}
+                  </span>
                 </div>
               </div>
 

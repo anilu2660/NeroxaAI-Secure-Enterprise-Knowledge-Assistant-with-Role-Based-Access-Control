@@ -1,27 +1,33 @@
 """
 Password Hashing Utility
 
-Provides password hashing and verification using passlib + bcrypt.
+Provides robust password hashing and verification using standard native bcrypt.
 """
 
-from passlib.context import CryptContext
-
-# Configure password context using bcrypt scheme
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
 
 
 def hash_password(password: str) -> str:
     """
-    Hash a plain text password using bcrypt (truncating to 72 bytes for safety).
+    Hash a plain text password using standard bcrypt.
+    Truncates to 72 bytes (standard bcrypt max length) safely in UTF-8 bytes.
     """
-    safe_password = password[:72]
-    return pwd_context.hash(safe_password)
+    password_bytes = password.encode("utf-8")[:72]
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verify a plain text password against a stored bcrypt hash.
     """
-    safe_password = plain_password[:72]
-    return pwd_context.verify(safe_password, hashed_password)
+    if not plain_password or not hashed_password:
+        return False
+    try:
+        password_bytes = plain_password.encode("utf-8")[:72]
+        hashed_bytes = hashed_password.encode("utf-8")
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except Exception:
+        return False
 
