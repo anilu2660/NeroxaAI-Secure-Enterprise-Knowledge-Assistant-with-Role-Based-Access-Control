@@ -20,6 +20,7 @@ import type {
   DocumentPreviewPage,
   DocumentRecord,
 } from "@/api/types";
+import { getApiUrl } from "@/api/workspace-service";
 import { cn } from "@/shared/utils/utils";
 
 const toolButton =
@@ -166,8 +167,16 @@ export function DocumentViewer({
   };
 
   const isPdf = doc.kind === "PDF" || doc.title.toLowerCase().endsWith(".pdf");
-  const token = typeof window !== "undefined" ? (sessionStorage.getItem("neroxa_access_token") || localStorage.getItem("neroxa_access_token")) : "";
-  const baseUrl = doc.rawUrl || `/api/v1/documents/${doc.id}/raw`;
+  const token =
+    typeof window !== "undefined"
+      ? sessionStorage.getItem("neroxa.token") ||
+        sessionStorage.getItem("neroxa_access_token") ||
+        localStorage.getItem("neroxa.token") ||
+        localStorage.getItem("neroxa_access_token") ||
+        ""
+      : "";
+  const rawPath = doc.rawUrl || `/api/v1/documents/${doc.id}/raw`;
+  const baseUrl = getApiUrl(rawPath);
   const rawUrl = token ? (baseUrl.includes("?") ? `${baseUrl}&token=${token}` : `${baseUrl}?token=${token}`) : baseUrl;
 
   return (
@@ -251,13 +260,13 @@ export function DocumentViewer({
               max={total}
               value={page}
               onChange={(event) => {
-                const next = Number(event.target.value);
-                if (Number.isFinite(next)) onPageChange(Math.max(1, Math.min(total, next)));
+                const next = Number.parseInt(event.target.value, 10);
+                if (Number.isFinite(next)) onPageChange(next);
               }}
-              className="h-8 w-14 rounded-lg border border-hairline bg-secondary/40 text-center text-[12.5px] text-foreground outline-none focus-visible:border-primary/60"
+              className="h-8 w-12 rounded-lg border border-hairline bg-secondary/40 text-center font-mono text-[12.5px] font-medium text-foreground outline-none focus:border-primary/60"
             />
-            <span className="text-[12px] text-muted-foreground">/ {total}</span>
           </label>
+          <span className="text-[11.5px] text-muted-foreground">/ {total}</span>
           <button
             type="button"
             onClick={() => onPageChange(page + 1)}
@@ -276,23 +285,25 @@ export function DocumentViewer({
           >
             <ChevronsRight className="size-3.5" />
           </button>
+        </div>
 
-          <span aria-hidden className="mx-1.5 h-5 w-px bg-hairline" />
-
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setZoom((z) => Math.max(60, z - 10))}
-            disabled={zoom <= 60 || (isPdf && viewMode === "adobe")}
+            onClick={() => setZoom((z) => Math.max(50, z - 10))}
+            disabled={zoom <= 50}
             title="Zoom out"
             className={toolButton}
           >
             <Minus className="size-3.5" />
           </button>
-          <span className="min-w-[46px] text-center text-[12px] text-foreground/85">{zoom}%</span>
+          <span className="min-w-[44px] text-center font-mono text-[11.5px] text-muted-foreground">
+            {zoom}%
+          </span>
           <button
             type="button"
-            onClick={() => setZoom((z) => Math.min(160, z + 10))}
-            disabled={zoom >= 160 || (isPdf && viewMode === "adobe")}
+            onClick={() => setZoom((z) => Math.min(200, z + 10))}
+            disabled={zoom >= 200}
             title="Zoom in"
             className={toolButton}
           >
@@ -303,6 +314,17 @@ export function DocumentViewer({
         <button type="button" onClick={toggleFullscreen} title="Fullscreen" className={toolButton}>
           <Maximize2 className="size-3.5" />
         </button>
+        {isPdf ? (
+          <a
+            href={`${rawUrl}#page=${page}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open in Adobe Acrobat / New Tab"
+            className={cn(toolButton, "inline-flex")}
+          >
+            <SquareArrowOutUpRight className="size-3.5" />
+          </a>
+        ) : null}
         <a
           href={rawUrl}
           download={doc.title}
