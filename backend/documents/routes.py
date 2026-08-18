@@ -1,7 +1,7 @@
 import logging
 import os
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,7 @@ from backend.audit.service import audit_service
 from backend.authorization.service import authorization_service
 from backend.config import settings
 from backend.database.session import get_db
+from backend.documents.pdf_generator import create_pdf_from_content
 from backend.documents.schemas import DocumentUploadResponse, ShareDocumentRequest
 from backend.documents.security import validate_upload
 from backend.documents.service import document_service
@@ -295,9 +296,25 @@ def get_raw_document(
                 filename=filename,
             )
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Raw document binary file not found.",
+    # If physical binary file is not on disk (e.g. cloud ephemeral container restart),
+    # dynamically synthesize a PDF from stored document chunks in vector store.
+    content_data = retriever_service.get_document_content(document_id)
+    chunks_list = [c.get("content", "") for c in content_data.get("chunks", []) if isinstance(c, dict) and c.get("content")]
+
+    pdf_bytes = create_pdf_from_content(
+        title=document.title or document.filename,
+        department=document.department,
+        chunks=chunks_list,
+    )
+
+    clean_filename = filename if filename.lower().endswith(".pdf") else f"{filename}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{clean_filename}"',
+            "Content-Type": "application/pdf",
+        },
     )
 
 
