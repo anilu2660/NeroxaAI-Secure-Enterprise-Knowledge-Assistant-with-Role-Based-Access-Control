@@ -37,17 +37,11 @@ class QdrantManager:
     @property
     def client(self) -> QdrantClient:
         if self._client is None:
-            if self.url and self.api_key:
+            if self.url:
+                logger.info("Initializing Qdrant client with cloud URL: %s", self.url)
                 self._client = QdrantClient(
                     url=self.url,
-                    api_key=self.api_key,
-                    prefer_grpc=False,
-                    timeout=30,
-                    check_compatibility=False,
-                )
-            elif self.url:
-                self._client = QdrantClient(
-                    url=self.url,
+                    api_key=self.api_key if self.api_key else None,
                     prefer_grpc=False,
                     timeout=30,
                     check_compatibility=False,

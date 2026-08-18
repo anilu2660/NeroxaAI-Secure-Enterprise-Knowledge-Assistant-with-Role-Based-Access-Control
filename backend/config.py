@@ -28,8 +28,8 @@ class Settings:
 
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
-    QDRANT_URL: str | None = os.getenv("QDRANT_URL", None)
-    QDRANT_API_KEY: str | None = os.getenv("QDRANT_API_KEY", None)
+    QDRANT_URL: str | None = os.getenv("QDRANT_URL", "").strip() or None
+    QDRANT_API_KEY: str | None = os.getenv("QDRANT_API_KEY", "").strip() or None
     QDRANT_COLLECTION: str = os.getenv("QDRANT_COLLECTION", "enterprise_docs")
 
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
