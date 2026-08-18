@@ -251,6 +251,14 @@ def get_me(current_user: User = Depends(get_current_user)):
     )
 
 
+def _resolve_backend_redirect_uri(request: Request, provider_lower: str) -> str:
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "https"
+    if host and "localhost" not in host:
+        return f"{proto}://{host}/api/v1/auth/oauth/{provider_lower}/callback"
+    return oauth_service.build_redirect_uri(provider_lower)
+
+
 @router.get(
     "/oauth/{provider}/login",
     summary="Redirect to social OAuth authorization URL",
@@ -259,7 +267,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 def oauth_login(provider: str, request: Request):
     try:
         provider_lower = oauth_service.normalize_provider(provider)
-        redirect_uri = oauth_service.build_redirect_uri(provider_lower)
+        redirect_uri = _resolve_backend_redirect_uri(request, provider_lower)
 
         referer = request.headers.get("referer") or request.headers.get("origin")
         frontend_url = settings.FRONTEND_URL
@@ -279,9 +287,6 @@ def oauth_login(provider: str, request: Request):
             url=auth_url,
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         )
-        # Store state in a cookie as an extra CSRF hint (best-effort).
-        # Validation relies on HMAC signature in verify_state(); the cookie
-        # is supplementary and not required for the check to pass.
         response.set_cookie(
             key=f"oauth_state_{provider_lower}",
             value=state,
@@ -311,7 +316,7 @@ async def oauth_callback(
     target_frontend_url = settings.FRONTEND_URL
     try:
         provider_lower = oauth_service.normalize_provider(provider)
-        redirect_uri = oauth_service.build_redirect_uri(provider_lower)
+        redirect_uri = _resolve_backend_redirect_uri(request, provider_lower)
         state = request.query_params.get("state")
 
         if not state:
@@ -360,9 +365,13 @@ async def oauth_callback(
         )
         return response
 
-    except CredentialsException:
+    except CredentialsException as exc:
+        import logging
+        logging.getLogger(__name__).warning("OAuth callback CredentialsException: %s", exc)
+        from urllib.parse import quote
+        err_msg = quote(str(exc.detail or "authentication_failed"))
         response = RedirectResponse(
-            url=f"{target_frontend_url}/login?oauth_error=authentication_failed",
+            url=f"{target_frontend_url}/login?oauth_error={err_msg}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
         try:
@@ -371,11 +380,15 @@ async def oauth_callback(
                 key=f"oauth_state_{provider_lower}",
                 path=f"/api/v1/auth/oauth/{provider_lower}/callback",
             )
-        except CredentialsException:
+        except Exception:
             pass
         return response
-    except Exception:
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).exception("OAuth callback unhandled Exception")
+        from urllib.parse import quote
+        err_msg = quote(str(exc) or "authentication_failed")
         return RedirectResponse(
-            url=f"{target_frontend_url}/login?oauth_error=authentication_failed",
+            url=f"{target_frontend_url}/login?oauth_error={err_msg}",
             status_code=status.HTTP_303_SEE_OTHER,
         )

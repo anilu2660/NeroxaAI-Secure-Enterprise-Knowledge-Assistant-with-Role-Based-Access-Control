@@ -200,20 +200,21 @@ class OAuthService:
                     },
                 )
                 if token_resp.status_code != 200:
-                    logger.warning("Google OAuth token exchange failed with status %s", token_resp.status_code)
-                    raise CredentialsException("Google authentication failed.")
+                    logger.warning("Google OAuth token exchange failed with status %s: %s", token_resp.status_code, token_resp.text)
+                    raise CredentialsException(f"Google authentication failed: {token_resp.text}")
 
                 tokens = token_resp.json()
                 access_token = tokens.get("access_token")
                 if not access_token:
-                    raise CredentialsException("Google authentication failed.")
+                    raise CredentialsException("Google authentication failed: No access token.")
 
                 user_resp = await client.get(
                     "https://www.googleapis.com/oauth2/v2/userinfo",
                     headers={"Authorization": f"Bearer {access_token}"},
                 )
                 if user_resp.status_code != 200:
-                    raise CredentialsException("Google authentication failed.")
+                    logger.warning("Google UserInfo failed with status %s: %s", user_resp.status_code, user_resp.text)
+                    raise CredentialsException("Google authentication failed to fetch profile.")
 
                 profile = user_resp.json()
                 if profile.get("verified_email") is not True:
