@@ -299,3 +299,55 @@ def get_raw_document(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="Raw document binary file not found.",
     )
+
+
+@router.post("/sync", summary="Synchronize Qdrant vectors with active Postgres documents and clear cache")
+async def sync_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await document_service.sync_vector_store(db=db)
+    return result
+
+
+@router.post("/{document_id}/reindex", summary="Re-index document into Qdrant vector store")
+async def reindex_document(
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
+    authorization_service.require_upload_permission(current_user, document.department)
+
+    try:
+        result = await document_service.reindex_document(document_id=document_id, db=db)
+
+        audit_service.log_event(
+            db=db,
+            event_data=AuditLogCreate(
+                event_type="document_reindexed",
+                user_id=current_user.id,
+                user_email=current_user.email,
+                user_role=current_user.role_id,
+                action=f"Re-indexed document '{document.filename}' in department '{document.department}'",
+                resource=document_id,
+                details={
+                    "chunks": result["chunks_created"],
+                },
+            ),
+        )
+
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Document reindexing failed: %s", str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Reindexing failed: {str(exc)}",
+        ) from exc
+
+

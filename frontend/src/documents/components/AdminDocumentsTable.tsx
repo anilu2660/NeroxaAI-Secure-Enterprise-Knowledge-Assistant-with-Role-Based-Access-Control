@@ -4,7 +4,9 @@ import {
   ArchiveRestore,
   Eye,
   FileText,
+  Loader2,
   MoreHorizontal,
+  RefreshCw,
   ScrollText,
   ShieldCheck,
   SquarePen,
@@ -14,24 +16,27 @@ import type { AdminDocument } from "@/api/types";
 import { AccessScopeBadge, DocumentStatusBadge, DocumentTypeBadge } from "./DocumentBadges";
 
 const gridCols =
-  "lg:grid-cols-[minmax(0,2.3fr)_minmax(0,1.05fr)_minmax(0,0.95fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_128px]";
+  "lg:grid-cols-[minmax(0,2.3fr)_minmax(0,1.05fr)_minmax(0,0.95fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_152px]";
 
 function IconButton({
   label,
   onClick,
+  disabled,
   children,
 }: {
   label: string;
   onClick: () => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       title={label}
-      className="grid size-7 place-items-center rounded-lg border border-hairline bg-secondary/40 text-foreground/75 transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary"
+      className="grid size-7 place-items-center rounded-lg border border-hairline bg-secondary/40 text-foreground/75 transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary disabled:opacity-50"
     >
       {children}
     </button>
@@ -41,6 +46,7 @@ function IconButton({
 /** Administrative action menu. Every entry raises to the page's service calls. */
 function MoreActionsMenu({
   document,
+  onReindex,
   onEditMetadata,
   onChangeScope,
   onToggleArchive,
@@ -48,6 +54,7 @@ function MoreActionsMenu({
   onAudit,
 }: {
   document: AdminDocument;
+  onReindex?: (() => void) | undefined;
   onEditMetadata: () => void;
   onChangeScope: () => void;
   onToggleArchive: () => void;
@@ -90,7 +97,19 @@ function MoreActionsMenu({
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-8 z-30 w-[204px] rounded-xl border border-hairline bg-popover/95 p-1 shadow-menu backdrop-blur-xl">
+        <div className="absolute right-0 top-8 z-30 w-[214px] rounded-xl border border-hairline bg-popover/95 p-1 shadow-menu backdrop-blur-xl">
+          {onReindex ? (
+            <button
+              type="button"
+              className={item}
+              onClick={() => {
+                setOpen(false);
+                onReindex();
+              }}
+            >
+              <RefreshCw className="size-3.5 text-primary" /> Re-index vector chunks
+            </button>
+          ) : null}
           <button
             type="button"
             className={item}
@@ -164,20 +183,24 @@ export function AdminDocumentsTable({
   documents,
   onView,
   onDetails,
+  onReindex,
   onEditMetadata,
   onChangeScope,
   onToggleArchive,
   onDelete,
   onAudit,
+  reindexingId,
 }: {
   documents: AdminDocument[];
   onView: (doc: AdminDocument) => void;
   onDetails: (doc: AdminDocument) => void;
+  onReindex?: (doc: AdminDocument) => void;
   onEditMetadata: (doc: AdminDocument) => void;
   onChangeScope: (doc: AdminDocument) => void;
   onToggleArchive: (doc: AdminDocument) => void;
   onDelete: (doc: AdminDocument) => void;
   onAudit: (doc: AdminDocument) => void;
+  reindexingId?: string | null;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-hairline bg-card/60 backdrop-blur-xl">
@@ -246,6 +269,19 @@ export function AdminDocumentsTable({
             </span>
 
             <span className="flex items-center gap-1.5 lg:justify-end">
+              {onReindex ? (
+                <IconButton
+                  label={`Re-index ${doc.name}`}
+                  onClick={() => onReindex(doc)}
+                  disabled={reindexingId === doc.id}
+                >
+                  {reindexingId === doc.id ? (
+                    <Loader2 className="size-3.5 animate-spin text-primary" />
+                  ) : (
+                    <RefreshCw className="size-3.5 text-primary/90" />
+                  )}
+                </IconButton>
+              ) : null}
               <IconButton label={`View ${doc.name}`} onClick={() => onView(doc)}>
                 <Eye className="size-3.5" />
               </IconButton>
@@ -257,6 +293,7 @@ export function AdminDocumentsTable({
               </IconButton>
               <MoreActionsMenu
                 document={doc}
+                onReindex={onReindex ? () => onReindex(doc) : undefined}
                 onEditMetadata={() => onEditMetadata(doc)}
                 onChangeScope={() => onChangeScope(doc)}
                 onToggleArchive={() => onToggleArchive(doc)}
@@ -270,3 +307,4 @@ export function AdminDocumentsTable({
     </div>
   );
 }
+

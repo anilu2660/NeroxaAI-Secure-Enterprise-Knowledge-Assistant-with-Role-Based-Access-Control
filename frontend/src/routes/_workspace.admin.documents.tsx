@@ -6,6 +6,8 @@ import {
   Download,
   FolderCog,
   FolderOpen,
+  Loader2,
+  RefreshCw,
   RotateCcw,
   Search,
   UploadCloud,
@@ -27,8 +29,10 @@ import {
   getAdminDocumentFilterOptions,
   getAdminDocumentScopeOptions,
   listAdminDocuments,
+  reindexDocument,
   setAdminDocumentAccessScope,
   setAdminDocumentStatus,
+  syncVectorStore,
   updateAdminDocumentMetadata,
 } from "@/api/workspace-service";
 
@@ -85,6 +89,8 @@ function DocumentManagementPage() {
   const [dialog, setDialog] = useState<DialogState>({ kind: "none" });
   const [notice, setNotice] = useState<string | null>(null);
 
+  const [reindexingId, setReindexingId] = useState<string | null>(null);
+
   const filters = useQuery({
     queryKey: ["admin-document-filters"],
     queryFn: getAdminDocumentFilterOptions,
@@ -112,6 +118,34 @@ function DocumentManagementPage() {
     void queryClient.invalidateQueries({ queryKey: ["knowledge-overview"] });
     void queryClient.invalidateQueries({ queryKey: ["document"] });
     setDialog({ kind: "none" });
+  };
+
+  const reindexMutation = useMutation({
+    mutationFn: (docId: string) => reindexDocument(docId),
+    onSuccess: (result: { success: boolean; message: string }) => {
+      setReindexingId(null);
+      refresh(result.message);
+    },
+    onError: (err: any) => {
+      setReindexingId(null);
+      setNotice(`Re-index failed: ${err?.message || "Unknown error"}`);
+    },
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: () => syncVectorStore(),
+    onSuccess: (result: { success: boolean; message: string }) => {
+      refresh(result.message);
+    },
+    onError: (err: any) => {
+      setNotice(`Sync failed: ${err?.message || "Unknown error"}`);
+    },
+  });
+
+  const handleReindex = (doc: AdminDocument) => {
+    setReindexingId(doc.id);
+    setNotice(`Re-indexing "${doc.name}"...`);
+    reindexMutation.mutate(doc.id);
   };
 
   const editMetadata = useMutation({
@@ -197,6 +231,20 @@ function DocumentManagementPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            title="Synchronize Qdrant vector database with active PostgreSQL records and clear cache"
+            className="flex h-10 items-center gap-2 rounded-xl border border-hairline bg-secondary/40 px-3.5 text-[12.5px] text-foreground/85 transition-colors hover:bg-accent/60 disabled:opacity-50"
+          >
+            {syncMutation.isPending ? (
+              <Loader2 className="size-4 animate-spin text-primary" />
+            ) : (
+              <RefreshCw className="size-4 text-primary" />
+            )}
+            Sync Vectors
+          </button>
           <button
             type="button"
             onClick={exportList}
@@ -361,11 +409,13 @@ function DocumentManagementPage() {
             documents={rows}
             onView={(doc) => setDialog({ kind: "view", doc })}
             onDetails={(doc) => setDialog({ kind: "view", doc })}
+            onReindex={handleReindex}
             onEditMetadata={(doc) => setDialog({ kind: "metadata", doc })}
             onChangeScope={(doc) => setDialog({ kind: "scope", doc })}
             onToggleArchive={(doc) => setDialog({ kind: "archive", doc })}
             onDelete={(doc) => setDialog({ kind: "delete", doc })}
             onAudit={() => navigate({ to: "/audit" })}
+            reindexingId={reindexingId}
           />
 
           <p className="text-[11.5px] text-muted-foreground">

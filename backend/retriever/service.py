@@ -272,6 +272,9 @@ class RetrieverService:
     async def find_existing_document_id(self, title: str, department: str) -> str | None:
         return self.manager.find_existing_document_id(title, department)
 
+    async def purge_orphaned_chunks(self, valid_document_ids: set[str]) -> int:
+        return self.manager.purge_orphaned_chunks(valid_document_ids)
+
     def get_document_content(self, document_id: str) -> dict:
         return self.manager.get_document_content(document_id)
 

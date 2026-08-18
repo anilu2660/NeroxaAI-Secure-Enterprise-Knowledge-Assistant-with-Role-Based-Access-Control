@@ -62,28 +62,33 @@ class QueryRouter:
                 requires_agent=True,
             )
 
-        # Step 1: Is it current/live information?
-        current_info_terms = {
-            "today", "weather", "stock price", "market price", "2026",
-            "yesterday", "breaking news", "live score", "current price",
-        }
-        is_current_live = any(term in text for term in current_info_terms)
-
+        # Enterprise internal knowledge terms
         enterprise_terms = {
             "company", "enterprise", "internal", "employee", "policy",
             "procedure", "finance", "hr", "payroll", "leave", "department",
             "invoice", "budget", "compliance", "audit", "document", "handbook",
             "guideline", "approval", "benefit", "reimbursement", "travel",
-            "organization",
+            "organization", "portal", "salary", "onboarding",
         }
         could_enterprise_answer = bool(words & enterprise_terms)
+
+        # Step 1: Is it current/live/real-world information or public entity search?
+        current_info_patterns = [
+            r"\b(today|yesterday|tomorrow|weather|breaking news|live score|news|election|winner)\b",
+            r"\b(stock price|market price|crypto price|exchange rate)\b",
+            r"\b(2024|2025|2026)\b",
+            r"\b(current|currently|present|latest|recent|now)\b",
+            r"\bwho is (the )?(current|present|latest)?\s*(chief justice|prime minister|president|governor|minister|chief minister|ceo|director|head|chairman|leader|judge|cji)\b",
+            r"\b(chief justice|prime minister|president of|governor of|supreme court|parliament|cabinet)\b",
+        ]
+        is_current_live = any(re.search(pattern, text) for pattern in current_info_patterns)
 
         if is_current_live and could_enterprise_answer:
             return QueryRoutingDecision(
                 category=QueryCategory.CURRENT_INFORMATION,
                 route=QueryRoute.HYBRID,
-                confidence=0.88,
-                reason="Query requires internal enterprise knowledge and live current information.",
+                confidence=0.90,
+                reason="Query requires internal enterprise knowledge and live external search.",
                 requires_rag=True,
                 requires_web=True,
             )
@@ -92,8 +97,8 @@ class QueryRouter:
             return QueryRoutingDecision(
                 category=QueryCategory.CURRENT_INFORMATION,
                 route=QueryRoute.WEB,
-                confidence=0.92,
-                reason="Step 1: Is it current/live? -> YES -> Route to WEB.",
+                confidence=0.95,
+                reason="Step 1: Is it current/live/public information? -> YES -> Route to WEB.",
                 requires_web=True,
                 requires_rag=False,
             )
@@ -109,18 +114,18 @@ class QueryRouter:
                 requires_web=False,
             )
 
+        # Conversational greetings and bot self-identity ONLY
         casual_patterns = (
-            r"^(hi|hello|hey|good morning|good afternoon|good evening|thanks|thank you|bye)\b",
-            r"\bhow are you\b",
-            r"\bwho are you\b",
-            r"\bwhat can you do\b",
+            r"^(hi|hello|hey|howdy|greetings|good morning|good afternoon|good evening|thanks|thank you|bye|goodbye|see you)\b",
+            r"^(how are you|how do you do|nice to meet you)\b",
+            r"^(who are you|what is your name|tell me about yourself|what can you do|help)\b",
         )
         if any(re.search(pattern, text) for pattern in casual_patterns):
             return QueryRoutingDecision(
                 category=QueryCategory.GENERAL_KNOWLEDGE,
                 route=QueryRoute.CASUAL,
                 confidence=0.99,
-                reason="Step 2: Could enterprise KB answer this? -> NO -> Conversational greeting -> GENERAL LLM.",
+                reason="Step 2: Conversational greeting/identity -> GENERAL LLM (casual).",
                 requires_rag=False,
                 requires_web=False,
             )
@@ -131,7 +136,7 @@ class QueryRouter:
                 category=QueryCategory.AMBIGUOUS,
                 route=QueryRoute.ENTERPRISE,
                 confidence=0.80,
-                reason="Step 2: Ambiguous/short query -> Searching internal enterprise KB first. WEB search disabled.",
+                reason="Step 2: Ambiguous/short query -> Searching internal enterprise KB first.",
                 requires_rag=True,
                 requires_web=False,
             )
@@ -152,7 +157,7 @@ Evaluate the query following this EXACT 2-step decision tree:
                     Query
                       │
                       ▼
-             Is it current/live?
+             Is it current/live/real-world search?
                  /          \\
                YES           NO
                 │             │
@@ -160,21 +165,21 @@ Evaluate the query following this EXACT 2-step decision tree:
                             /          \\
                           YES           NO
                            │             │
-                          RAG       GENERAL LLM
+                          RAG       GENERAL LLM (Casual/Chit-chat ONLY)
 
 Decision Rules:
-- STEP 1: Is it current/live?
+- STEP 1: Is it current/live/real-world public knowledge or external facts?
   - YES -> category: "CURRENT_INFORMATION", route: "web" (requires_web: true, requires_rag: false)
-    (e.g., today's weather, real-time stock prices, live news, 2026 breaking updates).
+    (e.g., current chief justice, prime ministers, presidents, public officials, live news, weather, stock prices, external organizations, latest 2025/2026 events).
   - NO  -> Proceed to STEP 2.
 
 - STEP 2: Could enterprise KB answer this?
   - YES -> category: "INTERNAL_KNOWLEDGE", route: "enterprise" (requires_rag: true, requires_web: false)
-    (e.g., company policies, HR rules, reimbursement, department guidelines, employee documents, or internal code/procedures).
+    (e.g., company policies, HR rules, reimbursement, department guidelines, employee documents, internal procedures).
   - NO  -> category: "GENERAL_KNOWLEDGE", route: "casual" (requires_rag: false, requires_web: false)
-    (e.g., greetings, general programming questions, math, general science, world facts).
+    (STRICTLY for greetings, chit-chat, bot identity, simple arithmetic, or casual conversation).
 
-- AMBIGUOUS QUERIES: If the query is vague or ambiguous, treat "Could enterprise KB answer this?" as YES -> route to "enterprise" (RAG). NEVER trigger web search for ambiguous queries.
+- AMBIGUOUS QUERIES: If the query is vague or ambiguous, treat "Could enterprise KB answer this?" as YES -> route to "enterprise" (RAG).
 
 Return valid JSON only:
 {{

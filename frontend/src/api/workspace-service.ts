@@ -765,7 +765,7 @@ export async function askAssistant({
   void toolIds;
 
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
-  const apiUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+  const apiUrl = ((import.meta.env["VITE_API_URL"] as string | undefined) || "").replace(/\/$/, "");
   const chatEndpoint = apiUrl ? `${apiUrl}/api/v1/chat/message` : "/api/v1/chat/message";
 
   try {
@@ -1616,6 +1616,63 @@ export async function deleteAdminDocument(
     message: "Removed from local catalog (not authenticated — changes not persisted to database).",
   };
 }
+
+export async function reindexDocument(documentId: string): Promise<{ success: boolean; message: string; chunks_created?: number }> {
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
+  if (!token) return { success: false, message: "Unauthenticated" };
+
+  try {
+    const res = await fetch(`/api/v1/documents/${documentId}/reindex`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        success: true,
+        message: `Successfully re-indexed document (${data.chunks_created || 0} vector chunks generated).`,
+        chunks_created: data.chunks_created,
+      };
+    }
+
+    const err = await res.json().catch(() => null);
+    return { success: false, message: err?.detail || "Failed to re-index document." };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to re-index document." };
+  }
+}
+
+export async function syncVectorStore(): Promise<{ success: boolean; message: string; purged?: number }> {
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
+  if (!token) return { success: false, message: "Unauthenticated" };
+
+  try {
+    const res = await fetch(`/api/v1/documents/sync`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        success: true,
+        message: `Vector store synchronized. ${data.purged_orphaned_chunks || 0} orphaned vectors purged.`,
+        purged: data.purged_orphaned_chunks,
+      };
+    }
+
+    const err = await res.json().catch(() => null);
+    return { success: false, message: err?.detail || "Failed to sync vector store." };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Failed to sync vector store." };
+  }
+}
+
 
 /**
  * Export of the rows currently served to the UI. This is a genuine

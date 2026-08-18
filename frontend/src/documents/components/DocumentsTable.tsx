@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Eye, FileText, Globe, Lock } from "lucide-react";
+import { Eye, FileText, Globe, Lock, Loader2, RefreshCw } from "lucide-react";
 import type { DocumentRecord } from "@/api/types";
 import { cn } from "@/shared/utils/utils";
 
@@ -20,14 +20,18 @@ function initials(name: string) {
 export function DocumentsTable({
   documents,
   restrictedIds,
+  onReindex,
+  reindexingId,
 }: {
   documents: DocumentRecord[];
   /** Ids outside the current session's configured scope (frontend model only). */
   restrictedIds: Set<string>;
+  onReindex?: (doc: DocumentRecord) => void;
+  reindexingId?: string | null;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-hairline bg-card/60 backdrop-blur-xl">
-      <div className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_64px] gap-3 border-b border-hairline px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground lg:grid">
+      <div className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_100px] gap-3 border-b border-hairline px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground lg:grid">
         <span>Document Name</span>
         <span>Department</span>
         <span>Type</span>
@@ -108,7 +112,24 @@ export function DocumentsTable({
                 </span>
               </span>
 
-              <span className="flex justify-start lg:justify-end">
+              <span className="flex items-center gap-1.5 justify-start lg:justify-end">
+                {onReindex && !restricted ? (
+                  <button
+                    type="button"
+                    onClick={() => onReindex(doc)}
+                    disabled={reindexingId === doc.id}
+                    aria-label={`Re-index ${doc.title}`}
+                    title="Re-index document (re-parse & update vector store)"
+                    className="grid size-8 place-items-center rounded-lg border border-hairline bg-secondary/40 text-foreground/80 transition-colors hover:bg-primary/20 hover:text-primary focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary disabled:opacity-50"
+                  >
+                    {reindexingId === doc.id ? (
+                      <Loader2 className="size-3.5 animate-spin text-primary" />
+                    ) : (
+                      <RefreshCw className="size-3.5" />
+                    )}
+                  </button>
+                ) : null}
+
                 {restricted ? (
                   <span
                     className="grid size-8 place-items-center rounded-lg border border-hairline bg-secondary/30 text-muted-foreground/70"

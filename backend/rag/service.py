@@ -74,7 +74,7 @@ class RAGService:
             )
 
         if any(term in q_lower for term in ("new source", "new source of income", "source of income", "revenue source")):
-            expansions.append("establish source of revenue university funds approval authorization financial implications proposal")
+            expansions.append("establish source of revenue funds approval authorization financial implications proposal")
         if any(term in q_lower for term in ("financial implication", "financial implications", "cost implication")):
             expansions.append("financial impact cost budget expenditure funding")
 

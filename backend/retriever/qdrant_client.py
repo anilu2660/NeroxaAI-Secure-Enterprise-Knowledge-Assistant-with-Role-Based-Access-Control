@@ -297,5 +297,32 @@ class QdrantManager:
                 "chunks": [],
             }
 
+    def purge_orphaned_chunks(self, valid_document_ids: set[str]) -> int:
+        try:
+            self.ensure_collection_exists()
+            res = self.client.scroll(
+                collection_name=self.collection_name,
+                limit=10000,
+                with_payload=True,
+                with_vectors=False,
+            )
+            points, _ = res
+            orphaned_point_ids = []
+            for p in points:
+                doc_id = (p.payload or {}).get("document_id")
+                if not doc_id or doc_id not in valid_document_ids:
+                    orphaned_point_ids.append(p.id)
+            if orphaned_point_ids:
+                from qdrant_client.models import PointIdsList
+                self.client.delete(
+                    collection_name=self.collection_name,
+                    points_selector=PointIdsList(points=orphaned_point_ids),
+                )
+                logger.info("Purged %d orphaned points from Qdrant.", len(orphaned_point_ids))
+            return len(orphaned_point_ids)
+        except Exception as e:
+            logger.error("Failed to purge orphaned chunks: %s", str(e))
+            return 0
+
 
 qdrant_manager = QdrantManager()

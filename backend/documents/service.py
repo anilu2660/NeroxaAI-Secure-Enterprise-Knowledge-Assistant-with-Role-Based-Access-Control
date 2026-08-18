@@ -44,6 +44,7 @@ class DocumentService:
         ).strip()
         safe_filename = safe_filename[:255] or "unnamed_document"
 
+        # Clean up any existing version of this document in DB and Qdrant to ensure fresh indexing
         if db:
             try:
                 from backend.models.document import Document
@@ -53,80 +54,22 @@ class DocumentService:
                     .filter(
                         func.lower(Document.filename) == safe_filename.lower(),
                         Document.department == department,
-                        Document.status == "indexed",
                     )
-                    .first()
+                    .all()
                 )
+                for doc in existing:
+                    logger.info("Replacing existing document record '%s' (id=%s)", doc.filename, doc.id)
+                    await self.retriever.delete_document_chunks(doc.id)
+                    db.delete(doc)
                 if existing:
-                    has_vectors = await self.retriever.has_document_chunks(existing.id)
-                    if has_vectors:
-                        logger.info(
-                            "Document '%s' already exists in department '%s' (id=%s). Ingestion skipped.",
-                            safe_filename,
-                            department,
-                            existing.id,
-                        )
-                        return {
-                            "document_id": existing.id,
-                            "title": existing.title,
-                            "department": existing.department,
-                            "chunks_created": existing.total_chunks,
-                            "status": "already_exists",
-                        }
-                    db.delete(existing)
                     db.commit()
             except Exception as dup_err:
-                logger.warning("Duplicate check query failed: %s", str(dup_err))
+                logger.warning("Existing document cleanup check failed: %s", str(dup_err))
 
+        # Also purge any stray points in Qdrant matching this filename & department
         existing_qdrant_id = await self.retriever.find_existing_document_id(safe_filename, department)
         if existing_qdrant_id:
-            content_info = self.retriever.get_document_content(existing_qdrant_id)
-            total_chunks = content_info.get("total_chunks", 0)
-            if total_chunks > 0:
-                logger.info(
-                    "Qdrant vectors already exist for '%s' in '%s' (id=%s). Ingestion skipped.",
-                    safe_filename,
-                    department,
-                    existing_qdrant_id,
-                )
-                if db:
-                    try:
-                        from backend.models.document import Document
-                        db_existing = (
-                            db.query(Document)
-                            .filter(Document.id == existing_qdrant_id)
-                            .first()
-                        )
-                        if not db_existing:
-                            doc_record = Document(
-                                id=existing_qdrant_id,
-                                title=safe_filename,
-                                filename=safe_filename,
-                                file_size=len(file_bytes),
-                                mime_type=(
-                                    "application/pdf"
-                                    if safe_filename.lower().endswith(".pdf")
-                                    else "text/plain"
-                                ),
-                                department=department,
-                                owner_id=owner_id or "admin",
-                                qdrant_document_id=existing_qdrant_id,
-                                total_chunks=total_chunks,
-                                status="indexed",
-                                shared_with=[],
-                            )
-                            db.add(doc_record)
-                            db.commit()
-                    except Exception as db_sync_err:
-                        logger.warning("DB sync for existing Qdrant document failed: %s", str(db_sync_err))
-
-                return {
-                    "document_id": existing_qdrant_id,
-                    "title": safe_filename,
-                    "department": department,
-                    "chunks_created": total_chunks,
-                    "status": "already_exists",
-                }
+            await self.retriever.delete_document_chunks(existing_qdrant_id)
 
         logger.info(
             "Ingesting document '%s' (id=%s, dept=%s, owner_id=%s)",
@@ -246,6 +189,8 @@ class DocumentService:
             try:
                 doc_record.status = "indexed"
                 db.commit()
+                # Automatically recheck with Postgres and sync vector database
+                await self.sync_vector_store(db)
             except Exception as e:
                 db.rollback()
                 await self.retriever.delete_document_chunks(document_id)
@@ -328,7 +273,136 @@ class DocumentService:
                     f"Delete document transaction failed: {str(e)}"
                 ) from e
 
-        return await self.retriever.delete_document_chunks(document_id)
+        success = await self.retriever.delete_document_chunks(document_id)
+        if db:
+            await self.sync_vector_store(db)
+        return success
+
+    async def reindex_document(
+        self,
+        document_id: str,
+        db: Session,
+    ) -> dict:
+        import os
+        from datetime import datetime, timezone
+        from backend.models.document import Document
+
+        doc = db.query(Document).filter(Document.id == document_id).first()
+        if not doc:
+            raise ValueError(f"Document '{document_id}' not found.")
+
+        filename = doc.filename
+        extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        paths_to_check = [
+            os.path.join("uploaded_files", f"{document_id}.{extension}"),
+            os.path.join("uploaded_files", f"{document_id}.pdf"),
+            os.path.join("uploaded_files", f"{document_id}_{filename}"),
+            os.path.join("docs", filename),
+        ]
+
+        file_bytes = None
+        for path in paths_to_check:
+            if os.path.isfile(path):
+                with open(path, "rb") as f:
+                    file_bytes = f.read()
+                break
+
+        if not file_bytes:
+            raise ValueError(f"Underlying binary file for '{doc.filename}' not found on server.")
+
+        # Purge old vectors from Qdrant first
+        await self.retriever.delete_document_chunks(document_id)
+
+        # Parse & Chunk
+        pages = self.parser.parse_file(doc.filename, file_bytes)
+        chunks = self.chunker.chunk_pages(
+            pages=pages,
+            document_title=doc.title,
+            department=doc.department,
+            document_id=doc.id,
+            owner=doc.owner_user.email if getattr(doc, "owner_user", None) else "admin",
+            owner_id=doc.owner_id,
+        )
+
+        if not chunks:
+            raise ValueError("No extractable text found in document.")
+
+        chunk_texts = [c["content"] for c in chunks]
+        dense_vectors = await asyncio.to_thread(
+            self.embeddings.embed_documents,
+            chunk_texts,
+        )
+
+        from backend.embeddings.sparse import bm25_encoder
+        sparse_vectors = await asyncio.to_thread(
+            bm25_encoder.encode_batch,
+            chunk_texts,
+        )
+
+        points = []
+        for i, (chunk, dense_vec, sparse_vec) in enumerate(
+            zip(chunks, dense_vectors, sparse_vectors)
+        ):
+            point_id = str(
+                uuid.uuid5(
+                    uuid.NAMESPACE_DNS,
+                    f"{document_id}_{i}",
+                )
+            )
+            points.append(
+                PointStruct(
+                    id=point_id,
+                    vector={
+                        "dense": dense_vec,
+                        "sparse": sparse_vec,
+                    },
+                    payload=chunk,
+                )
+            )
+
+        # Upsert new vector points
+        await self.retriever.index_chunks(points)
+
+        # Update database metadata
+        doc.total_chunks = len(points)
+        doc.file_size = len(file_bytes)
+        doc.status = "indexed"
+        doc.updated_at = datetime.now(timezone.utc)
+        db.commit()
+
+        # Invalidate cache and verify consistency
+        await self.sync_vector_store(db)
+
+        return {
+            "status": "reindexed",
+            "document_id": doc.id,
+            "title": doc.title,
+            "department": doc.department,
+            "chunks_created": len(points),
+        }
+
+    async def sync_vector_store(self, db: Session) -> dict:
+        from backend.models.document import Document
+        from backend.cache.service import semantic_cache
+
+        valid_docs = db.query(Document).filter(Document.status == "indexed").all()
+        valid_doc_ids = {doc.id for doc in valid_docs}
+
+        purged_count = await self.retriever.purge_orphaned_chunks(valid_doc_ids)
+        await semantic_cache.clear_all()
+
+        logger.info(
+            "Vector store sync complete: %d valid docs in DB, %d orphaned points purged from Qdrant, semantic cache cleared.",
+            len(valid_doc_ids),
+            purged_count,
+        )
+
+        return {
+            "status": "synchronized",
+            "valid_documents": len(valid_doc_ids),
+            "purged_orphaned_chunks": purged_count,
+            "semantic_cache_cleared": True,
+        }
 
 
 document_service = DocumentService()

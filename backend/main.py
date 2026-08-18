@@ -1,5 +1,13 @@
 import sys
+import os
 from pathlib import Path
+
+# Limit BLAS / OpenMP thread pools on Windows to prevent OpenBLAS memory allocation crashes
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
 # Ensure project root is in sys.path so 'backend' module is always found regardless of CWD
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -26,13 +34,19 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Enterprise RAG Application...")
     init_db()
 
-    # Verify / Warmup Qdrant Vector Collection
+    # Verify / Warmup Qdrant Vector Collection & Synchronize with Postgres
     try:
         from backend.retriever.qdrant_client import qdrant_manager
         qdrant_manager.ensure_collection_exists()
         logger.info("Qdrant Vector Database collection verified.")
+
+        from backend.database.session import SessionLocal
+        from backend.documents.service import document_service
+        with SessionLocal() as db:
+            await document_service.sync_vector_store(db)
+        logger.info("Startup vector store sync complete.")
     except Exception as e:
-        logger.warning("Could not connect to Qdrant on startup (will retry on query): %s", str(e))
+        logger.warning("Could not connect to Qdrant or sync on startup: %s", str(e))
 
     yield
     logger.info("Shutting down Enterprise RAG Application...")
