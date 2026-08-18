@@ -93,12 +93,16 @@ export function ModernLoginSignup() {
     }
 
     if (tokenParam) {
+      const isNewUser = urlParams.get("is_new") === "1" || urlParams.get("is_new_user") === "1";
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("neroxa.token", tokenParam);
+      }
       setLoading(true);
       authenticateToken(tokenParam)
         .then((session) => {
           window.history.replaceState({}, document.title, window.location.pathname);
           const userPhone = (session.user as any)?.phoneNumber || (session.user as any)?.phone_number;
-          if (!userPhone) {
+          if (isNewUser && !userPhone) {
             setOauthUser({
               email: session.user.email,
               name: session.user.name,

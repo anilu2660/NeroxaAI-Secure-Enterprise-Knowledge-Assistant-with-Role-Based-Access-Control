@@ -332,7 +332,7 @@ async def oauth_callback(
         if error or not code:
             raise CredentialsException("OAuth authentication was cancelled or failed.")
 
-        user, app_token = await oauth_service.process_oauth_callback(
+        user, app_token, is_new_user = await oauth_service.process_oauth_callback(
             provider=provider_lower,
             code=code,
             redirect_uri=redirect_uri,
@@ -354,8 +354,12 @@ async def oauth_callback(
         )
 
         from urllib.parse import quote
+        redirect_target = f"{target_frontend_url}/login?token={quote(app_token, safe='')}"
+        if is_new_user:
+            redirect_target += "&is_new=1"
+
         response = RedirectResponse(
-            url=f"{target_frontend_url}/login?token={quote(app_token, safe='')}",
+            url=redirect_target,
             status_code=status.HTTP_303_SEE_OTHER,
         )
         _set_access_token_cookie(response, app_token)

@@ -171,7 +171,7 @@ class OAuthService:
         code: str | None,
         redirect_uri: str,
         db: Session,
-    ) -> tuple[User, str]:
+    ) -> tuple[User, str, bool]:
         provider_lower = cls.normalize_provider(provider)
 
         if not code or len(code) > 4096:
@@ -315,8 +315,10 @@ class OAuthService:
         email_clean = email.lower().strip()
         full_name_clean = full_name.strip() if full_name else email_clean.split("@", 1)[0]
 
+        is_new_user = False
         user = db.query(User).filter(User.email == email_clean).first()
         if not user:
+            is_new_user = True
             random_pwd = secrets.token_urlsafe(24)
             user = User(
                 email=email_clean,
@@ -342,7 +344,7 @@ class OAuthService:
             "role": user.role_id,
             "department": user.department,
         }
-        return user, create_access_token(data=token_data)
+        return user, create_access_token(data=token_data), is_new_user
 
 
 oauth_service = OAuthService()
