@@ -33,7 +33,7 @@ services:
       - qdrant
       - redis
     volumes:
-      - ../backend:/app
+      - ../backend:/app/backend
     networks:
       - enterprise-rag-network
 

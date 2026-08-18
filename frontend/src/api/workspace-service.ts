@@ -99,6 +99,15 @@ import { permissionsForRole, roleLabelFor } from "@/roles/permissions";
  * any UI rewrite.
  */
 
+export function getApiUrl(path: string): string {
+  const base = (
+    (import.meta.env["VITE_API_URL"] as string | undefined) ||
+    (import.meta.env["VITE_API_BASE_URL"] as string | undefined) ||
+    ""
+  ).replace(/\/$/, "");
+  return base ? `${base}${path.startsWith("/") ? path : `/${path}`}` : path;
+}
+
 /**
  * Documents the workspace can list. Every document read below projects the ONE
  * canonical catalog record, so an administrator's edit in Document Management
@@ -136,7 +145,7 @@ export async function listDocuments(query: DocumentQuery = {}): Promise<Document
     const params = new URLSearchParams();
     if (query.department) params.append("department", query.department);
 
-    const res = await fetch(`/api/v1/documents/?${params.toString()}`, {
+    const res = await fetch(getApiUrl(`/api/v1/documents/?${params.toString()}`), {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -218,7 +227,7 @@ export async function getDocument(documentId: string): Promise<DocumentRecord | 
 
   // Try preview endpoint
   try {
-    const res = await fetch(`/api/v1/documents/${documentId}/preview`, { headers });
+    const res = await fetch(getApiUrl(`/api/v1/documents/${documentId}/preview`), { headers });
     if (res.ok) {
       const data = await res.json();
       const fileKind = (data.filename || data.title || "").split(".").pop()?.toUpperCase() || "PDF";
@@ -262,7 +271,7 @@ export async function getDocument(documentId: string): Promise<DocumentRecord | 
 
   // Fallback: search in list of DB documents
   try {
-    const res = await fetch("/api/v1/documents/", { headers });
+    const res = await fetch(getApiUrl("/api/v1/documents/"), { headers });
     if (res.ok) {
       const docs = await res.json();
       const found = docs.find((d: any) => d.document_id === documentId || d.id === documentId);
@@ -308,7 +317,7 @@ export async function getDocumentPreviewPage(
   const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
   try {
-    const res = await fetch(`/api/v1/documents/${documentId}/preview`, { headers });
+    const res = await fetch(getApiUrl(`/api/v1/documents/${documentId}/preview`), { headers });
     if (res.ok) {
       const data = await res.json();
       const chunks: any[] = data.chunks || [];
@@ -402,7 +411,7 @@ export async function getRecentDocuments(
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (token) {
     try {
-      const res = await fetch("/api/v1/documents/", {
+      const res = await fetch(getApiUrl("/api/v1/documents/"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -444,7 +453,7 @@ export async function getRecentActivity(actor: string): Promise<ActivityEntry[]>
   // Try fetching user's recent DB chat messages
   if (token) {
     try {
-      const res = await fetch("/api/v1/chat/sessions", {
+      const res = await fetch(getApiUrl("/api/v1/chat/sessions"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -488,7 +497,7 @@ export async function getKnowledgeOverview(
 
   if (token) {
     try {
-      const docRes = await fetch("/api/v1/documents/", {
+      const docRes = await fetch(getApiUrl("/api/v1/documents/"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (docRes.ok) {
@@ -499,7 +508,7 @@ export async function getKnowledgeOverview(
         totalChunks = docs.reduce((acc: number, d: any) => acc + (d.total_chunks || 0), 0);
       }
 
-      const chatRes = await fetch("/api/v1/chat/sessions", {
+      const chatRes = await fetch(getApiUrl("/api/v1/chat/sessions"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (chatRes.ok) {
@@ -621,7 +630,7 @@ export async function initiateRegistration(payload: {
   department: string;
   requested_role?: string;
 }): Promise<{ session_token: string; message: string }> {
-  const res = await fetch("/api/v1/auth/register/initiate", {
+  const res = await fetch(getApiUrl("/api/v1/auth/register/initiate"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -640,7 +649,7 @@ export async function verifyOTPAndRegister(payload: {
   email_otp: string;
   mobile_otp: string;
 }): Promise<{ access_token: string; user_id: string; email: string; role: string }> {
-  const res = await fetch("/api/v1/auth/register/verify-otp", {
+  const res = await fetch(getApiUrl("/api/v1/auth/register/verify-otp"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -729,7 +738,7 @@ async function getOrCreateActiveChatSessionId(token: string | null): Promise<str
   if (activeId) return activeId;
 
   try {
-    const res = await fetch("/api/v1/chat/sessions", {
+    const res = await fetch(getApiUrl("/api/v1/chat/sessions"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -901,7 +910,7 @@ export async function fetchUserChatSessions(): Promise<DbChatSession[]> {
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return [];
   try {
-    const res = await fetch("/api/v1/chat/sessions", {
+    const res = await fetch(getApiUrl("/api/v1/chat/sessions"), {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return [];
@@ -915,7 +924,7 @@ export async function createDbChatSession(title: string = "New Conversation"): P
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return null;
   try {
-    const res = await fetch("/api/v1/chat/sessions", {
+    const res = await fetch(getApiUrl("/api/v1/chat/sessions"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -934,7 +943,7 @@ export async function fetchDbChatSessionDetails(sessionId: string): Promise<DbCh
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return null;
   try {
-    const res = await fetch(`/api/v1/chat/sessions/${sessionId}`, {
+    const res = await fetch(getApiUrl(`/api/v1/chat/sessions/${sessionId}`), {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return null;
@@ -948,7 +957,7 @@ export async function deleteDbChatSession(sessionId: string): Promise<boolean> {
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return false;
   try {
-    const res = await fetch(`/api/v1/chat/sessions/${sessionId}`, {
+    const res = await fetch(getApiUrl(`/api/v1/chat/sessions/${sessionId}`), {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -962,7 +971,7 @@ export async function sendDbChatMessage(sessionId: string, message: string): Pro
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return null;
   try {
-    const res = await fetch("/api/v1/chat/message", {
+    const res = await fetch(getApiUrl("/api/v1/chat/message"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -988,7 +997,7 @@ export async function submitFeedbackToDb(payload: {
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return false;
   try {
-    const res = await fetch("/api/v1/feedback/", {
+    const res = await fetch(getApiUrl("/api/v1/feedback/"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1020,20 +1029,20 @@ export async function getAdminMetrics(): Promise<AdminMetric[]> {
 
   if (token) {
     try {
-      const uRes = await fetch("/api/v1/users/", { headers: { Authorization: `Bearer ${token}` } });
+      const uRes = await fetch(getApiUrl("/api/v1/users/"), { headers: { Authorization: `Bearer ${token}` } });
       if (uRes.ok) {
         const users = await uRes.json();
         userCount = users.length;
       }
 
-      const dRes = await fetch("/api/v1/documents/", { headers: { Authorization: `Bearer ${token}` } });
+      const dRes = await fetch(getApiUrl("/api/v1/documents/"), { headers: { Authorization: `Bearer ${token}` } });
       if (dRes.ok) {
         const docs = await dRes.json();
         docCount = docs.length;
         recentUploads = docs.length;
       }
 
-      const aRes = await fetch("/api/v1/admin/audit-logs/", { headers: { Authorization: `Bearer ${token}` } });
+      const aRes = await fetch(getApiUrl("/api/v1/admin/audit-logs/"), { headers: { Authorization: `Bearer ${token}` } });
       if (aRes.ok) {
         const logs = await aRes.json();
         activityCount = logs.length;
@@ -1079,7 +1088,7 @@ export async function getAdminActivity(): Promise<AdminActivityEntry[]> {
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (token) {
     try {
-      const res = await fetch("/api/v1/admin/audit-logs/", {
+      const res = await fetch(getApiUrl("/api/v1/admin/audit-logs/"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -1105,7 +1114,7 @@ export async function getAdminDocumentOverview(): Promise<AdminDocumentOverview>
   let total = 0;
   if (token) {
     try {
-      const res = await fetch("/api/v1/documents/", {
+      const res = await fetch(getApiUrl("/api/v1/documents/"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -1167,7 +1176,7 @@ export async function listManagedUsers(query: ManagedUserQuery = {}): Promise<Ma
   if (!token) return [];
 
   try {
-    const res = await fetch("/api/v1/users/", {
+    const res = await fetch(getApiUrl("/api/v1/users/"), {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -1273,7 +1282,7 @@ export async function updateManagedUser(
   if (!token) return { user: null, persisted: false, message: "Unauthenticated" };
 
   try {
-    const res = await fetch(`/api/v1/users/${userId}`, {
+    const res = await fetch(getApiUrl(`/api/v1/users/${userId}`), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -1321,7 +1330,7 @@ export async function setManagedUserStatus(
   if (!token) return { user: null, persisted: false, message: "Unauthenticated" };
 
   try {
-    const res = await fetch(`/api/v1/users/${userId}`, {
+    const res = await fetch(getApiUrl(`/api/v1/users/${userId}`), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -1363,7 +1372,7 @@ export async function deleteManagedUser(userId: string): Promise<ManagedUserMuta
   if (!token) return { user: null, persisted: false, message: "Unauthenticated" };
 
   try {
-    const res = await fetch(`/api/v1/users/${userId}`, {
+    const res = await fetch(getApiUrl(`/api/v1/users/${userId}`), {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1402,7 +1411,7 @@ export async function listAdminDocuments(query: AdminDocumentQuery = {}): Promis
 
   if (token) {
     try {
-      const res = await fetch("/api/v1/documents/", {
+      const res = await fetch(getApiUrl("/api/v1/documents/"), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -1478,7 +1487,7 @@ export async function getAdminDocumentFilterOptions(): Promise<AdminDocumentFilt
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (token) {
     try {
-      const res = await fetch("/api/v1/documents/", {
+      const res = await fetch(getApiUrl("/api/v1/documents/"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -1582,7 +1591,7 @@ export async function deleteAdminDocument(
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
 
   if (token) {
-    const res = await fetch(`/api/v1/documents/${documentId}`, {
+    const res = await fetch(getApiUrl(`/api/v1/documents/${documentId}`), {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1622,7 +1631,7 @@ export async function reindexDocument(documentId: string): Promise<{ success: bo
   if (!token) return { success: false, message: "Unauthenticated" };
 
   try {
-    const res = await fetch(`/api/v1/documents/${documentId}/reindex`, {
+    const res = await fetch(getApiUrl(`/api/v1/documents/${documentId}/reindex`), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1650,7 +1659,7 @@ export async function syncVectorStore(): Promise<{ success: boolean; message: st
   if (!token) return { success: false, message: "Unauthenticated" };
 
   try {
-    const res = await fetch(`/api/v1/documents/sync`, {
+    const res = await fetch(getApiUrl(`/api/v1/documents/sync`), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1863,7 +1872,7 @@ export async function submitDocumentUpload(
     formData.append("file", renamedFile);
     formData.append("department", payload.department || "General");
 
-    const res = await fetch("/api/v1/documents/upload", {
+    const res = await fetch(getApiUrl("/api/v1/documents/upload"), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -2003,7 +2012,7 @@ export async function listAuditEvents(query: AuditEventQuery): Promise<AuditEven
     params.append("skip", String((query.page - 1) * query.pageSize));
     params.append("limit", String(query.pageSize));
 
-    const res = await fetch(`/api/v1/admin/audit-logs/?${params.toString()}`, {
+    const res = await fetch(getApiUrl(`/api/v1/admin/audit-logs/?${params.toString()}`), {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -2098,7 +2107,7 @@ export async function getAccessControlModel(): Promise<AccessControlModel> {
   }
 
   try {
-    const res = await fetch("/api/v1/roles/", {
+    const res = await fetch(getApiUrl("/api/v1/roles/"), {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },

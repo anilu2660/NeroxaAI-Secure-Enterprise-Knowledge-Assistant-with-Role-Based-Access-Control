@@ -60,7 +60,16 @@ class ChatService:
         user_message: str,
         department_filter: str | None = None,
     ) -> ChatMessage:
-        session = self.get_session_by_id(db, session_id, user)
+        session = (
+            db.query(ChatSession)
+            .filter(ChatSession.id == session_id, ChatSession.user_id == user.id)
+            .first()
+        )
+        if not session:
+            session = ChatSession(id=session_id, user_id=user.id, title="New Conversation")
+            db.add(session)
+            db.commit()
+            db.refresh(session)
 
         user_msg = ChatMessage(session_id=session.id, role="user", content=user_message)
         db.add(user_msg)
