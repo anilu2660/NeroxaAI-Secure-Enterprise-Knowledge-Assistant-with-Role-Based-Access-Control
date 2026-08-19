@@ -638,7 +638,15 @@ export async function initiateRegistration(payload: {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Failed to initiate registration and send OTPs.");
+    let msg = "Failed to initiate registration and send OTPs.";
+    if (typeof err.detail === "string") {
+      msg = err.detail;
+    } else if (Array.isArray(err.detail)) {
+      msg = err.detail.map((d: any) => d.msg || JSON.stringify(d)).join("; ");
+    } else if (err.detail && typeof err.detail === "object") {
+      msg = err.detail.message || JSON.stringify(err.detail);
+    }
+    throw new Error(msg);
   }
 
   return res.json();
@@ -657,7 +665,10 @@ export async function verifyOTPAndRegister(payload: {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Invalid verification OTPs.");
+    let msg = "Invalid verification OTPs.";
+    if (typeof err.detail === "string") msg = err.detail;
+    else if (Array.isArray(err.detail)) msg = err.detail.map((d: any) => d.msg || JSON.stringify(d)).join("; ");
+    throw new Error(msg);
   }
 
   const data = await res.json();
@@ -684,7 +695,10 @@ export async function sendPhoneOTP(payload: {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Failed to send SMS verification code.");
+    let msg = "Failed to send SMS verification code.";
+    if (typeof err.detail === "string") msg = err.detail;
+    else if (Array.isArray(err.detail)) msg = err.detail.map((d: any) => d.msg || JSON.stringify(d)).join("; ");
+    throw new Error(msg);
   }
 
   return res.json();
@@ -703,7 +717,10 @@ export async function verifyPhoneOTP(phoneNumber: string, otp: string): Promise<
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Invalid mobile verification code.");
+    let msg = "Invalid mobile verification code.";
+    if (typeof err.detail === "string") msg = err.detail;
+    else if (Array.isArray(err.detail)) msg = err.detail.map((d: any) => d.msg || JSON.stringify(d)).join("; ");
+    throw new Error(msg);
   }
 
   return res.json();

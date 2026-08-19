@@ -21,8 +21,15 @@ class LLMService:
     def __init__(self):
         self.model = settings.OLLAMA_MODEL
         self.base_url = settings.OLLAMA_BASE_URL
-        self.client = Client(host=self.base_url)
-        self.async_client = AsyncClient(host=self.base_url)
+        # Pass auth header when using Ollama Cloud (OLLAMA_API_KEY set)
+        headers = (
+            {"Authorization": f"Bearer {settings.OLLAMA_API_KEY}"}
+            if settings.OLLAMA_API_KEY
+            else {}
+        )
+        self.client = Client(host=self.base_url, headers=headers)
+        self.async_client = AsyncClient(host=self.base_url, headers=headers)
+
 
     def _build_options(
         self,

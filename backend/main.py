@@ -2,14 +2,12 @@ import sys
 import os
 from pathlib import Path
 
-# Limit BLAS / OpenMP thread pools on Windows to prevent OpenBLAS memory allocation crashes
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
 os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
-# Ensure project root is in sys.path so 'backend' module is always found regardless of CWD
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -57,16 +55,11 @@ app = FastAPI(
     description="Secure Enterprise Knowledge Assistant with Role-Based Access Control",
     version=settings.APP_VERSION,
     lifespan=lifespan,
-    # SECURITY: Disable interactive API docs in production to prevent surface exposure.
-    # Docs are only available when DEBUG=true (local dev).
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
     openapi_url="/openapi.json" if settings.DEBUG else None,
 )
 
-# Configure CORS
-# SECURITY: Explicitly scope allowed methods and headers.
-# Wildcards with allow_credentials=True is a CORS misconfiguration.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -75,7 +68,6 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
-# Mount master API router
 app.include_router(api_router)
 
 

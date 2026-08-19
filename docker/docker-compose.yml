@@ -1,5 +1,46 @@
 services:
-  # FastAPI Backend Service
+  # ─── Ollama LLM Service (LOCAL / GPU-accelerated) ────────────────────────────
+  # Uncomment this block when running locally without Ollama Cloud.
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: enterprise_rag_ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: all
+  #             capabilities: [gpu]
+  #   restart: unless-stopped
+  #   networks:
+  #     - enterprise-rag-network
+
+  # ─── One-shot init: pulls qwen2.5:3b (LOCAL only) ────────────────────────────
+  # Uncomment together with the ollama service above when running locally.
+  # ollama-pull:
+  #   image: ollama/ollama:latest
+  #   container_name: enterprise_rag_ollama_pull
+  #   entrypoint: >
+  #     sh -c "
+  #       echo 'Waiting for Ollama to be ready...';
+  #       until curl -sf http://ollama:11434/api/tags > /dev/null; do sleep 2; done;
+  #       echo 'Pulling qwen2.5:3b model...';
+  #       ollama pull qwen2.5:3b;
+  #       echo 'Model pull complete.';
+  #     "
+  #   environment:
+  #     - OLLAMA_HOST=http://ollama:11434
+  #   depends_on:
+  #     - ollama
+  #   networks:
+  #     - enterprise-rag-network
+  #   restart: "no"
+
+  # ─── FastAPI Backend Service ──────────────────────────────────────────────────
   backend:
     image: ajup738/neroxaai-backend:latest
     build:
@@ -18,26 +59,31 @@ services:
       - QDRANT_COLLECTION=enterprise_docs
       - QDRANT_URL=${QDRANT_URL:-}
       - QDRANT_API_KEY=${QDRANT_API_KEY:-}
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - OLLAMA_MODEL=qwen2.5:3b
+      # ── Ollama Cloud (production) ──────────────────────────────────────────────
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-https://api.ollama.com}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:3b}
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY}
+      # ── Uncomment the line below and comment the two above for local Ollama ────
+      # - OLLAMA_BASE_URL=http://ollama:11434
+      # - OLLAMA_MODEL=qwen2.5:3b
+      # (no OLLAMA_API_KEY needed for local)
       - EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
       - EMBEDDING_DIMENSION=384
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-enterprise-rag-2026}
       - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
       - CORS_ORIGINS=http://localhost,http://localhost:80
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       - db
       - qdrant
       - redis
+      # - ollama   # Uncomment when using local Ollama container
     volumes:
       - ../backend:/app/backend
     networks:
       - enterprise-rag-network
 
-  # React + Vite Frontend Service (served via Nginx)
+  # ─── React + Vite Frontend Service (Nginx) ────────────────────────────────────
   frontend:
     image: ajup738/neroxaai-frontend:latest
     build:
@@ -51,7 +97,7 @@ services:
     networks:
       - enterprise-rag-network
 
-  # PostgreSQL Database Service
+  # ─── PostgreSQL Database Service ─────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     container_name: enterprise_rag_db
@@ -66,7 +112,7 @@ services:
     networks:
       - enterprise-rag-network
 
-  # Qdrant Vector Database Service
+  # ─── Qdrant Vector Database Service ──────────────────────────────────────────
   qdrant:
     image: qdrant/qdrant:latest
     container_name: enterprise_rag_qdrant
@@ -78,7 +124,7 @@ services:
     networks:
       - enterprise-rag-network
 
-  # Redis Cache Service
+  # ─── Redis Cache Service ──────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: enterprise_rag_redis
@@ -95,6 +141,7 @@ volumes:
   postgres_data:
   qdrant_data:
   redis_data:
+  # ollama_data:   # Uncomment when using local Ollama container
 
 networks:
   enterprise-rag-network:
