@@ -94,65 +94,27 @@ function clearSession() {
   }
 }
 
-function parseJwtToken(token: string): Session | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    const payload = JSON.parse(jsonPayload);
-
-    if (!payload || !payload.email) return null;
-
-    const userAuth: BackendUserAuthInfo = {
-      id: payload.sub || `user_${Date.now()}`,
-      email: payload.email,
-      full_name: payload.full_name || payload.name || payload.email.split("@")[0] || "User",
-      role: payload.role || "employee",
-      department: payload.department || "General",
-      is_active: true,
-      created_at: new Date().toISOString(),
-    };
-
-    return createSession(userAuth, token);
-  } catch {
-    return null;
-  }
-}
-
 async function fetchCurrentUser(token?: string): Promise<Session | null> {
   if (!token) return null;
 
+  const apiUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+  const targetUrl = apiUrl ? `${apiUrl}/api/v1/auth/me` : "/api/v1/auth/me";
+
   try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    };
-
-    const apiUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-    const targetUrl = apiUrl ? `${apiUrl}/api/v1/auth/me` : "/api/v1/auth/me";
-
     const response = await fetch(targetUrl, {
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       credentials: "include",
     });
 
-    if (response.ok) {
-      const userData: BackendUserAuthInfo = await response.json();
-      return createSession(userData, token);
-    }
+    if (!response.ok) return null;
+    const userData: BackendUserAuthInfo = await response.json();
+    return createSession(userData, token);
   } catch {
-    /* fallback to token decoding */
+    return null;
   }
-
-  // Fallback: Parse JWT payload directly if backend endpoint is unreachable or returning static HTML
-  return parseJwtToken(token);
 }
 
 export const jwtAuthAdapter: AuthProviderAdapter = {
@@ -160,31 +122,25 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
     const token = getStoredToken();
     const cached = getStoredSession();
 
-    // Nothing in storage — skip network call entirely.
-    if (!token && !cached) return null;
+    if (!token) return null;
 
-    // If we have a token — re-validate with backend or decode payload.
-    if (token) {
-      const session = await fetchCurrentUser(token);
-      if (session) {
-        persistSession(session, token);
-        return session;
-      }
+    const session = await fetchCurrentUser(token);
+    if (session) {
+      persistSession(session, token);
+      return session;
     }
 
-    if (cached) return cached;
-
-    // Token is invalid/expired.
     clearSession();
-    return null;
+    return cached ? null : null;
   },
 
   async signIn({ email, password }: Credentials): Promise<Session> {
     const apiUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
     const targetUrl = apiUrl ? `${apiUrl}/api/v1/auth/login` : "/api/v1/auth/login";
 
+    let response: Response;
     try {
-      const response = await fetch(targetUrl, {
+      response = await fetch(targetUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -192,39 +148,24 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
         credentials: "include",
         body: JSON.stringify({ email: email.trim(), password }),
       });
-
-      const data = await response.json().catch(() => null);
-
-      if (response.ok) {
-        const tokenResponse: BackendTokenResponse = data;
-        const session = await fetchCurrentUser(tokenResponse.access_token);
-
-        if (session) {
-          persistSession(session, tokenResponse.access_token);
-          return session;
-        }
-      } else if (data && data.detail) {
-        throw new Error(parseApiError(data, "Invalid email or password."));
-      }
-    } catch (err: any) {
-      if (err?.message && err.message !== "Failed to fetch") {
-        throw err;
-      }
+    } catch {
+      throw new Error(
+        "Backend API is unreachable. Configure VITE_API_URL with your Railway FastAPI URL and redeploy the frontend.",
+      );
     }
 
-    // Demo / standalone frontend fallback when backend API is not reachable
-    const normalizedRole = email.toLowerCase().includes("admin") ? "admin" : "employee";
-    const demoUser: BackendUserAuthInfo = {
-      id: `usr_${Date.now()}`,
-      email: email.trim(),
-      full_name: email.split("@")[0] || "User",
-      role: normalizedRole,
-      department: "General",
-      is_active: true,
-      created_at: new Date().toISOString(),
-    };
-    const session = createSession(demoUser, `demo_token_${Date.now()}`);
-    persistSession(session, session.accessToken);
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(parseApiError(data, "Invalid email or password."));
+    }
+
+    const tokenResponse: BackendTokenResponse = data;
+    const session = await fetchCurrentUser(tokenResponse.access_token);
+    if (!session) {
+      throw new Error("Login succeeded but the backend identity could not be verified.");
+    }
+
+    persistSession(session, tokenResponse.access_token);
     return session;
   },
 
@@ -232,8 +173,9 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
     const apiUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
     const targetUrl = apiUrl ? `${apiUrl}/api/v1/auth/register` : "/api/v1/auth/register";
 
+    let registerResponse: Response;
     try {
-      const registerResponse = await fetch(targetUrl, {
+      registerResponse = await fetch(targetUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -246,16 +188,15 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
           department: "General",
         }),
       });
+    } catch {
+      throw new Error(
+        "Backend API is unreachable. Configure VITE_API_URL with your Railway FastAPI URL and redeploy the frontend.",
+      );
+    }
 
-      const regData = await registerResponse.json().catch(() => null);
-
-      if (!registerResponse.ok && regData) {
-        throw new Error(parseApiError(regData, "Registration failed. Please try again."));
-      }
-    } catch (err: any) {
-      if (err?.message && err.message !== "Failed to fetch") {
-        throw err;
-      }
+    const regData = await registerResponse.json().catch(() => null);
+    if (!registerResponse.ok) {
+      throw new Error(parseApiError(regData, "Registration failed. Please try again."));
     }
 
     return this.signIn({ email, password, name });
@@ -265,12 +206,14 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
     try {
       const apiUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
       const targetUrl = apiUrl ? `${apiUrl}/api/v1/auth/logout` : "/api/v1/auth/logout";
+      const token = getStoredToken();
       await fetch(targetUrl, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: "include",
       });
     } catch {
-      /* ignore network errors on logout */
+      /* clear local session even when the server is unreachable */
     } finally {
       clearSession();
     }
@@ -280,7 +223,7 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
 export async function setSessionFromToken(token: string): Promise<Session> {
   const session = await fetchCurrentUser(token);
   if (!session) {
-    throw new Error("Failed to authenticate token.");
+    throw new Error("Failed to authenticate token with the backend.");
   }
   persistSession(session, token);
   return session;
