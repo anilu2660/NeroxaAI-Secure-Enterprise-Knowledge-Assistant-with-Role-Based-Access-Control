@@ -33,7 +33,9 @@ async function fetchCurrentUser(token?: string): Promise<Session> {
   requireApiUrl();
   let response: Response;
   try {
-    response = await fetch(apiUrl("/api/v1/auth/me"), { method: "GET", headers: { Accept: "application/json", Authorization: `Bearer ${token}` }, credentials: "include", cache: "no-store" });
+    // Bearer authentication is carried in Authorization. Cookies are not needed
+    // by the SPA, avoiding credentialed cross-origin CORS requirements.
+    response = await fetch(apiUrl("/api/v1/auth/me"), { method: "GET", headers: { Accept: "application/json", Authorization: `Bearer ${token}` }, cache: "no-store" });
   } catch {
     throw new Error("Backend API is unreachable. Check VITE_API_URL, the Railway deployment, and CORS configuration.");
   }
@@ -58,7 +60,7 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
     requireApiUrl();
     let response: Response;
     try {
-      response = await fetch(apiUrl("/api/v1/auth/login"), { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, credentials: "include", body: JSON.stringify({ email: email.trim(), password }) });
+      response = await fetch(apiUrl("/api/v1/auth/login"), { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ email: email.trim(), password }) });
     } catch {
       throw new Error("Backend API is unreachable. Check VITE_API_URL, the Railway deployment, and CORS configuration.");
     }
@@ -75,7 +77,7 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
     requireApiUrl();
     let response: Response;
     try {
-      response = await fetch(apiUrl("/api/v1/auth/register"), { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, credentials: "include", body: JSON.stringify({ email: email.trim(), password, full_name: name?.trim() || email.split("@")[0] || "User", department: "General" }) });
+      response = await fetch(apiUrl("/api/v1/auth/register"), { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ email: email.trim(), password, full_name: name?.trim() || email.split("@")[0] || "User", department: "General" }) });
     } catch {
       throw new Error("Backend API is unreachable. Check VITE_API_URL, the Railway deployment, and CORS configuration.");
     }
@@ -84,7 +86,7 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
     throw new Error("Direct registration is disabled. Please use the OTP registration flow.");
   },
 
-  async signOut(): Promise<void> { try { if (getApiBaseUrl()) await fetch(apiUrl("/api/v1/auth/logout"), { method: "POST", credentials: "include" }); } finally { clearSession(); } },
+  async signOut(): Promise<void> { try { if (getApiBaseUrl()) await fetch(apiUrl("/api/v1/auth/logout"), { method: "POST" }); } finally { clearSession(); } },
 };
 
 export async function setSessionFromToken(token: string): Promise<Session> { try { const session = await fetchCurrentUser(token); persistSession(session, token); return session; } catch (error) { clearSession(); throw error instanceof Error ? error : new Error("Failed to authenticate token with the backend."); } }
