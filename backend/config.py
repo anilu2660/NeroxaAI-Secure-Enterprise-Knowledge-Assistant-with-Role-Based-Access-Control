@@ -2,14 +2,12 @@ import sys
 import os
 from pathlib import Path
 
-# Limit BLAS / OpenMP thread pools on Windows to prevent OpenBLAS memory allocation crashes
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
 os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
-# Ensure project root is in sys.path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -20,19 +18,17 @@ load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=True)
 
 
 def _normalize_ollama_base_url(value: str) -> str:
-    """Normalize local/cloud Ollama base URLs for the official Python client.
-
-    Direct Ollama Cloud API access uses https://ollama.com as the client host.
-    Older/local configurations may contain https://api.ollama.com or a trailing
-    /api path; normalize those forms so deployments do not accidentally build
-    an invalid API URL.
-    """
     url = (value or "").strip().rstrip("/")
     if url == "https://api.ollama.com":
         return "https://ollama.com"
     if url.endswith("/api"):
         return url[:-4].rstrip("/")
     return url
+
+
+def _normalize_origin(value: str) -> str:
+    """Normalize browser Origin values for FastAPI CORS matching."""
+    return (value or "").strip().rstrip("/")
 
 
 class Settings:
@@ -61,7 +57,7 @@ class Settings:
     if JWT_ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
         raise RuntimeError("JWT_ACCESS_TOKEN_EXPIRE_MINUTES must be greater than 0.")
 
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    FRONTEND_URL: str = _normalize_origin(os.getenv("FRONTEND_URL", "http://localhost:5173"))
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
     OAUTH_STATE_EXPIRE_SECONDS: int = int(os.getenv("OAUTH_STATE_EXPIRE_SECONDS", "600"))
     OAUTH_SECURE_COOKIES: bool = os.getenv("OAUTH_SECURE_COOKIES", "false" if DEBUG else "true").lower() == "true"
@@ -90,25 +86,17 @@ class Settings:
 
     RETRIEVAL_PIPELINE_VERSION: str = os.getenv("RETRIEVAL_PIPELINE_VERSION", "4")
 
-    # Ollama: use https://ollama.com for direct Cloud API access.
-    # https://api.ollama.com and a trailing /api are normalized automatically.
-    OLLAMA_BASE_URL: str = _normalize_ollama_base_url(
-        os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    )
+    OLLAMA_BASE_URL: str = _normalize_ollama_base_url(os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5")
     OLLAMA_NUM_GPU: int | None = int(os.getenv("OLLAMA_NUM_GPU")) if os.getenv("OLLAMA_NUM_GPU") else None
     OLLAMA_NUM_CTX: int = int(os.getenv("OLLAMA_NUM_CTX", "2048"))
-    # Optional: set to use Ollama Cloud instead of a local/containerised instance.
     OLLAMA_API_KEY: str | None = os.getenv("OLLAMA_API_KEY", "").strip() or None
 
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
     EMBEDDING_DIMENSION: int = int(os.getenv("EMBEDDING_DIMENSION", "384"))
-
     RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
     RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "5"))
     RERANKER_MIN_SCORE: float = float(os.getenv("RERANKER_MIN_SCORE", "0.0"))
-    # Disabled until score distributions are measured and a model-specific
-    # threshold is calibrated. Cross-encoder logits can legitimately be below 0.
     RERANKER_ENABLE_THRESHOLD: bool = os.getenv("RERANKER_ENABLE_THRESHOLD", "false").lower() == "true"
     ENABLE_HYBRID_SEARCH: bool = os.getenv("ENABLE_HYBRID_SEARCH", "true").lower() == "true"
 
@@ -116,12 +104,9 @@ class Settings:
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
     MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))
 
-    # In production, FRONTEND_URL is automatically allowed unless an explicit
-    # CORS_ORIGINS list is supplied. This prevents the common Vercel -> Railway
-    # browser CORS failure while retaining an explicit override for hardened deployments.
     _cors_raw = os.getenv("CORS_ORIGINS", "").strip()
     CORS_ORIGINS: list[str] = (
-        [origin.strip() for origin in _cors_raw.split(",") if origin.strip()]
+        list(dict.fromkeys(_normalize_origin(origin) for origin in _cors_raw.split(",") if _normalize_origin(origin)))
         if _cors_raw
         else list(dict.fromkeys([FRONTEND_URL, "http://localhost:5173", "http://localhost:3000"]))
     )
