@@ -25,19 +25,27 @@ function persistSession(session: Session, token?: string) { try { if (token) ses
 function clearSession() { try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(SESSION_KEY); } catch { return; } }
 function getApiBaseUrl(): string { return String(import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/$/, ""); }
 function apiUrl(path: string): string { const base = getApiBaseUrl(); return `${base}${path.startsWith("/") ? path : `/${path}`}`; }
-function requireApiUrl(): string { const base = getApiBaseUrl(); if (!base) throw new Error("Backend API URL is not configured. Set VITE_API_URL in Vercel to your Railway FastAPI URL and redeploy the frontend."); return base; }
-async function responseData(response: Response): Promise<any> { const type = response.headers.get("content-type") || ""; if (type.includes("application/json")) return response.json().catch(() => null); const text = await response.text().catch(() => ""); return text ? { message: text.slice(0, 500) } : null; }
+
+async function responseData(response: Response): Promise<any> {
+  const type = response.headers.get("content-type") || "";
+  if (type.includes("application/json")) return response.json().catch(() => null);
+  const text = await response.text().catch(() => "");
+  return text ? { message: text.slice(0, 500) } : null;
+}
 
 async function fetchCurrentUser(token?: string): Promise<Session> {
   if (!token) throw new Error("Authentication token is missing.");
-  requireApiUrl();
   let response: Response;
   try {
-    // Bearer authentication is carried in Authorization. Cookies are not needed
-    // by the SPA, avoiding credentialed cross-origin CORS requirements.
-    response = await fetch(apiUrl("/api/v1/auth/me"), { method: "GET", headers: { Accept: "application/json", Authorization: `Bearer ${token}` }, cache: "no-store" });
+    // If VITE_API_URL is empty, use same-origin /api routing (Docker + Nginx).
+    // If it is set, use the public Railway API (Vercel deployment).
+    response = await fetch(apiUrl("/api/v1/auth/me"), {
+      method: "GET",
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
   } catch {
-    throw new Error("Backend API is unreachable. Check VITE_API_URL, the Railway deployment, and CORS configuration.");
+    throw new Error("Unable to reach the authentication service. Check the API URL and deployment health.");
   }
   const data = await responseData(response);
   if (!response.ok) {
@@ -57,12 +65,15 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
   },
 
   async signIn({ email, password }: Credentials): Promise<Session> {
-    requireApiUrl();
     let response: Response;
     try {
-      response = await fetch(apiUrl("/api/v1/auth/login"), { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ email: email.trim(), password }) });
+      response = await fetch(apiUrl("/api/v1/auth/login"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
     } catch {
-      throw new Error("Backend API is unreachable. Check VITE_API_URL, the Railway deployment, and CORS configuration.");
+      throw new Error("Unable to reach the authentication service. Check the API URL and deployment health.");
     }
     const data = await responseData(response);
     if (!response.ok) throw new Error(parseApiError(data, `Login failed (HTTP ${response.status}).`));
@@ -74,19 +85,27 @@ export const jwtAuthAdapter: AuthProviderAdapter = {
   },
 
   async signUp({ email, password, name }: Credentials): Promise<Session> {
-    requireApiUrl();
     let response: Response;
     try {
-      response = await fetch(apiUrl("/api/v1/auth/register"), { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ email: email.trim(), password, full_name: name?.trim() || email.split("@")[0] || "User", department: "General" }) });
+      response = await fetch(apiUrl("/api/v1/auth/register"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ email: email.trim(), password, full_name: name?.trim() || email.split("@")[0] || "User", department: "General" }),
+      });
     } catch {
-      throw new Error("Backend API is unreachable. Check VITE_API_URL, the Railway deployment, and CORS configuration.");
+      throw new Error("Unable to reach the authentication service. Check the API URL and deployment health.");
     }
     const data = await responseData(response);
     if (!response.ok) throw new Error(parseApiError(data, `Registration failed (HTTP ${response.status}).`));
     throw new Error("Direct registration is disabled. Please use the OTP registration flow.");
   },
 
-  async signOut(): Promise<void> { try { if (getApiBaseUrl()) await fetch(apiUrl("/api/v1/auth/logout"), { method: "POST" }); } finally { clearSession(); } },
+  async signOut(): Promise<void> {
+    try { await fetch(apiUrl("/api/v1/auth/logout"), { method: "POST" }); } finally { clearSession(); }
+  },
 };
 
-export async function setSessionFromToken(token: string): Promise<Session> { try { const session = await fetchCurrentUser(token); persistSession(session, token); return session; } catch (error) { clearSession(); throw error instanceof Error ? error : new Error("Failed to authenticate token with the backend."); } }
+export async function setSessionFromToken(token: string): Promise<Session> {
+  try { const session = await fetchCurrentUser(token); persistSession(session, token); return session; }
+  catch (error) { clearSession(); throw error instanceof Error ? error : new Error("Failed to authenticate token with the backend."); }
+}
