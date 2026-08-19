@@ -1,22 +1,18 @@
 import type { ReasoningModelOption } from "@/api/types";
 
 /**
- * Reasoning provider catalog — product configuration for FUTURE integrations.
- *
- * Nothing in this list is connected in the current codebase: there is no
- * Ollama process, no cloud provider key, and no server-side inference call.
- * Every entry is therefore `available: false` and the UI must render it as
- * "Not configured". Flip `available` to true only when the corresponding
- * provider is genuinely wired through the service layer.
+ * Reasoning provider catalog.
+ * The actual model is selected server-side through OLLAMA_MODEL on Railway.
+ * The frontend never receives or stores the Ollama API key.
  */
 export const reasoningModels: ReasoningModelOption[] = [
   {
-    id: "qwen2.5-local",
-    name: "Qwen 2.5",
-    shortLabel: "Qwen 2.5 · Local",
-    tier: "local",
+    id: "ollama-cloud",
+    name: "Ollama Cloud",
+    shortLabel: "Ollama · Cloud",
+    tier: "cloud",
     provider: "Ollama",
-    detail: "Connected to local Ollama runtime (Qwen 2.5)",
+    detail: "Connected through the deployed FastAPI backend",
     available: true,
   },
   {
@@ -39,6 +35,6 @@ export const reasoningModels: ReasoningModelOption[] = [
   },
 ];
 
-export const defaultReasoningModelId: string | null = "qwen2.5-local";
+export const defaultReasoningModelId: string | null = "ollama-cloud";
 
 export const noModelConfiguredLabel = "No model configured";
