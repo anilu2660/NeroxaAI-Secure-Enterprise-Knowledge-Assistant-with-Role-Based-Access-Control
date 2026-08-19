@@ -16,8 +16,9 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from backend.config import settings
-from backend.database.session import init_db
+from backend.database.session import init_db, engine
 from backend.api.routes import api_router
 
 logger = logging.getLogger(__name__)
@@ -25,10 +26,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application startup and shutdown lifespan handler.
-    Initializes database tables, seeds roles/admin, and verifies vector DB collection.
-    """
     logger.info("Starting Enterprise RAG Application...")
     init_db()
 
@@ -43,7 +40,7 @@ async def lifespan(app: FastAPI):
             await document_service.sync_vector_store(db)
         logger.info("Startup vector store sync complete.")
     except Exception as e:
-        logger.warning("Could not connect to Qdrant or sync on startup: %s", str(e))
+        logger.exception("Could not connect to Qdrant or sync on startup: %s", str(e))
 
     yield
     logger.info("Shutting down Enterprise RAG Application...")
@@ -72,24 +69,61 @@ app.include_router(api_router)
 
 @app.get("/", tags=["Root"])
 async def root():
-    """Root endpoint — API entry point."""
     return {
         "message": f"Welcome to {settings.APP_NAME}",
         "version": settings.APP_VERSION,
         "docs": "/docs",
         "health": "/health",
+        "dependencies": "/health/dependencies",
         "llm_health": "/health/llm",
     }
 
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Application health check endpoint."""
     return {
         "status": "healthy",
         "service": settings.APP_NAME,
         "version": settings.APP_VERSION,
     }
+
+
+@app.get("/health/dependencies", tags=["Health"])
+def dependency_health_check():
+    """Verify PostgreSQL and Qdrant from the running backend."""
+    result = {
+        "postgres": {"status": "unhealthy", "error": None},
+        "qdrant": {
+            "status": "unhealthy",
+            "collection": settings.QDRANT_COLLECTION,
+            "collection_exists": False,
+            "error": None,
+        },
+    }
+
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        result["postgres"]["status"] = "healthy"
+    except Exception as exc:
+        result["postgres"]["error"] = str(exc)
+
+    try:
+        from backend.retriever.qdrant_client import qdrant_manager
+        collections = qdrant_manager.client.get_collections()
+        names = [item.name for item in collections.collections]
+        result["qdrant"]["status"] = "healthy"
+        result["qdrant"]["collection_exists"] = settings.QDRANT_COLLECTION in names
+    except Exception as exc:
+        result["qdrant"]["error"] = str(exc)
+
+    result["status"] = (
+        "healthy"
+        if result["postgres"]["status"] == "healthy"
+        and result["qdrant"]["status"] == "healthy"
+        else "degraded"
+    )
+    return result
 
 
 @app.get("/health/llm", tags=["Health"])
