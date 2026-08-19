@@ -32,7 +32,6 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Enterprise RAG Application...")
     init_db()
 
-    # Verify / Warmup Qdrant Vector Collection & Synchronize with Postgres
     try:
         from backend.retriever.qdrant_client import qdrant_manager
         qdrant_manager.ensure_collection_exists()
@@ -79,6 +78,7 @@ async def root():
         "version": settings.APP_VERSION,
         "docs": "/docs",
         "health": "/health",
+        "llm_health": "/health/llm",
     }
 
 
@@ -89,4 +89,19 @@ async def health_check():
         "status": "healthy",
         "service": settings.APP_NAME,
         "version": settings.APP_VERSION,
+    }
+
+
+@app.get("/health/llm", tags=["Health"])
+def llm_health_check():
+    """Check Ollama connectivity without exposing the API key."""
+    from backend.llm.service import llm_service
+
+    result = llm_service.check_health()
+    return {
+        "status": result.get("status"),
+        "provider": result.get("provider"),
+        "target_model": result.get("target_model"),
+        "model_available": result.get("model_available"),
+        "error": result.get("error"),
     }
