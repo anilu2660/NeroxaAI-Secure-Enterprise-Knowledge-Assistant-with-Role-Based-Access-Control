@@ -1,37 +1,30 @@
 # ============================================================
 # Backend Dockerfile - Enterprise RAG Platform
-# Build context: project root (e:\enterprise-rag)
-# Image: ajup738/neroxaai-backend
+# Build context: project root
 # ============================================================
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system deps: build tools + PostgreSQL client library
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Python env settings
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# --- Layer cache: install dependencies before copying source ---
 COPY backend/requirements.txt ./backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# Copy backend source (exclude myenv, __pycache__ via .dockerignore)
 COPY backend/ ./backend/
 
-# Expose FastAPI port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+# Railway provides PORT at runtime; keep 8000 as the local/default port.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD-SHELL curl -fsS "http://127.0.0.1:${PORT:-8000}/health" || exit 1
 
-# Run FastAPI with Uvicorn — module path: backend.main:app
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
