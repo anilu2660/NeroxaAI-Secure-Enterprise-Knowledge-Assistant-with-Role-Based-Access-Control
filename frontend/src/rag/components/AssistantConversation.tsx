@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { CheckCheck, CircleSlash, Copy, Cpu, ExternalLink, FileText, Lock, MessagesSquare, ShieldCheck, ThumbsDown, ThumbsUp } from "lucide-react";
+import { CheckCheck, CircleSlash, Copy, Cpu, ExternalLink, FileText, Lock, MessagesSquare, ShieldCheck, ThumbsDown, ThumbsUp, Server, AlertTriangle } from "lucide-react";
 import type { AssistantTurn } from "@/api/types";
 import { Markdown, MarkdownSkeleton } from "@/shared/components/ui/markdown";
-import { submitFeedbackToDb } from "@/api/workspace-service";
+import { getApiUrl, submitFeedbackToDb } from "@/api/workspace-service";
 import { StatusPill } from "@/shared/components/ui/status-pill";
 import { AssistantExecutionMetadata } from "./AssistantExecutionMetadata";
 
@@ -20,13 +20,60 @@ function AnswerFeedback({ query, answer, citationsCount = 0 }: { query?: string;
 }
 
 export function AssistantConversation({ turns, userName, pending, providerConfigured = false, retrievalConnected = false }: { turns: AssistantTurn[]; userName: string; pending: boolean; providerConfigured?: boolean; retrievalConnected?: boolean }) {
-  const bottomRef = useRef<HTMLDivElement>(null); useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [turns, pending]);
-  if (!turns.length) return <div className="flex min-h-[420px] items-center justify-center px-4 py-10"><div className="w-full max-w-xl text-center"><div className="mx-auto grid size-12 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-[0_0_40px_rgba(99,102,241,0.12)]"><MessagesSquare className="size-5" /></div><p className="mt-4 font-display text-lg font-semibold tracking-tight text-foreground">Ask Neroxa anything</p><p className="mx-auto mt-2 max-w-md text-[12px] leading-relaxed text-muted-foreground">Search your authorized enterprise knowledge and receive grounded answers with citations, access-aware retrieval, and source context.</p><div className="mt-5 flex flex-wrap items-center justify-center gap-2"><ServiceStatus label="AI inference" ok={providerConfigured} /><ServiceStatus label="Secure retrieval" ok={retrievalConnected} /></div></div></div>;
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [backendConnected, setBackendConnected] = useState(false);
+  const [backendChecked, setBackendChecked] = useState(false);
+  const [backendUrlConfigured, setBackendUrlConfigured] = useState(false);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [turns, pending]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const configured = Boolean(
+      (import.meta.env["VITE_API_URL"] as string | undefined)?.trim() ||
+      (import.meta.env["VITE_API_BASE_URL"] as string | undefined)?.trim(),
+    );
+    setBackendUrlConfigured(configured);
+
+    async function checkBackend() {
+      if (!configured) {
+        if (!cancelled) {
+          setBackendConnected(false);
+          setBackendChecked(true);
+        }
+        return;
+      }
+
+      try {
+        const response = await fetch(getApiUrl("/health"), {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (!cancelled) setBackendConnected(response.ok);
+      } catch {
+        if (!cancelled) setBackendConnected(false);
+      } finally {
+        if (!cancelled) setBackendChecked(true);
+      }
+    }
+
+    void checkBackend();
+    const interval = window.setInterval(() => void checkBackend(), 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  if (!turns.length) return <div className="flex min-h-[420px] items-center justify-center px-4 py-10"><div className="w-full max-w-xl text-center"><div className="mx-auto grid size-12 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-[0_0_40px_rgba(99,102,241,0.12)]"><MessagesSquare className="size-5" /></div><p className="mt-4 font-display text-lg font-semibold tracking-tight text-foreground">Ask Neroxa anything</p><p className="mx-auto mt-2 max-w-md text-[12px] leading-relaxed text-muted-foreground">Search your authorized enterprise knowledge and receive grounded answers with citations, access-aware retrieval, and source context.</p><div className="mt-5 flex flex-wrap items-center justify-center gap-2"><ServiceStatus label="AI inference" ok={providerConfigured} /><ServiceStatus label="Secure retrieval" ok={retrievalConnected} /><StatusPill tone={backendConnected ? "success" : "neutral"} icon={<Server className="size-3" />}>{backendChecked ? (backendConnected ? "Backend API · Connected" : backendUrlConfigured ? "Backend API · Offline" : "Backend URL · Missing") : "Backend API · Checking"}</StatusPill></div>{backendChecked && !backendConnected && !backendUrlConfigured ? <p className="mx-auto mt-3 max-w-lg text-[10.5px] leading-relaxed text-amber-200/80">Set <code className="rounded bg-secondary px-1 py-0.5">VITE_API_URL</code> in Vercel to your Railway FastAPI URL, then redeploy the frontend.</p> : null}{backendChecked && !backendConnected && backendUrlConfigured ? <p className="mx-auto mt-3 max-w-lg text-[10.5px] leading-relaxed text-amber-200/80">The configured Railway backend cannot be reached from this browser. Check the Railway deployment URL, CORS, and service health.</p> : null}</div></div>;
   return <div className="mx-auto w-full max-w-4xl space-y-5 px-1 py-1">
     {turns.map((turn) => <div key={turn.id} className="space-y-3">
       <article className="flex gap-3 px-2"><span className="grid size-8 shrink-0 place-items-center rounded-xl bg-secondary text-[10px] font-semibold text-foreground">{initials(userName)}</span><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="text-[11px] font-semibold text-foreground">{userName || "You"}</span><span className="text-[10px] text-muted-foreground">{timeLabel(turn.askedAt)}</span></div><p className="mt-1.5 text-[13px] leading-relaxed text-foreground/90">{turn.question}</p></div></article>
       <article className="rounded-2xl border border-hairline bg-card/65 p-4 shadow-sm backdrop-blur-xl sm:p-5"><header className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2.5"><span className="grid size-8 shrink-0 place-items-center rounded-xl bg-primary text-[10px] font-bold text-primary-foreground">N</span><div><p className="font-display text-[12px] font-semibold text-foreground">NeroxaAI</p><div className="flex items-center gap-2 text-[9.5px] text-muted-foreground"><span className="size-1.5 rounded-full bg-emerald-400" />Secure response</div></div></div><div className="flex flex-wrap items-center gap-1.5">{turn.answer?.modelLabel ? <StatusPill icon={<Cpu className="size-3" />}>{turn.answer.modelLabel}</StatusPill> : turn.answer ? <StatusPill icon={<CircleSlash className="size-3" />}>No model configured</StatusPill> : null}{turn.answer?.retrievalStatus ? <StatusPill tone="accent" icon={<ShieldCheck className="size-3" />}>{turn.answer.retrievalStatus}</StatusPill> : null}</div></header>
-        {turn.answer ? <div className="mt-4"><div className="prose prose-invert max-w-none pl-0 text-[13px] leading-7">{turn.answer.answer.toLowerCase().startsWith("access denied") ? <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/[0.08] p-4"><span className="grid size-8 shrink-0 place-items-center rounded-xl border border-destructive/30 bg-destructive/10"><Lock className="size-3.5 text-destructive" /></span><div><p className="text-[12.5px] font-semibold text-destructive">Access denied</p><p className="mt-1 text-[12px] leading-relaxed text-foreground/75">{turn.answer.answer.replace(/^access denied\.?\s*/i, "")}</p></div></div> : <Markdown content={turn.answer.answer} />}</div>
+        {turn.answer ? <div className="mt-4"><div className="prose prose-invert max-w-none pl-0 text-[13px] leading-7">{turn.answer.answer.toLowerCase().startsWith("access denied") ? <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/[0.08] p-4"><span className="grid size-8 shrink-0 place-items-center rounded-xl border border-destructive/30 bg-destructive/10"><Lock className="size-3.5 text-destructive" /></span><div><p className="text-[12.5px] font-semibold text-destructive">Access denied</p><p className="mt-1 text-[12px] leading-relaxed text-foreground/75">{turn.answer.answer.replace(/^access denied\.?\s*/i, "")}</p></div></div> : turn.answer.status === "no-provider" ? <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4"><span className="grid size-8 shrink-0 place-items-center rounded-xl border border-amber-500/30 bg-amber-500/10"><AlertTriangle className="size-3.5 text-amber-300" /></span><div><p className="text-[12.5px] font-semibold text-amber-200">AI service unavailable</p><p className="mt-1 text-[12px] leading-relaxed text-foreground/75">{backendConnected ? "The Railway backend is reachable, but the AI request failed. Check the Ollama Cloud configuration and backend logs." : backendUrlConfigured ? "The Railway backend is not reachable from this browser. Check the Railway URL, deployment, and CORS configuration." : "The frontend has no Railway backend URL configured. Set VITE_API_URL in Vercel and redeploy."}</p></div></div> : <Markdown content={turn.answer.answer} />}</div>
           {turn.answer.execution ? <AssistantExecutionMetadata data={turn.answer.execution} /> : null}
           {turn.answer.keyReferences.length ? <div className="mt-4 rounded-xl border border-hairline bg-secondary/20 p-3.5"><p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Key references</p><ul className="mt-2 space-y-1.5">{turn.answer.keyReferences.map((reference, i) => <li key={i} className="flex gap-2 text-[11.5px] leading-relaxed text-foreground/75"><span className="mt-1.5 size-1 shrink-0 rounded-full bg-primary" />{reference}</li>)}</ul></div> : null}
           {(() => {
@@ -100,7 +147,7 @@ export function AssistantConversation({ turns, userName, pending, providerConfig
               </div>
             );
           })()}
-          {!turn.answer.answer.toLowerCase().startsWith("access denied") ? <AnswerFeedback query={turn.question} answer={turn.answer.answer} citationsCount={turn.answer.citations.length} /> : null}
+          {!turn.answer.answer.toLowerCase().startsWith("access denied") && turn.answer.status !== "no-provider" ? <AnswerFeedback query={turn.question} answer={turn.answer.answer} citationsCount={turn.answer.citations.length} /> : null}
         </div> : <div className="mt-4"><MarkdownSkeleton /></div>}
       </article>
     </div>)}
