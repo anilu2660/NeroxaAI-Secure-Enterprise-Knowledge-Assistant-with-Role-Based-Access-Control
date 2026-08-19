@@ -1,7 +1,7 @@
 services:
   # ─── FastAPI Backend Service ──────────────────────────────────────────────────
   backend:
-    # Always build from the repository source; do not depend on a mutable :latest image.
+    # Always build from repository source; do not depend on a mutable :latest image.
     build:
       context: ../
       dockerfile: docker/Dockerfile.backend
@@ -9,7 +9,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DEBUG: ${DEBUG:-true}
+      DEBUG: ${DEBUG:-false}
       APP_NAME: ${APP_NAME:-Enterprise RAG}
       APP_VERSION: ${APP_VERSION:-0.1.0}
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/enterprise_rag}
@@ -23,7 +23,7 @@ services:
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-384}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-enterprise-rag-2026-change-me}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
@@ -57,7 +57,6 @@ services:
     networks:
       - enterprise-rag-network
 
-  # ─── PostgreSQL Database Service ─────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     container_name: enterprise_rag_db
@@ -72,7 +71,6 @@ services:
     networks:
       - enterprise-rag-network
 
-  # ─── Qdrant Vector Database Service ──────────────────────────────────────────
   qdrant:
     image: qdrant/qdrant:latest
     container_name: enterprise_rag_qdrant
@@ -84,7 +82,6 @@ services:
     networks:
       - enterprise-rag-network
 
-  # ─── Redis Cache Service ──────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: enterprise_rag_redis
