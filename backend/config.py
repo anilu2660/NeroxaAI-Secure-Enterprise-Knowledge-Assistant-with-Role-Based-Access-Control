@@ -14,7 +14,8 @@ if str(ROOT_DIR) not in sys.path:
 
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=True)
+# Never let a local .env override Railway/Vercel deployment variables.
+load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=False)
 
 
 def _normalize_ollama_base_url(value: str) -> str:
@@ -27,7 +28,6 @@ def _normalize_ollama_base_url(value: str) -> str:
 
 
 def _normalize_origin(value: str) -> str:
-    """Normalize browser Origin values for FastAPI CORS matching."""
     return (value or "").strip().rstrip("/")
 
 
