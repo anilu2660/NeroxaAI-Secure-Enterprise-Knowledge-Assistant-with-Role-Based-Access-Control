@@ -1,48 +1,7 @@
 services:
-  # ─── Ollama LLM Service (LOCAL / GPU-accelerated) ────────────────────────────
-  # Uncomment this block when running locally without Ollama Cloud.
-  # ollama:
-  #   image: ollama/ollama:latest
-  #   container_name: enterprise_rag_ollama
-  #   ports:
-  #     - "11434:11434"
-  #   volumes:
-  #     - ollama_data:/root/.ollama
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: all
-  #             capabilities: [gpu]
-  #   restart: unless-stopped
-  #   networks:
-  #     - enterprise-rag-network
-
-  # ─── One-shot init: pulls qwen2.5:3b (LOCAL only) ────────────────────────────
-  # Uncomment together with the ollama service above when running locally.
-  # ollama-pull:
-  #   image: ollama/ollama:latest
-  #   container_name: enterprise_rag_ollama_pull
-  #   entrypoint: >
-  #     sh -c "
-  #       echo 'Waiting for Ollama to be ready...';
-  #       until curl -sf http://ollama:11434/api/tags > /dev/null; do sleep 2; done;
-  #       echo 'Pulling qwen2.5:3b model...';
-  #       ollama pull qwen2.5:3b;
-  #       echo 'Model pull complete.';
-  #     "
-  #   environment:
-  #     - OLLAMA_HOST=http://ollama:11434
-  #   depends_on:
-  #     - ollama
-  #   networks:
-  #     - enterprise-rag-network
-  #   restart: "no"
-
   # ─── FastAPI Backend Service ──────────────────────────────────────────────────
   backend:
-    image: ajup738/neroxaai-backend:latest
+    # Always build from the repository source; do not depend on a mutable :latest image.
     build:
       context: ../
       dockerfile: docker/Dockerfile.backend
@@ -50,45 +9,46 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DEBUG=true
-      - APP_NAME=Enterprise RAG
-      - APP_VERSION=0.1.0
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/enterprise_rag}
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-      - QDRANT_COLLECTION=enterprise_docs
-      - QDRANT_URL=${QDRANT_URL:-}
-      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
-      # ── Ollama Cloud (production) ──────────────────────────────────────────────
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-https://api.ollama.com}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:3b}
-      - OLLAMA_API_KEY=${OLLAMA_API_KEY}
-      # ── Uncomment the line below and comment the two above for local Ollama ────
-      # - OLLAMA_BASE_URL=http://ollama:11434
-      # - OLLAMA_MODEL=qwen2.5:3b
-      # (no OLLAMA_API_KEY needed for local)
-      - EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
-      - EMBEDDING_DIMENSION=384
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-enterprise-rag-2026}
-      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
-      - CORS_ORIGINS=http://localhost,http://localhost:80
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      DEBUG: ${DEBUG:-true}
+      APP_NAME: ${APP_NAME:-Enterprise RAG}
+      APP_VERSION: ${APP_VERSION:-0.1.0}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/enterprise_rag}
+      QDRANT_HOST: ${QDRANT_HOST:-qdrant}
+      QDRANT_PORT: ${QDRANT_PORT:-6333}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-enterprise_docs}
+      QDRANT_URL: ${QDRANT_URL:-}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-https://ollama.com}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-384}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-enterprise-rag-2026-change-me}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:8000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:80,http://localhost:5173,http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      OAUTH_SECURE_COOKIES: ${OAUTH_SECURE_COOKIES:-false}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
       - db
       - qdrant
       - redis
-      # - ollama   # Uncomment when using local Ollama container
-    volumes:
-      - ../backend:/app/backend
     networks:
       - enterprise-rag-network
 
   # ─── React + Vite Frontend Service (Nginx) ────────────────────────────────────
   frontend:
-    image: ajup738/neroxaai-frontend:latest
     build:
       context: ../
       dockerfile: docker/Dockerfile.frontend
+      args:
+        # Empty means same-origin /api requests through Nginx.
+        # Set VITE_API_URL when deploying the SPA separately from the API.
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_FRONTEND_URL: ${VITE_FRONTEND_URL:-http://localhost}
     container_name: enterprise_rag_frontend
     ports:
       - "80:80"
@@ -102,9 +62,9 @@ services:
     image: postgres:16-alpine
     container_name: enterprise_rag_db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: enterprise_rag
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-enterprise_rag}
     ports:
       - "5432:5432"
     volumes:
@@ -141,7 +101,6 @@ volumes:
   postgres_data:
   qdrant_data:
   redis_data:
-  # ollama_data:   # Uncomment when using local Ollama container
 
 networks:
   enterprise-rag-network:
