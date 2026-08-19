@@ -19,6 +19,22 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=True)
 
 
+def _normalize_ollama_base_url(value: str) -> str:
+    """Normalize local/cloud Ollama base URLs for the official Python client.
+
+    Direct Ollama Cloud API access uses https://ollama.com as the client host.
+    Older/local configurations may contain https://api.ollama.com or a trailing
+    /api path; normalize those forms so deployments do not accidentally build
+    an invalid API URL.
+    """
+    url = (value or "").strip().rstrip("/")
+    if url == "https://api.ollama.com":
+        return "https://ollama.com"
+    if url.endswith("/api"):
+        return url[:-4].rstrip("/")
+    return url
+
+
 class Settings:
     APP_NAME: str = "Enterprise RAG"
     APP_VERSION: str = "0.1.0"
@@ -74,12 +90,16 @@ class Settings:
 
     RETRIEVAL_PIPELINE_VERSION: str = os.getenv("RETRIEVAL_PIPELINE_VERSION", "4")
 
-    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    # Ollama: use https://ollama.com for direct Cloud API access.
+    # https://api.ollama.com and a trailing /api are normalized automatically.
+    OLLAMA_BASE_URL: str = _normalize_ollama_base_url(
+        os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    )
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5")
     OLLAMA_NUM_GPU: int | None = int(os.getenv("OLLAMA_NUM_GPU")) if os.getenv("OLLAMA_NUM_GPU") else None
     OLLAMA_NUM_CTX: int = int(os.getenv("OLLAMA_NUM_CTX", "2048"))
-    # Optional: set to use Ollama Cloud instead of a local/containerised instance
-    OLLAMA_API_KEY: str | None = os.getenv("OLLAMA_API_KEY", None)
+    # Optional: set to use Ollama Cloud instead of a local/containerised instance.
+    OLLAMA_API_KEY: str | None = os.getenv("OLLAMA_API_KEY", "").strip() or None
 
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
     EMBEDDING_DIMENSION: int = int(os.getenv("EMBEDDING_DIMENSION", "384"))
@@ -96,7 +116,15 @@ class Settings:
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
     MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))
 
-    CORS_ORIGINS: list[str] = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
+    # In production, FRONTEND_URL is automatically allowed unless an explicit
+    # CORS_ORIGINS list is supplied. This prevents the common Vercel -> Railway
+    # browser CORS failure while retaining an explicit override for hardened deployments.
+    _cors_raw = os.getenv("CORS_ORIGINS", "").strip()
+    CORS_ORIGINS: list[str] = (
+        [origin.strip() for origin in _cors_raw.split(",") if origin.strip()]
+        if _cors_raw
+        else list(dict.fromkeys([FRONTEND_URL, "http://localhost:5173", "http://localhost:3000"]))
+    )
 
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
