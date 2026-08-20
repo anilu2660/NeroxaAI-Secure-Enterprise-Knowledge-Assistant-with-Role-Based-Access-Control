@@ -19,7 +19,7 @@ import { StatusPill } from "@/shared/components/ui/status-pill";
 export const Route = createFileRoute("/_workspace/users")({ head: () => ({ meta: [{ title: "User Management — NeroxaAI" }, { name: "description", content: "Manage enterprise users, roles, departments and knowledge access." }, { name: "robots", content: "noindex" }] }), component: UserManagementRoute });
 function UserManagementRoute() { return <RoleGuard role="ADMIN" permission="users:manage"><UserManagementPage /></RoleGuard>; }
 const selectClass =
-  "h-10 w-full rounded-2xl border border-hairline bg-secondary/35 px-3 text-[12px] font-medium text-foreground outline-none transition-all hover:bg-secondary/60 hover:border-primary/40 focus-visible:border-primary/60 shadow-xs";
+  "h-9.5 w-full rounded-[6px] border border-border bg-secondary/30 px-2.5 text-[12px] font-medium text-foreground outline-none transition-colors hover:border-foreground/30 focus-visible:border-primary";
 const PAGE_SIZE = 6;
 
 type DialogState =
@@ -45,7 +45,7 @@ function UserManagementPage() {
 
   const filters = useQuery({ queryKey: ["managed-user-filters"], queryFn: getManagedUserFilterOptions });
   const users = useQuery({
-    queryKey: ["managed-users", search, role, department, status, accessScope],
+    queryKey: ["managed-users", { search, role, department, status, accessScope }],
     queryFn: () => listManagedUsers({ search, role, department, status, accessScope }),
   });
 
@@ -78,13 +78,11 @@ function UserManagementPage() {
     onSuccess: (r) => refresh(r.message),
   });
   const update = useMutation({
-    mutationFn: (input: { id: string; draft: ManagedUserDraft }) =>
-      updateManagedUser(input.id, input.draft),
+    mutationFn: (d: { id: string; draft: ManagedUserDraft }) => updateManagedUser(d.id, d.draft),
     onSuccess: (r) => refresh(r.message),
   });
   const toggleAccess = useMutation({
-    mutationFn: (input: { id: string; status: ManagedUserStatus }) =>
-      setManagedUserStatus(input.id, input.status),
+    mutationFn: (d: { id: string; status: ManagedUserStatus }) => setManagedUserStatus(d.id, d.status),
     onSuccess: (r) => refresh(r.message),
   });
   const remove = useMutation({
@@ -106,22 +104,22 @@ function UserManagementPage() {
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, rows.length);
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="space-y-4 sm:space-y-6 pb-6 pt-1">
       <PageHeader
-        eyebrow="Identity & access"
+        eyebrow="Identity & Governance"
         title="User management"
-        description="Manage enterprise identities, roles, departments, and retrieval access scopes from one controlled admin surface."
+        description="Manage organizational accounts, roles, departments, and active retrieval access scopes."
         actions={
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <StatusPill tone="accent" icon={<ShieldCheck className="size-3.5" />}>
-              Admin only
+              RBAC Directory
             </StatusPill>
             <button
               type="button"
               onClick={() => setDialog({ kind: "create" })}
-              className="flex h-10 items-center gap-2 rounded-2xl bg-gradient-to-r from-primary via-purple-500 to-primary bg-[length:200%_auto] px-4 text-[12px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all duration-300 hover:bg-[position:right_center] hover:shadow-lg hover:shadow-primary/30 active:scale-95"
+              className="flex h-9 items-center gap-1.5 rounded-[6px] bg-primary px-3.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 cursor-pointer"
             >
-              <UserPlus className="size-4" />
+              <UserPlus className="size-3.5" />
               Add user
             </button>
           </div>
@@ -129,10 +127,10 @@ function UserManagementPage() {
       />
 
       {/* Search & Filter Toolbar */}
-      <section className="rounded-3xl border border-hairline bg-gradient-to-br from-card/85 via-card/55 to-primary/[0.04] p-4.5 shadow-lg backdrop-blur-2xl transition-all">
+      <section className="rounded-[8px] sm:rounded-[10px] border border-border bg-card p-3.5 sm:p-4 shadow-xs transition-all">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,1fr))_auto]">
           <label className="relative flex items-center">
-            <Search className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
             <input
               value={search}
               onChange={(e) => {
@@ -141,7 +139,7 @@ function UserManagementPage() {
               }}
               placeholder="Search name or email..."
               aria-label="Search users"
-              className="h-10 w-full rounded-2xl border border-hairline bg-background/40 pl-10 pr-3.5 text-[12.5px] text-foreground placeholder:text-muted-foreground/70 outline-none transition-all focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-9.5 w-full rounded-[6px] border border-border bg-secondary/30 pl-9 pr-3 text-[12px] text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:border-foreground/30 focus-visible:border-primary"
             />
           </label>
 
@@ -234,7 +232,7 @@ function UserManagementPage() {
               type="button"
               onClick={resetFilters}
               disabled={!hasFilters}
-              className="flex h-10 w-full items-center justify-center gap-1.5 rounded-2xl border border-hairline bg-secondary/35 px-4 text-[12px] font-medium text-foreground transition-all hover:bg-secondary/60 hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-9.5 w-full items-center justify-center gap-1.5 rounded-[6px] border border-border bg-secondary/30 px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-secondary/60 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <SlidersHorizontal className="size-3.5" />
               Reset
@@ -245,11 +243,11 @@ function UserManagementPage() {
 
       {/* Users Table */}
       {users.isLoading ? (
-        <div className="rounded-3xl border border-hairline bg-card/55 px-6 py-16 text-center text-[12.5px] text-muted-foreground backdrop-blur-2xl">
+        <div className="rounded-[8px] border border-border bg-card/60 px-6 py-14 text-center text-[12.5px] text-muted-foreground">
           Loading identity directory…
         </div>
       ) : users.isError ? (
-        <div className="rounded-3xl border border-hairline bg-card/55 px-6 py-16 text-center text-[12.5px] text-muted-foreground backdrop-blur-2xl">
+        <div className="rounded-[8px] border border-border bg-card/60 px-6 py-14 text-center text-[12.5px] text-muted-foreground">
           Identity service unavailable.
         </div>
       ) : (
@@ -274,9 +272,9 @@ function UserManagementPage() {
                 type="button"
                 disabled={currentPage <= 1}
                 onClick={() => setPage(currentPage - 1)}
-                className="grid size-9 place-items-center rounded-xl border border-hairline bg-secondary/35 text-foreground transition-all hover:bg-secondary/60 hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-35"
+                className="grid size-8 place-items-center rounded-[6px] border border-border bg-secondary/30 text-foreground transition-colors hover:bg-secondary/60 disabled:cursor-not-allowed disabled:opacity-35"
               >
-                <ChevronLeft className="size-4" />
+                <ChevronLeft className="size-3.5" />
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((v) => (
                 <button
@@ -284,10 +282,10 @@ function UserManagementPage() {
                   type="button"
                   onClick={() => setPage(v)}
                   className={cn(
-                    "grid size-9 place-items-center rounded-xl border text-[12px] font-semibold transition-all",
+                    "grid size-8 place-items-center rounded-[6px] border text-[12px] font-semibold transition-colors",
                     v === currentPage
-                      ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                      : "border-hairline bg-secondary/35 text-foreground hover:bg-secondary/60",
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-secondary/30 text-foreground hover:bg-secondary/60",
                   )}
                 >
                   {v}
@@ -297,9 +295,9 @@ function UserManagementPage() {
                 type="button"
                 disabled={currentPage >= totalPages}
                 onClick={() => setPage(currentPage + 1)}
-                className="grid size-9 place-items-center rounded-xl border border-hairline bg-secondary/35 text-foreground transition-all hover:bg-secondary/60 hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-35"
+                className="grid size-8 place-items-center rounded-[6px] border border-border bg-secondary/30 text-foreground transition-colors hover:bg-secondary/60 disabled:cursor-not-allowed disabled:opacity-35"
               >
-                <ChevronRight className="size-4" />
+                <ChevronRight className="size-3.5" />
               </button>
             </div>
           </div>

@@ -325,18 +325,18 @@ export function ArchitectureSimulation() {
       {/* Section Header */}
       <div className="max-w-2xl">
         <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary">
-          Interactive Architecture Simulation
+          Deterministic Data Pipeline
         </span>
         <h2 className="mt-2 font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-foreground">
-          Visual request &amp; token flow workflow engine.
+          Sequential execution pipeline from query to verified citation.
         </h2>
-        <p className="mt-2.5 sm:mt-3 text-[13px] sm:text-[14px] leading-relaxed text-muted-foreground">
-          Simulate real-time requests traversing the Nexora AI zero-trust pipeline. Inspect node inputs, outputs, query-time vector boundaries, and local inference telemetry.
+        <p className="mt-2.5 sm:mt-3 text-[13.5px] sm:text-[14.5px] leading-relaxed text-muted-foreground">
+          Simulate how requests traverse the zero-trust pipeline. Inspect node inputs, outputs, query-time RBAC filters, and local inference telemetry in real time.
         </p>
       </div>
 
-      {/* Main n8n-Style Workflow Canvas Container */}
-      <div className="mt-8 sm:mt-10 rounded-[10px] border border-border bg-card shadow-sm overflow-hidden">
+      {/* Main Sequential Workflow Canvas Container */}
+      <div className="mt-8 sm:mt-10 rounded-[8px] border border-border bg-card shadow-xs overflow-hidden">
         {/* Top Workflow Control Bar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 border-b border-border bg-secondary/40 px-3 sm:px-4 py-2.5 sm:py-3">
           {/* Scenario Trigger Tabs */}

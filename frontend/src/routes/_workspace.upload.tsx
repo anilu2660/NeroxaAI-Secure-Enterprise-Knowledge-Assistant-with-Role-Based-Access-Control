@@ -14,7 +14,7 @@ import { StatusPill } from "@/shared/components/ui/status-pill";
 export const Route = createFileRoute("/_workspace/upload")({ head: () => ({ meta: [{ title: "Upload Document — NeroxaAI" }, { name: "description", content: "Controlled enterprise document ingestion with access metadata." }, { name: "robots", content: "noindex" }] }), component: UploadRoute });
 function UploadRoute() { return <RoleGuard permission="documents:upload"><UploadDocumentPage /></RoleGuard>; }
 const fieldClass =
-  "h-10.5 w-full rounded-2xl border border-hairline bg-secondary/30 px-3.5 text-[12.5px] text-foreground placeholder:text-muted-foreground/70 outline-none transition-all hover:border-primary/40 focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring shadow-xs";
+  "h-10 w-full rounded-[6px] border border-border bg-secondary/30 px-3 text-[12.5px] text-foreground placeholder:text-muted-foreground/70 outline-none transition-colors hover:border-foreground/30 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring";
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -145,7 +145,7 @@ function UploadDocumentPage() {
   const errors = showErrors ? preparation.fieldErrors : {};
 
   return (
-    <div className="space-y-6 pb-6 pt-1">
+    <div className="space-y-4 sm:space-y-6 pb-6 pt-1">
       <PageHeader
         eyebrow="Controlled ingestion"
         title="Upload document"
@@ -160,8 +160,8 @@ function UploadDocumentPage() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
         <div className="space-y-4 sm:space-y-5">
           {/* Step 1: Select Source */}
-          <section className="rounded-2xl sm:rounded-3xl border border-hairline bg-card/60 p-4 sm:p-6 shadow-xl backdrop-blur-2xl transition-all">
-            <div className="mb-3.5 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-hairline/80">
+          <section className="rounded-[8px] sm:rounded-[10px] border border-border bg-card p-4 sm:p-6 shadow-xs transition-all">
+            <div className="mb-3.5 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border">
               <div>
                 <h2 className="font-display text-sm font-semibold text-foreground">
                   1. Select source
@@ -184,8 +184,8 @@ function UploadDocumentPage() {
           </section>
 
           {/* Step 2: Define Knowledge Metadata */}
-          <section className="rounded-2xl sm:rounded-3xl border border-hairline bg-card/60 p-4 sm:p-6 shadow-xl backdrop-blur-2xl transition-all">
-            <div className="mb-3.5 sm:mb-4 pb-3 border-b border-hairline/80">
+          <section className="rounded-[8px] sm:rounded-[10px] border border-border bg-card p-4 sm:p-6 shadow-xs transition-all">
+            <div className="mb-3.5 sm:mb-4 pb-3 border-b border-border">
               <h2 className="font-display text-sm font-semibold text-foreground">
                 2. Define knowledge metadata
               </h2>
@@ -268,7 +268,7 @@ function UploadDocumentPage() {
                   rows={3}
                   maxLength={1000}
                   placeholder="Purpose or summary for administrators."
-                  className="w-full resize-none rounded-2xl border border-hairline bg-secondary/30 px-3.5 py-2.5 text-[12.5px] outline-none transition-all placeholder:text-muted-foreground/70 hover:border-primary/40 focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring shadow-xs"
+                  className="w-full resize-none rounded-[6px] border border-border bg-secondary/30 px-3 py-2 text-[12.5px] outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-foreground/30 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring"
                 />
                 <FieldHint error={errors.description} hint="Administrative context &amp; summary." />
               </label>
@@ -276,12 +276,14 @@ function UploadDocumentPage() {
           </section>
 
           {/* Step 3: Validate & Index */}
-          <section className="rounded-3xl border border-hairline bg-card/60 p-6 shadow-xl backdrop-blur-2xl transition-all">
-            <div className="mb-4 flex items-center justify-between pb-3 border-b border-hairline/80">
+          <section className="rounded-[8px] sm:rounded-[10px] border border-border bg-card p-4 sm:p-6 shadow-xs transition-all">
+            <div className="mb-4 flex items-center justify-between pb-3 border-b border-border">
               <div>
-                <h2 className="font-display text-sm font-semibold">3. Validate &amp; index</h2>
+                <h2 className="font-display text-sm font-semibold text-foreground">
+                  3. Ingestion validation
+                </h2>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Files are parsed, chunked, embedded, and indexed into Qdrant.
+                  Pre-flight checks evaluate RBAC claims, file integrity, and index quotas.
                 </p>
               </div>
               <StatusPill tone={serviceConnected ? "success" : "warning"}>

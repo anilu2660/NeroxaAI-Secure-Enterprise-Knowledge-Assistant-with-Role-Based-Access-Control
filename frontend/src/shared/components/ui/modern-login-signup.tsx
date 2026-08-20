@@ -294,46 +294,22 @@ export function ModernLoginSignup() {
 
   return (
     <main className="relative flex min-h-svh w-full items-center justify-center overflow-hidden bg-background px-3 py-6 sm:px-6 sm:py-10">
-      {/* Animated dot grid background */}
+      {/* Subtle clean background grid */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="auth-dots absolute inset-0 opacity-60" />
-        <div className="absolute inset-0 bg-[radial-gradient(110%_80%_at_50%_0%,transparent_10%,var(--background)_75%)]" />
+        <div className="auth-dots absolute inset-0 opacity-30" />
       </div>
 
-      {/* Floating interactive particles */}
-      <Particles quantity={40} staticity={35} ease={50} color="99, 102, 241" className="opacity-50" />
-
-      {/* Atmospheric mesh gradient glows */}
-      <div className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 size-[340px] sm:size-[550px] rounded-full bg-primary/12 blur-[100px] sm:blur-[140px]" />
-      <div className="pointer-events-none absolute top-1/3 -left-32 size-[300px] sm:size-[400px] rounded-full bg-purple-500/10 blur-[100px] sm:blur-[120px]" />
-      <div className="pointer-events-none absolute -bottom-20 -right-20 size-[300px] sm:size-[400px] rounded-full bg-blue-500/10 blur-[100px] sm:blur-[120px]" />
-
-      {/* Floating accent orbs */}
-      <div className="pointer-events-none absolute top-[15%] left-[12%] size-3 rounded-full bg-primary/40 blur-[2px] animate-pulse" />
-      <div className="pointer-events-none absolute top-[70%] right-[15%] size-2 rounded-full bg-purple-400/50 blur-[2px] animate-pulse [animation-delay:1s]" />
-      <div className="pointer-events-none absolute top-[40%] right-[8%] size-2.5 rounded-full bg-indigo-400/40 blur-[2px] animate-pulse [animation-delay:2s]" />
-
-      {/* Main Authentication Container using Shadcn Card & Magic UI BorderBeam */}
-      <Card className="relative z-10 w-full max-w-[460px] overflow-hidden border-hairline bg-card/90 p-1 sm:p-2 shadow-2xl backdrop-blur-2xl">
-        <BorderBeam size={340} duration={14} delay={0} colorFrom="#3b82f6" colorTo="#a855f7" />
-
-        <CardHeader className="space-y-2.5 sm:space-y-3 p-4 sm:p-6 pb-3 sm:pb-4">
-          {/* Top subtle glow line inside card */}
-          <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-
+      {/* Main Authentication Container */}
+      <Card className="relative z-10 w-full max-w-[440px] overflow-hidden rounded-[8px] border border-border bg-card p-1 shadow-sm">
+        <CardHeader className="space-y-2.5 sm:space-y-3 p-4 sm:p-6 pb-2 sm:pb-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-2.5">
-              <span className="grid size-8.5 sm:size-9 place-items-center rounded-xl border border-primary/30 bg-primary/10 shadow-xs">
-                <Logo className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-primary" />
+            <div className="flex items-center gap-2">
+              <span className="grid size-7.5 place-items-center rounded-[6px] border border-primary/30 bg-primary/10 shadow-2xs">
+                <Logo className="h-4 w-4 text-primary" />
               </span>
-              <div>
-                <span className="font-display text-[15px] sm:text-[17px] font-bold tracking-tight text-foreground">
-                  NeroxaAI
-                </span>
-                <span className="ml-1.5 sm:ml-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 sm:px-2 py-0.5 text-[8.5px] sm:text-[9px] font-bold uppercase tracking-wider text-emerald-400">
-                  Enterprise
-                </span>
-              </div>
+              <span className="font-display text-[15px] font-bold tracking-tight text-foreground">
+                Nexora AI
+              </span>
             </div>
 
             {mode === "signup" && signupStep === "verify_otp" ? (
@@ -341,14 +317,14 @@ export function ModernLoginSignup() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setSignupStep("details")}
-                className="h-8 gap-1 text-[11.5px] text-muted-foreground hover:text-foreground"
+                className="h-7 rounded-[4px] gap-1 text-[11px] text-muted-foreground hover:text-foreground"
               >
-                <ArrowLeft className="size-3.5" /> Back
+                <ArrowLeft className="size-3" /> Back
               </Button>
             ) : null}
           </div>
 
-          {/* Shadcn Tabs for Mode Switcher */}
+          {/* Mode Switcher */}
           <Tabs
             value={mode}
             onValueChange={(val) => {
@@ -356,13 +332,13 @@ export function ModernLoginSignup() {
               setSignupStep("details");
               setErrors({});
             }}
-            className="w-full pt-2"
+            className="w-full pt-1"
           >
-            <TabsList className="grid w-full grid-cols-2 rounded-xl bg-secondary/40 p-1">
-              <TabsTrigger value="signin" className="rounded-lg text-[13px] font-medium">
+            <TabsList className="grid w-full grid-cols-2 rounded-[6px] bg-secondary/50 p-0.5">
+              <TabsTrigger value="signin" className="rounded-[4px] text-[12.5px] font-medium py-1">
                 Sign In
               </TabsTrigger>
-              <TabsTrigger value="signup" className="rounded-lg text-[13px] font-medium">
+              <TabsTrigger value="signup" className="rounded-[4px] text-[12.5px] font-medium py-1">
                 Create Account
               </TabsTrigger>
             </TabsList>

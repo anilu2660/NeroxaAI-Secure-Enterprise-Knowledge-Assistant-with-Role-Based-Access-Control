@@ -100,22 +100,22 @@ export function HowItWorks() {
                 key={step.step}
                 type="button"
                 onClick={() => setActiveStep(idx)}
-                className={`w-full text-left rounded-[10px] border p-5 transition-all cursor-pointer ${
+                className={`w-full text-left rounded-[8px] border p-4 sm:p-5 transition-all cursor-pointer ${
                   isSelected
-                    ? "border-primary bg-secondary/60 shadow-sm"
-                    : "border-border bg-card/60 hover:bg-secondary/30"
+                    ? "border-primary bg-secondary/50 shadow-xs"
+                    : "border-border bg-card hover:bg-secondary/30"
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <span
-                      className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-[4px] ${
+                      className={`font-mono text-[10.5px] font-bold px-2 py-0.5 rounded-[4px] ${
                         isSelected ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
                       }`}
                     >
                       STEP {step.step}
                     </span>
-                    <h3 className="font-display text-[15px] font-bold text-foreground">
+                    <h3 className="font-display text-[14.5px] sm:text-[15px] font-bold text-foreground">
                       {step.title}
                     </h3>
                   </div>

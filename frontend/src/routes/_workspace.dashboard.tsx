@@ -118,52 +118,36 @@ function DashboardPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6">
-      {/* Hero Welcome Banner with Glow Effects & Live Clock */}
-      <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-primary/20 bg-gradient-to-br from-card/90 via-card/50 to-primary/[0.08] p-4 sm:p-6 shadow-xl backdrop-blur-2xl transition-all duration-300">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-16 -top-16 size-72 rounded-full bg-primary/20 blur-3xl animate-pulse"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-16 left-1/3 size-64 rounded-full bg-purple-500/15 blur-3xl"
-        />
-
+      {/* Hero Welcome Banner */}
+      <section className="relative overflow-hidden rounded-[8px] sm:rounded-[10px] border border-border bg-card p-4 sm:p-6 shadow-xs transition-all duration-300">
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1.5 sm:space-y-2 min-w-0 max-w-2xl">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-primary/30 bg-primary/10 px-2.5 sm:px-3.5 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-semibold tracking-wide text-primary shadow-xs">
-                <Zap className="size-3 sm:size-3.5 animate-pulse text-primary shrink-0" />
-                <span className="truncate">KNOWLEDGE WORKSPACE</span>
+              <div className="inline-flex items-center gap-1.5 rounded-[4px] border border-border bg-secondary/50 px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] font-mono text-muted-foreground">
+                <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span>KNOWLEDGE WORKSPACE</span>
               </div>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-secondary/50 px-2.5 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-mono text-muted-foreground shadow-xs">
-                <span className="size-1.5 rounded-full bg-primary animate-ping shrink-0" />
-                <span>{formattedTime}</span>
+              <div className="inline-flex items-center gap-1.5 rounded-[4px] border border-border bg-secondary/30 px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] font-mono text-muted-foreground">
+                <span className="font-semibold text-foreground">{formattedTime}</span>
               </div>
             </div>
 
-            <h1 className="font-display text-xl sm:text-2xl sm:text-3.5xl font-bold tracking-tight text-foreground flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <span>
-                {greeting} {icon},
-              </span>
-              <span className="bg-gradient-to-r from-primary via-purple-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-sm animate-gradient-x">
-                {userName}
-              </span>
+            <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
+              {greeting}, {userName} {icon}
             </h1>
-
-            <p className="text-[12px] sm:text-[13px] leading-relaxed text-muted-foreground">
-              Search authorized organizational knowledge, inspect sources, and manage your workspace from one secure surface.
+            <p className="text-[12.5px] sm:text-[13.5px] leading-relaxed text-muted-foreground">
+              Ask questions across indexed documents or query departmental knowledge under active RBAC policies.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl sm:rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 sm:px-3.5 sm:py-2 backdrop-blur-md shadow-xs shrink-0 self-start sm:self-auto">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-            </span>
-            <span className="text-[11px] sm:text-[12px] font-semibold text-emerald-500 dark:text-emerald-400">
-              Operational
-            </span>
+          <div className="flex items-center gap-2 shrink-0 self-stretch sm:self-auto justify-end">
+            <Link
+              to="/assistant"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-[6px] bg-primary px-4 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 cursor-pointer"
+            >
+              <Bot className="size-4" />
+              Open Assistant
+            </Link>
           </div>
         </div>
       </section>

@@ -395,12 +395,14 @@ function parseMarkdownBlocks(text: string): Block[] {
 // ─── Inline Markdown Formatter ─────────────────────────────────────────────
 
 function renderInlineMarkdown(text: string): React.ReactNode[] {
-  // Regex to match inline code (`code`), bold (**bold**), italic (*italic*), links ([title](url))
+  // Regex to match inline code (`code`), bold (**bold**), italic (*italic*), links ([title](url)), source citations ([Source: doc, Page: p])
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let keyIdx = 0;
 
   while (remaining) {
+    // Citation tag [Source: Title, Page: N] or [Source: Title]
+    const citationMatch = remaining.match(/\[Source:\s*([^,\]]+)(?:,\s*(?:Page|p\.?)\s*:?\s*([^\]]+))?\]/i);
     // Inline code `code`
     const codeMatch = remaining.match(/`([^`]+)`/);
     // Bold **text**
@@ -412,6 +414,7 @@ function renderInlineMarkdown(text: string): React.ReactNode[] {
 
     // Find earliest match
     const matches = [
+      citationMatch ? { type: "citation", match: citationMatch, index: citationMatch.index! } : null,
       codeMatch ? { type: "code", match: codeMatch, index: codeMatch.index! } : null,
       boldMatch ? { type: "bold", match: boldMatch, index: boldMatch.index! } : null,
       italicMatch ? { type: "italic", match: italicMatch, index: italicMatch.index! } : null,
@@ -430,11 +433,25 @@ function renderInlineMarkdown(text: string): React.ReactNode[] {
       parts.push(remaining.slice(0, first.index));
     }
 
-    if (first.type === "code") {
+    if (first.type === "citation") {
+      const docTitle = first.match[1]?.trim() || "Document";
+      const pageNumber = first.match[2]?.trim();
+      parts.push(
+        <span
+          key={keyIdx++}
+          title={`Authorized Source: ${docTitle}${pageNumber ? ` (Page ${pageNumber})` : ""}`}
+          className="inline-flex items-center gap-1 mx-1 px-2 py-0.5 rounded-[4px] border border-primary/25 bg-primary/10 font-mono text-[10.5px] font-medium text-primary shadow-2xs hover:bg-primary/20 transition-colors cursor-default select-none"
+        >
+          <span className="opacity-75">📄</span>
+          <span className="font-semibold truncate max-w-[150px]">{docTitle}</span>
+          {pageNumber ? <span className="opacity-80">· p. {pageNumber}</span> : null}
+        </span>,
+      );
+    } else if (first.type === "code") {
       parts.push(
         <code
           key={keyIdx++}
-          className="rounded-md border border-hairline bg-secondary/50 px-1.5 py-0.5 font-mono text-[11.5px] text-foreground/90"
+          className="rounded-[4px] border border-border bg-secondary/50 px-1.5 py-0.5 font-mono text-[11.5px] text-foreground/90"
         >
           {first.match[1]}
         </code>,

@@ -97,16 +97,16 @@ export function MetricsSection() {
           return (
             <div
               key={metric.label}
-              className="rounded-[10px] border border-border bg-card p-3.5 sm:p-5 shadow-sm space-y-1.5 sm:space-y-2"
+              className="rounded-[8px] border border-border bg-card p-3.5 sm:p-5 shadow-xs space-y-1 sm:space-y-1.5"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">{metric.label}</span>
+                <span className="text-[10.5px] sm:text-[11px] font-medium text-muted-foreground truncate">{metric.label}</span>
                 <Icon className="size-3.5 sm:size-4 text-primary shrink-0 ml-1" />
               </div>
               <p className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                 {metric.value}
               </p>
-              <p className="text-[10px] sm:text-[11.5px] text-muted-foreground font-mono truncate">{metric.subtext}</p>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground font-mono truncate">{metric.subtext}</p>
             </div>
           );
         })}
@@ -115,7 +115,7 @@ export function MetricsSection() {
       {/* Motion Charts & Graphs */}
       <div className="mt-6 sm:mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
         {/* Latency Distribution Area Chart */}
-        <div className="lg:col-span-7 rounded-[10px] border border-border bg-card p-4 sm:p-6 shadow-sm space-y-3 sm:space-y-4">
+        <div className="lg:col-span-7 rounded-[8px] border border-border bg-card p-4 sm:p-6 shadow-xs space-y-3 sm:space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
             <div>
               <h3 className="font-display text-[14px] sm:text-[15px] font-bold text-foreground">
@@ -135,7 +135,7 @@ export function MetricsSection() {
               <AreaChart data={LATENCY_DATA} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                 <defs>
                   <linearGradient id="latencyGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25} />
                     <stop offset="95%" stopColor="#2563eb" stopOpacity={0.0} />
                   </linearGradient>
                   <linearGradient id="cacheGrad" x1="0" y1="0" x2="0" y2="1">

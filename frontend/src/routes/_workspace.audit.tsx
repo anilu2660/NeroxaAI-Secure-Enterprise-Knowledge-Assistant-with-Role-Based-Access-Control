@@ -207,10 +207,10 @@ function AuditLogsPage() {
       </header>
 
       {/* Security Banner Card */}
-      <div className="flex flex-wrap items-center justify-between gap-3.5 rounded-3xl border border-primary/20 bg-gradient-to-br from-card/85 via-card/50 to-primary/[0.04] p-4.5 shadow-lg backdrop-blur-2xl">
-        <div className="flex min-w-0 items-center gap-3.5">
-          <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-emerald-500/35 bg-emerald-500/15 text-emerald-400 shadow-xs">
-            <ShieldCheck className="size-5" />
+      <div className="flex flex-wrap items-center justify-between gap-3.5 rounded-[8px] sm:rounded-[10px] border border-border bg-card p-4 shadow-xs">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[6px] border border-emerald-500/30 bg-emerald-500/10 text-emerald-500">
+            <ShieldCheck className="size-4.5" />
           </span>
           <div className="min-w-0">
             <p className="font-display text-[13.5px] font-semibold text-foreground">
@@ -223,32 +223,29 @@ function AuditLogsPage() {
             </p>
           </div>
         </div>
-        <span className="flex shrink-0 items-center gap-1.5 text-[11.5px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-3 py-1">
-          <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-mono font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-[4px] px-2.5 py-0.5">
+          <span className="size-1.5 rounded-full bg-emerald-500" />
           PostgreSQL Connected
         </span>
       </div>
 
       {/* Search & Filter Toolbar */}
-      <div className="rounded-3xl border border-hairline bg-gradient-to-br from-card/85 via-card/55 to-primary/[0.04] p-5 shadow-xl backdrop-blur-2xl">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_auto] lg:items-center">
+      <div className="rounded-[8px] sm:rounded-[10px] border border-border bg-card p-4 shadow-xs">
+        <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_auto] lg:items-center">
           <label className="relative flex items-center">
-            <Search className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
             <input
               value={query.search}
               onChange={(event) => update("search", event.target.value.slice(0, 120))}
               placeholder="Search events, actions, resources..."
               aria-label="Search audit events"
-              className="h-11 w-full rounded-2xl border border-hairline/80 bg-secondary/30 pl-10 pr-3.5 text-[12.5px] text-foreground placeholder:text-muted-foreground/75 outline-none transition-all hover:border-primary/40 focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring shadow-xs"
+              className="h-10 w-full rounded-[6px] border border-border bg-secondary/30 pl-9 pr-3 text-[12.5px] text-foreground placeholder:text-muted-foreground/75 outline-none transition-colors hover:border-foreground/30 focus-visible:border-primary"
             />
           </label>
 
-          <div className="relative flex h-11 items-center gap-2.5 rounded-2xl border border-hairline/80 bg-secondary/30 px-3.5 shadow-xs transition-all hover:border-primary/40">
+          <div className="relative flex h-10 items-center gap-2 rounded-[6px] border border-border bg-secondary/30 px-3 transition-colors hover:border-foreground/30">
             <Calendar className="size-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex-1">
-              <span className="block text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground/80">
-                Date &amp; Time Range
-              </span>
               <div className="flex items-center gap-1.5">
                 <input
                   type="date"
@@ -272,9 +269,9 @@ function AuditLogsPage() {
           <button
             type="button"
             onClick={reset}
-            className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-hairline/80 bg-secondary/40 px-5 text-[12px] font-semibold text-foreground transition-all hover:bg-secondary/70 hover:border-primary/40 shadow-xs active:scale-95"
+            className="flex h-10 items-center justify-center gap-1.5 rounded-[6px] border border-border bg-secondary/30 px-4 text-[12px] font-medium text-foreground transition-colors hover:bg-secondary/60 cursor-pointer"
           >
-            <RotateCcw className="size-4" />
+            <RotateCcw className="size-3.5" />
             Reset
           </button>
         </div>

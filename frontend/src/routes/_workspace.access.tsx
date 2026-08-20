@@ -90,9 +90,9 @@ function AccessControlPage() {
 
       {/* Top Banner Grid */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-        <div className="flex items-start gap-3.5 rounded-3xl border border-primary/20 bg-gradient-to-br from-card/85 via-card/50 to-primary/[0.04] p-5 shadow-lg backdrop-blur-2xl">
-          <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-primary/15 text-primary shadow-xs">
-            <Info className="size-5" />
+        <div className="flex items-start gap-3 rounded-[8px] sm:rounded-[10px] border border-border bg-card p-4 sm:p-5 shadow-xs">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[6px] border border-primary/30 bg-primary/10 text-primary">
+            <Info className="size-4.5" />
           </span>
           <div>
             <p className="font-display text-[13.5px] font-semibold text-foreground">
@@ -104,9 +104,9 @@ function AccessControlPage() {
           </div>
         </div>
 
-        <div className="flex items-start gap-3.5 rounded-3xl border border-hairline bg-card/60 p-5 shadow-lg backdrop-blur-2xl">
-          <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-emerald-500/30 bg-emerald-500/15 text-emerald-400 shadow-xs">
-            <ShieldCheck className="size-5" />
+        <div className="flex items-start gap-3 rounded-[8px] sm:rounded-[10px] border border-border bg-card p-4 sm:p-5 shadow-xs">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[6px] border border-emerald-500/30 bg-emerald-500/10 text-emerald-500">
+            <ShieldCheck className="size-4.5" />
           </span>
           <div>
             <p className="font-display text-[13.5px] font-semibold text-foreground">
@@ -120,7 +120,7 @@ function AccessControlPage() {
       </div>
 
       {notice ? (
-        <div className="flex items-center gap-2.5 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-[12px] font-medium text-primary backdrop-blur-md">
+        <div className="flex items-center gap-2 rounded-[6px] border border-primary/30 bg-primary/10 px-3.5 py-2.5 text-[12px] font-medium text-primary">
           <Info className="size-4 shrink-0" />
           <span>{notice}</span>
         </div>

@@ -18,10 +18,9 @@ export function Footer() {
             <p className="text-[12.5px] leading-relaxed text-muted-foreground">
               Secure enterprise knowledge platform with Retrieval-Augmented Generation, Role-Based Access Control, and air-gapped local AI inference.
             </p>
-            <div className="flex items-center gap-2 pt-1">
-              <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[10.5px] font-mono font-medium text-emerald-600 dark:text-emerald-400">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                All Systems Operational · v2.4 Air-Gapped
+            <div className="pt-1">
+              <span className="text-[11px] font-mono text-muted-foreground">
+                Air-gapped on-premise architecture
               </span>
             </div>
           </div>
