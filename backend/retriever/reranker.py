@@ -59,6 +59,16 @@ class CrossEncoderReranker:
 
         return f"legacy:{id(chunk)}"
 
+    @staticmethod
+    def _extract_query_entities(query: str) -> list[str]:
+        """Extract capitalized multi-word phrases and alphanumeric entities from query."""
+        import re
+        proper_nouns = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", query)
+        exact_terms = re.findall(r"\b(?:[A-Z]{2,}|[A-Za-z0-9_\-]{3,})\b", query)
+        stop = {"WHAT", "THE", "OUR", "ARE", "AND", "FOR", "HOW", "CAN", "YOU", "TELL", "ABOUT", "POLICY", "COMPANY"}
+        filtered = [t for t in set(proper_nouns + exact_terms) if t.upper() not in stop and len(t) >= 3]
+        return filtered
+
     def rerank(
         self,
         query: str,
@@ -75,12 +85,29 @@ class CrossEncoderReranker:
             return [result]
 
         pairs = [(query, self._rerank_text(chunk)[:1800]) for chunk in chunks]
+        query_entities = self._extract_query_entities(query)
 
         try:
             scores = self.model.predict(pairs, show_progress_bar=False)
             score_values = scores.tolist() if hasattr(scores, "tolist") else list(scores)
+
+            # Apply entity-aware boost/penalty
+            adjusted_scores = []
+            for score, chunk in zip(score_values, chunks):
+                score_float = float(score)
+                chunk_text = (self._rerank_text(chunk) + " " + chunk.get("title", "")).lower()
+
+                if query_entities:
+                    entity_matched = any(e.lower() in chunk_text for e in query_entities)
+                    if entity_matched:
+                        score_float += 0.25
+                    else:
+                        score_float -= 0.35
+
+                adjusted_scores.append(score_float)
+
             scored = sorted(
-                zip(score_values, chunks),
+                zip(adjusted_scores, chunks),
                 key=lambda x: float(x[0]),
                 reverse=True,
             )
@@ -91,9 +118,9 @@ class CrossEncoderReranker:
             min_score = settings.RERANKER_MIN_SCORE
             threshold_enabled = settings.RERANKER_ENABLE_THRESHOLD
 
-            for score, chunk in scored:
-                score_float = float(score)
-                if threshold_enabled and score_float < min_score:
+            for score_float, chunk in scored:
+                # Raw cross-encoder logits below -7.0 indicate strong negative relevance
+                if threshold_enabled and score_float < min(-7.0, min_score):
                     filtered_count += 1
                     continue
 
@@ -109,8 +136,15 @@ class CrossEncoderReranker:
                 if len(reranked) >= limit:
                     break
 
+            # Fallback: if all candidate chunks were filtered by strict threshold, preserve top candidate
+            if not reranked and scored:
+                top_score, top_chunk = scored[0]
+                enriched = dict(top_chunk)
+                enriched["reranker_score"] = round(float(top_score), 4)
+                reranked.append(enriched)
+
             logger.info(
-                "Reranked %d → %d chunks | filtered=%d | threshold=%s %.4f | best=%.4f",
+                "Entity-Aware Reranked %d → %d chunks | filtered=%d | threshold=%s %.4f | best=%.4f",
                 len(chunks),
                 len(reranked),
                 filtered_count,

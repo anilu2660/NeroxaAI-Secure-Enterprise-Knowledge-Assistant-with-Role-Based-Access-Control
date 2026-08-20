@@ -10,6 +10,7 @@ from backend.tools.executor import executor
 from backend.tools.registry import registry
 from backend.tools.service import tool_calling_service
 from backend.web.search import web_search_service
+from backend.verification.claim_verifier import claim_verifier
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class QueryOrchestrator:
         self.web = web_search_service
         self.tools = tool_calling_service
         self.agent = agent_service
+        self.claim_verifier = claim_verifier
 
     async def process(
         self,
@@ -33,7 +35,7 @@ class QueryOrchestrator:
         conversation_history: str = "",
         department_filter: str | None = None,
         top_k: int = 5,
-        temperature: float = 0.7,
+        temperature: float = 0.0,
         web_search: bool = False,
         tool_ids: list[str] | None = None,
     ) -> dict:
@@ -121,10 +123,18 @@ class QueryOrchestrator:
                 top_k=top_k,
                 temperature=min(temperature, 0.3),
             )
+            agent_sources = self._agent_sources(result)
+            # Post-generation verification for agent answers
+            verification = self.claim_verifier.verify(
+                query=query,
+                answer=result.answer,
+                context_chunks=[{"content": s.get("snippet", ""), "title": s.get("title", ""), "page": s.get("page", 1)} for s in agent_sources],
+                extracted_sources=agent_sources,
+            )
             return {
                 "query": query,
-                "answer": result.answer,
-                "sources": self._agent_sources(result),
+                "answer": verification.verified_answer,
+                "sources": verification.verified_sources,
                 "model": self.llm.model,
                 "chunks_retrieved": sum(
                     item.result.get("chunks_retrieved", 0)
@@ -135,6 +145,8 @@ class QueryOrchestrator:
                 "route_confidence": decision.confidence,
                 "agent_plan": result.plan.model_dump(),
                 "agent_steps": [item.model_dump() for item in result.steps],
+                "grounding_score": verification.grounding_score,
+                "is_grounded": verification.is_grounded,
                 "cached": False,
             }
 
@@ -168,6 +180,7 @@ class QueryOrchestrator:
                 department_filter=department_filter,
                 top_k=top_k,
                 temperature=temperature,
+                conversation_history=conversation_history,
             )
 
         web_results = []

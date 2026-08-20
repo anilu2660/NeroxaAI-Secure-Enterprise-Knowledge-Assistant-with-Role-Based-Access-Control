@@ -45,13 +45,13 @@ class QueryRouter:
                 tool_name="calculator",
             )
 
-        # Check multi-step agent request
+        # Check multi-step agent request (strict multi-action signals only)
         multi_step_signals = (
-            ("according to" in text and ("calculate" in text or "compute" in text)),
-            ("policy" in text and ("calculate" in text or "percentage" in text or "%" in text)),
-            ("latest" in text and ("our" in text or "company" in text or "internal" in text)),
-            ("search" in text and "then" in text),
-            ("find" in text and "calculate" in text),
+            ("search" in text and "then calculate" in text),
+            ("find" in text and "then compute" in text),
+            ("extract" in text and "and calculate" in text),
+            ("retrieve" in text and "and plot" in text),
+            ("calculate the difference between" in text),
         )
         if any(multi_step_signals):
             return QueryRoutingDecision(
@@ -60,6 +60,26 @@ class QueryRouter:
                 confidence=0.94,
                 reason="Multi-step internal retrieval and tool execution required.",
                 requires_agent=True,
+            )
+
+        # Meta-conversational / AI behavior questions (e.g., "why were you not able to retrieve...")
+        meta_conversational_patterns = (
+            r"\bwhy\s+(were|was|did|could|are|can't|couldn't|didn't|wasn't|weren't)\s+(you|u|the bot|the system|it|the model)\b",
+            r"\bwhy\s+(you|u)\s+(earlier|previously|before)?\s*(was|were|are|did|could|couldn't|didn't|wasn't)\b",
+            r"\bwhy\s+(did|could|were|was)\s+(you|u)\s+(not|fail|unable)\b",
+            r"\b(why|how)\s+come\s+(you|u)\b",
+            r"\bexplain\s+why\s+(you|u|it)\b",
+            r"\bwhy\s+is\s+(it|the model|the system)\s+(failing|hallucinating|wrong|mistaken)\b",
+            r"\bwhat\s+went\s+wrong\b",
+        )
+        if any(re.search(pattern, text) for pattern in meta_conversational_patterns):
+            return QueryRoutingDecision(
+                category=QueryCategory.GENERAL_KNOWLEDGE,
+                route=QueryRoute.CASUAL,
+                confidence=0.99,
+                reason="Meta-conversational inquiry about AI behavior or past turns -> CASUAL.",
+                requires_rag=False,
+                requires_web=False,
             )
 
         # Enterprise internal knowledge terms
@@ -220,8 +240,9 @@ User query:
                 }
                 words = set(re.findall(r"[a-z0-9']+", query.lower()))
                 if bool(words & enterprise_terms):
-                    decision.route = QueryRoute.HYBRID
-                    decision.requires_web = True
+                    decision.category = QueryCategory.INTERNAL_KNOWLEDGE
+                    decision.route = QueryRoute.ENTERPRISE
+                    decision.requires_web = False
                     decision.requires_rag = True
                 else:
                     decision.requires_web = True

@@ -16,10 +16,12 @@ logger = logging.getLogger(__name__)
 
 ROLE_ACCESS_MAP = {
     "admin": None,
-    "hr": {"HR", "General"},
-    "finance": {"Finance", "General"},
-    "engineering": {"Engineering", "General"},
-    "sales": {"Sales", "General"},
+    "administrator": None,
+    "superadmin": None,
+    "hr": {"HR", "Human Resources", "People", "People Operations", "Talent", "General"},
+    "finance": {"Finance", "Accounting", "Strategic Finance", "General"},
+    "engineering": {"Engineering", "Technology", "IT", "Software", "General"},
+    "sales": {"Sales", "Marketing", "Commercial", "General"},
     "employee": {"General"},
 }
 
@@ -49,7 +51,7 @@ class RetrieverService:
         if not user_id:
             raise ValueError("Authenticated user ID is required for RAG retrieval.")
 
-        if role_lower == "admin":
+        if role_lower in ("admin", "administrator", "superadmin"):
             if department_filter:
                 return Filter(
                     must=[

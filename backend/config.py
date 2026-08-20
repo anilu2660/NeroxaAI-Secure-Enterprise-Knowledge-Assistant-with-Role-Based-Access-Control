@@ -97,12 +97,12 @@ class Settings:
     EMBEDDING_DIMENSION: int = int(os.getenv("EMBEDDING_DIMENSION", "384"))
     RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
     RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "5"))
-    RERANKER_MIN_SCORE: float = float(os.getenv("RERANKER_MIN_SCORE", "0.0"))
-    RERANKER_ENABLE_THRESHOLD: bool = os.getenv("RERANKER_ENABLE_THRESHOLD", "false").lower() == "true"
+    RERANKER_MIN_SCORE: float = float(os.getenv("RERANKER_MIN_SCORE", "-6.0"))
+    RERANKER_ENABLE_THRESHOLD: bool = os.getenv("RERANKER_ENABLE_THRESHOLD", "true").lower() == "true"
     ENABLE_HYBRID_SEARCH: bool = os.getenv("ENABLE_HYBRID_SEARCH", "true").lower() == "true"
 
-    CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1200"))
-    CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
+    CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "2400"))
+    CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "300"))
     MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))
 
     _cors_raw = os.getenv("CORS_ORIGINS", "").strip()

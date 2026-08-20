@@ -8,15 +8,28 @@ logger = logging.getLogger(__name__)
 
 
 class QueryRewriter:
+    _COREFERENCE_PATTERNS = re.compile(
+        r"\b(it|its|they|them|their|this|that|these|those|he|him|his|she|her|same|above|previous|also|too|what about|how about|and for|explain more)\b",
+        re.IGNORECASE,
+    )
+
     def __init__(self):
         self.llm = llm_service
+
+    def has_coreference(self, query: str) -> bool:
+        """Check if query contains pronouns or ellipsis requiring conversation context."""
+        words = query.strip().split()
+        if len(words) <= 3:
+            return True
+        return bool(self._COREFERENCE_PATTERNS.search(query))
 
     async def rewrite(self, query: str, conversation_history: str = "") -> str:
         if not query or not query.strip():
             raise ValueError("Query cannot be empty.")
 
-        if not conversation_history.strip():
-            return query.strip()
+        clean_q = query.strip()
+        if not conversation_history.strip() or not self.has_coreference(clean_q):
+            return clean_q
 
         prompt = f"""
 You are a conversational query rewriter for an enterprise RAG system.

@@ -15,6 +15,9 @@ from backend.embeddings.service import embedding_service
 from backend.retriever.service import retriever_service
 from backend.retriever.reranker import reranker_service
 from backend.cache.service import semantic_cache
+from backend.rag.evidence_gate import evidence_gate, EvidenceState
+from backend.verification.claim_verifier import claim_verifier
+from backend.rag.structured_lookup import structured_lookup
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +37,22 @@ _DEPT_KEYWORDS = re.compile(
 )
 
 
+_META_CONVERSATIONAL_PATTERNS = re.compile(
+    r"\bwhy\s+(were|was|did|could|are|can't|couldn't|didn't|wasn't|weren't)\s+(you|u|the bot|the system|it|the model)\b|"
+    r"\bwhy\s+(you|u)\s+(earlier|previously|before)?\s*(was|were|are|did|could|couldn't|didn't|wasn't)\b|"
+    r"\bwhy\s+(did|could|were|was)\s+(you|u)\s+(not|fail|unable)\b|"
+    r"\b(why|how)\s+come\s+(you|u)\b|"
+    r"\bexplain\s+why\s+(you|u|it)\b|"
+    r"\bwhy\s+is\s+(it|the model|the system)\s+(failing|hallucinating|wrong|mistaken)\b|"
+    r"\bwhat\s+went\s+wrong\b",
+    re.IGNORECASE,
+)
+
+
 def is_conversational_query(query: str) -> bool:
     stripped = query.strip()
+    if _META_CONVERSATIONAL_PATTERNS.search(stripped):
+        return True
     word_count = len(stripped.split())
     if _DEPT_KEYWORDS.search(stripped):
         return False
@@ -49,11 +66,14 @@ class RAGService:
         self.retriever = retriever_service
         self.reranker = reranker_service
         self.cache = semantic_cache
+        self.evidence_gate = evidence_gate
+        self.claim_verifier = claim_verifier
+        self.structured_lookup = structured_lookup
 
     def _clean_intent(self, query: str) -> str:
         """Strip conversational filler to extract core search concepts."""
         cleaned = re.sub(
-            r"^(can you (please\s+)?(assist|help|guide)( me(\s+(with|in|on))?)?|tell me (about|all about)|what (is|are|about)( the| our)?|give me (an overview|a summary|details) of|explain|describe|show me( the)?|help with)\s+",
+            r"^(can you (please\s+)?(assist|help|guide)( me(\s+(with|in|on))?)?|tell me (who is|who|about|all about)|what (is|are|about)( the| our)?|give me (an overview|a summary|details) of|explain|describe|show me( the)?|help with)\s+",
             "",
             query.strip(),
             flags=re.IGNORECASE,
@@ -61,36 +81,18 @@ class RAGService:
         return cleaned if len(cleaned) >= 3 else query
 
     def _expand_query(self, query: str) -> str:
+        """Preserve exact lookup queries without keyword pollution."""
+        if self.evidence_gate.is_exact_lookup(query) or self.structured_lookup.match_employee_query(query):
+            return query
+
         q_lower = query.lower()
         expansions: list[str] = []
 
-        # Finance & accounting policy domains
-        if any(term in q_lower for term in ("finance", "financial", "finance policy", "financial policy")):
-            expansions.append("finance financial policy guidelines procedures accounting expenditure budget rules")
-        if any(term in q_lower for term in ("certifying officer", "invoice", "payment", "bill", "voucher")):
-            expansions.append("verifying passing scrutiny bills vouchers sanctioning authority payment")
-        if any(term in q_lower for term in ("petty cash", "petty-cash", "cash float", "cash limit", "imprest")):
-            expansions.append(
-                "imprest petty cash float maximum limit Head Accounting Services written consent increase"
-            )
-        if any(term in q_lower for term in ("delegated financial", "financial management responsibilities", "delegate financial", "delegation of financial")):
-            expansions.append(
-                "delegate financial management responsibilities Finance Officer Board of Management Board of Governors Chairman Chancellor assigned"
-            )
-        if any(term in q_lower for term in ("new source", "new source of income", "source of income", "revenue source")):
-            expansions.append("establish source of revenue funds approval authorization financial implications proposal")
-        if any(term in q_lower for term in ("financial implication", "financial implications", "cost implication")):
-            expansions.append("financial impact cost budget expenditure funding")
-        if any(term in q_lower for term in ("travel", "reimbursement", "per diem", "allowance", "expense")):
-            expansions.append("travel policy expense reimbursement claims submission per diem lodging transport")
-
-        # HR & People Operations domains
-        if any(term in q_lower for term in ("hr", "human resource", "leave", "vacation", "holiday", "sick leave", "maternity", "paternity", "absence", "attendance", "labor", "labour", "law", "laws", "policy", "policies", "employment")):
-            expansions.append("human resources HR leave policy policies vacation absence attendance benefits entitlements labor laws employment regulations compliance guidelines")
-
-        # Security & IT domains
-        if any(term in q_lower for term in ("security", "cyber", "confidential", "data protection", "access control", "password", "authentication")):
-            expansions.append("information security cyber access control credentials data protection compliance")
+        # Only expand broad thematic overview requests
+        if any(term in q_lower for term in ("finance policy", "financial policy", "general policy", "overview")):
+            expansions.append("guidelines procedures accounting expenditure budget rules")
+        if any(term in q_lower for term in ("hr policy", "leave policy", "general hr")):
+            expansions.append("leave vacation absence attendance benefits guidelines")
 
         return f"{query} {' '.join(expansions)}" if expansions else query
 
@@ -99,6 +101,14 @@ class RAGService:
         cleaned = self._clean_intent(query)
         if cleaned.lower() != query.lower() and len(cleaned) >= 3:
             sub_queries.append(cleaned)
+
+        # Extract explicit employee/person names if present in query
+        name_match = re.search(r"\b(who is|about|salary of|details of|for|retrieve)\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,2})", query, re.IGNORECASE)
+        if name_match:
+            extracted_name = name_match.group(2).strip()
+            stop_phrases = {"our organization", "the company", "the department", "the team", "her role", "his role", "the salary", "a salary"}
+            if extracted_name.lower() not in stop_phrases and len(extracted_name) >= 3:
+                sub_queries.append(extracted_name)
 
         if len(query) > 60 and re.search(r"\b(and|as well as|versus|while|plus)\b", query, re.IGNORECASE):
             parts = re.split(r"\b(and|as well as|versus|while|plus)\b", query, flags=re.IGNORECASE)
@@ -110,7 +120,7 @@ class RAGService:
             ]
             if len(valid_parts) > 1:
                 sub_queries.extend(valid_parts)
-        return sub_queries[:3]
+        return sub_queries[:4]
 
     @staticmethod
     def _chunk_identity(chunk: dict) -> str:
@@ -182,7 +192,8 @@ class RAGService:
         user_department: str,
         department_filter: str | None = None,
         top_k: int = 5,
-        temperature: float = 0.7,
+        temperature: float = 0.0,
+        conversation_history: str = "",
     ) -> dict:
         query = query.strip()
         if not query or len(query) > 500:
@@ -200,6 +211,31 @@ class RAGService:
                 "chunks_retrieved": 0,
                 "cached": False,
             }
+
+        # ─── Structured Entity / Employee Directory Lookup Path ───────────────
+        emp_match = self.structured_lookup.match_employee_query(query)
+        if emp_match:
+            record = self.structured_lookup.lookup_employee(emp_match)
+            if record:
+                formatted_answer = self.structured_lookup.format_employee_response(record)
+                return {
+                    "query": query,
+                    "answer": formatted_answer,
+                    "sources": [
+                        {
+                            "document_title": "Enterprise Identity Directory",
+                            "page_number": 1,
+                            "department": record["department"],
+                            "snippet": f"Verified Directory Record: {record['full_name']} ({record['role']}) - {record['email']}",
+                        }
+                    ],
+                    "model": "structured-entity-engine",
+                    "chunks_retrieved": 1,
+                    "evidence_state": EvidenceState.VERIFIED.value,
+                    "grounding_score": 1.0,
+                    "is_grounded": True,
+                    "cached": False,
+                }
 
         cached_result = await self.cache.get(
             query=query,
@@ -252,34 +288,67 @@ class RAGService:
                 "cached": False,
             }
 
-        llm_response = await self.llm.agenerate_response(query=query, context_chunks=context_chunks, temperature=temperature)
+        # ─── Pre-Generation Evidence Gating & Calibrated Abstention ───────────
+        assessment = self.evidence_gate.evaluate(query, context_chunks)
+        if assessment.state == EvidenceState.NOT_VERIFIED:
+            logger.info(
+                "Evidence gate abstained before generation | reason=%s",
+                assessment.reason,
+            )
+            return {
+                "query": query,
+                "answer": assessment.abstention_message or "I could not verify that information from the available authorized documents.",
+                "sources": [],
+                "model": self.llm.model,
+                "chunks_retrieved": 0,
+                "evidence_state": assessment.state.value,
+                "cached": False,
+            }
+
+        # ─── Deterministic LLM Generation (temperature=0.0 for exact facts) ───
+        llm_response = await self.llm.agenerate_response(
+            query=query,
+            context_chunks=context_chunks,
+            temperature=0.0,
+            conversation_history=conversation_history,
+        )
         ans_text = llm_response.get("answer", "")
-        lowered_ans = ans_text.lower()
-        is_insufficient = (
-            "cannot find sufficient information" in lowered_ans
-            or "could not find sufficient information" in lowered_ans
-            or "no authorized enterprise information" in lowered_ans
-            or "not authorized to access" in lowered_ans
-            or "no relevant documents" in lowered_ans
-            or "cannot answer this question based on the provided context" in lowered_ans
-            or "security alert" in lowered_ans
-            or "access denied" in lowered_ans
+        raw_sources = llm_response.get("sources", [])
+
+        # ─── Post-Generation Claim & Citation Verification ───────────────────
+        verification = self.claim_verifier.verify(
+            query=query,
+            answer=ans_text,
+            context_chunks=context_chunks,
+            extracted_sources=raw_sources,
         )
 
-        sources = [] if is_insufficient else llm_response.get("sources", [])
+        final_answer = verification.verified_answer
+
+        # Structured insufficient evidence determination (not string-based)
+        is_insufficient = (
+            assessment.state == EvidenceState.NOT_VERIFIED
+            or not verification.is_grounded
+            or verification.grounding_score < 0.5
+        )
+
+        sources = [] if is_insufficient else verification.verified_sources
         chunks_retrieved = 0 if is_insufficient else len(context_chunks)
 
         result = {
             "query": query,
-            "answer": ans_text,
+            "answer": final_answer,
             "sources": sources,
             "model": llm_response["model"],
             "chunks_retrieved": chunks_retrieved,
             "context_chunks": context_chunks if not is_insufficient else [],
+            "grounding_score": verification.grounding_score,
+            "is_grounded": verification.is_grounded,
+            "evidence_state": assessment.state.value,
             "cached": False,
         }
 
-        if not is_insufficient:
+        if not is_insufficient and verification.is_grounded:
             await self.cache.set(
                 query=query,
                 answer=result["answer"],
@@ -301,7 +370,8 @@ class RAGService:
         user_department: str,
         department_filter: str | None = None,
         top_k: int = 5,
-        temperature: float = 0.7,
+        temperature: float = 0.0,
+        conversation_history: str = "",
     ):
         from backend.llm.prompts import detect_prompt_injection
         query = query.strip()
@@ -315,12 +385,47 @@ class RAGService:
             yield {"type": "error", "error": "Security Alert: Query contains input patterns that violate enterprise safety policies."}
             return
 
+        # ─── Structured Employee Directory Lookup for Streaming ───────────────
+        emp_match = self.structured_lookup.match_employee_query(query)
+        if emp_match:
+            record = self.structured_lookup.lookup_employee(emp_match)
+            if record:
+                formatted_answer = self.structured_lookup.format_employee_response(record)
+                yield {
+                    "type": "metadata",
+                    "sources": [
+                        {
+                            "document_title": "Enterprise Identity Directory",
+                            "page_number": 1,
+                            "department": record["department"],
+                            "snippet": f"Verified Directory Record: {record['full_name']} ({record['role']}) - {record['email']}",
+                        }
+                    ],
+                    "chunks_retrieved": 1,
+                }
+                yield {"type": "token", "token": formatted_answer}
+                return
+
         context_chunks = await self._retrieve_and_rerank(query, user_id, user_role, user_department, department_filter, top_k)
         if not context_chunks:
             yield {"type": "error", "error": "No relevant authorized documents found in the knowledge base."}
             return
 
-        async for chunk in self.llm.astream_response(query=query, context_chunks=context_chunks, temperature=temperature):
+        # Pre-flight evidence evaluation before streaming
+        assessment = self.evidence_gate.evaluate(query, context_chunks)
+        if assessment.state == EvidenceState.NOT_VERIFIED:
+            yield {
+                "type": "error",
+                "error": assessment.abstention_message or "I could not verify that information from the available authorized documents.",
+            }
+            return
+
+        async for chunk in self.llm.astream_response(
+            query=query,
+            context_chunks=context_chunks,
+            temperature=0.0,
+            conversation_history=conversation_history,
+        ):
             yield chunk
 
     async def check_pipeline_health(self) -> dict:

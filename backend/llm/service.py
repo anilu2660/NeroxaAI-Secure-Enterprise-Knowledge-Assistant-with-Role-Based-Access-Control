@@ -88,10 +88,11 @@ class LLMService:
         self,
         query: str,
         context_chunks: list[dict],
-        temperature: float = 0.7,
+        temperature: float = 0.0,
         max_tokens: int = 1024,
+        conversation_history: str = "",
     ) -> dict:
-        user_prompt = build_query_prompt(query, context_chunks)
+        user_prompt = build_query_prompt(query, context_chunks, conversation_history)
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
@@ -132,10 +133,11 @@ class LLMService:
         self,
         query: str,
         context_chunks: list[dict],
-        temperature: float = 0.7,
+        temperature: float = 0.0,
         max_tokens: int = 1024,
+        conversation_history: str = "",
     ) -> dict:
-        user_prompt = build_query_prompt(query, context_chunks)
+        user_prompt = build_query_prompt(query, context_chunks, conversation_history)
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
@@ -175,7 +177,7 @@ class LLMService:
     async def agenerate_conversational_response(
         self,
         query: str,
-        temperature: float = 0.7,
+        temperature: float = 0.0,
         max_tokens: int = 512,
     ) -> dict:
         user_prompt = build_conversational_prompt(query)
@@ -218,8 +220,9 @@ class LLMService:
         self,
         query: str,
         context_chunks: list[dict],
-        temperature: float = 0.7,
+        temperature: float = 0.0,
         max_tokens: int = 1024,
+        conversation_history: str = "",
     ):
         sources = self._extract_sources(context_chunks)
         yield {"type": "metadata", "sources": sources, "chunks_retrieved": len(context_chunks)}
@@ -228,7 +231,7 @@ class LLMService:
                 model=self.model,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": build_query_prompt(query, context_chunks)},
+                    {"role": "user", "content": build_query_prompt(query, context_chunks, conversation_history)},
                 ],
                 options=self._build_options(temperature, max_tokens),
                 stream=True,
