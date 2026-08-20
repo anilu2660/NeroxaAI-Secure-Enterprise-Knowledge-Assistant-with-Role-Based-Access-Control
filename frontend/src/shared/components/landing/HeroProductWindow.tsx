@@ -94,43 +94,43 @@ export function HeroProductWindow() {
   const scenario = SCENARIOS.find((s) => s.id === activeTab) ?? SCENARIOS[0]!;
 
   return (
-    <section className="relative mx-auto w-full max-w-[1280px] px-6 pb-16">
+    <section className="relative mx-auto w-full max-w-[1280px] px-4 sm:px-6 pb-12 sm:pb-16">
       {/* Product Demonstration Container */}
       <div className="overflow-hidden rounded-[10px] border border-border bg-card shadow-sm">
         {/* Workspace Mockup Header Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/40 px-4 py-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 border-b border-border bg-secondary/40 px-3 sm:px-4 py-2.5 sm:py-3">
+          <div className="flex items-center justify-between sm:justify-start gap-2">
             <div className="flex items-center gap-1.5 pr-2 border-r border-border">
-              <span className="size-2.5 rounded-full bg-border" />
-              <span className="size-2.5 rounded-full bg-border" />
-              <span className="size-2.5 rounded-full bg-border" />
+              <span className="size-2 sm:size-2.5 rounded-full bg-border" />
+              <span className="size-2 sm:size-2.5 rounded-full bg-border" />
+              <span className="size-2 sm:size-2.5 rounded-full bg-border" />
             </div>
-            <span className="font-mono text-[12px] font-medium text-foreground">
+            <span className="font-mono text-[11px] sm:text-[12px] font-medium text-foreground truncate">
               Nexora AI Workspace
             </span>
-            <span className="rounded-[4px] border border-border bg-background px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+            <span className="rounded-[4px] border border-border bg-background px-1.5 sm:px-2 py-0.5 text-[9.5px] sm:text-[10px] font-mono text-muted-foreground">
               v2.4-airgapped
             </span>
           </div>
 
           {/* Persona Switcher Tabs */}
-          <div className="flex items-center gap-1 rounded-[6px] border border-border bg-background p-0.5">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[6px] border border-border bg-background p-0.5">
             {SCENARIOS.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => setActiveTab(s.id)}
-                className={`rounded-[4px] px-3 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                className={`shrink-0 rounded-[4px] px-2.5 sm:px-3 py-1 text-[10.5px] sm:text-[11px] font-medium transition-colors cursor-pointer ${
                   activeTab === s.id
                     ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 }`}
               >
                 {s.id === "finance"
-                  ? "Finance Controller"
+                  ? "Finance"
                   : s.id === "engineering"
-                    ? "Staff Engineer"
-                    : "Unauthorized Attempt"}
+                    ? "Engineering"
+                    : "Unauthorized"}
               </button>
             ))}
           </div>
@@ -139,19 +139,19 @@ export function HeroProductWindow() {
         {/* Product Workspace Body */}
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border">
           {/* Left Column: Query Context & RBAC Evaluation */}
-          <div className="p-5 lg:col-span-4 bg-secondary/15 flex flex-col justify-between space-y-4">
-            <div className="space-y-4">
+          <div className="p-3.5 sm:p-5 lg:col-span-4 bg-secondary/15 flex flex-col justify-between space-y-4">
+            <div className="space-y-3.5 sm:space-y-4">
               <div>
                 <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">
                   Authenticated Identity &amp; Scope
                 </p>
-                <div className="mt-1 flex items-center justify-between rounded-[6px] border border-border bg-background p-2.5 text-[12px]">
-                  <div>
-                    <p className="font-semibold text-foreground">{scenario.role}</p>
-                    <p className="text-[11px] text-muted-foreground font-mono">{scenario.clearance}</p>
+                <div className="mt-1 flex items-center justify-between rounded-[6px] border border-border bg-background p-2.5 text-[12px] gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">{scenario.role}</p>
+                    <p className="text-[10.5px] sm:text-[11px] text-muted-foreground font-mono truncate">{scenario.clearance}</p>
                   </div>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-[4px] px-2 py-0.5 text-[10px] font-mono font-medium ${
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-[4px] px-2 py-0.5 text-[10px] font-mono font-medium ${
                       scenario.status === "authorized"
                         ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                         : "bg-destructive/10 text-destructive border border-destructive/20"
@@ -171,7 +171,7 @@ export function HeroProductWindow() {
                 <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">
                   Query-Time RBAC Filter Formula
                 </p>
-                <div className="mt-1 rounded-[6px] border border-border bg-background p-2 font-mono text-[10.5px] text-muted-foreground overflow-x-auto">
+                <div className="mt-1 rounded-[6px] border border-border bg-background p-2 font-mono text-[10px] sm:text-[10.5px] text-muted-foreground overflow-x-auto">
                   <code>{scenario.filterFormula}</code>
                 </div>
               </div>
@@ -185,13 +185,13 @@ export function HeroProductWindow() {
                   {scenario.unlockedDocs.map((doc) => (
                     <div
                       key={doc.name}
-                      className="flex items-center justify-between rounded-[6px] border border-border bg-background px-2.5 py-1.5 text-[11px]"
+                      className="flex items-center justify-between rounded-[6px] border border-border bg-background px-2.5 py-1.5 text-[11px] gap-2"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <FileText className="size-3.5 shrink-0 text-primary" />
                         <span className="truncate font-medium text-foreground">{doc.name}</span>
                       </div>
-                      <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                      <span className="font-mono text-[9.5px] sm:text-[10px] text-muted-foreground shrink-0">
                         p.{doc.page} · {doc.matchScore}
                       </span>
                     </div>
@@ -200,13 +200,13 @@ export function HeroProductWindow() {
                   {scenario.lockedDocs.map((name) => (
                     <div
                       key={name}
-                      className="flex items-center justify-between rounded-[6px] border border-dashed border-border bg-secondary/30 px-2.5 py-1.5 text-[11px] opacity-70"
+                      className="flex items-center justify-between rounded-[6px] border border-dashed border-border bg-secondary/30 px-2.5 py-1.5 text-[11px] opacity-70 gap-2"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <Lock className="size-3.5 shrink-0 text-muted-foreground" />
                         <span className="truncate text-muted-foreground">{name}</span>
                       </div>
-                      <span className="font-mono text-[9.5px] text-destructive bg-destructive/10 px-1 rounded-[3px]">
+                      <span className="font-mono text-[9.5px] text-destructive bg-destructive/10 px-1 rounded-[3px] shrink-0">
                         Blocked
                       </span>
                     </div>
@@ -215,7 +215,7 @@ export function HeroProductWindow() {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-border flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+            <div className="pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2 text-[10.5px] sm:text-[11px] font-mono text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Database className="size-3.5 text-primary" />
                 Qdrant HNSW Index
@@ -228,42 +228,42 @@ export function HeroProductWindow() {
           </div>
 
           {/* Right Column: Interactive Chat & Citations */}
-          <div className="p-5 lg:col-span-8 flex flex-col justify-between space-y-4">
-            <div className="space-y-4">
+          <div className="p-3.5 sm:p-5 lg:col-span-8 flex flex-col justify-between space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {/* User Prompt Bubble */}
-              <div className="flex items-start gap-3">
-                <div className="grid size-7 shrink-0 place-items-center rounded-[6px] border border-border bg-secondary text-[11px] font-mono font-semibold text-foreground">
+              <div className="flex items-start gap-2.5 sm:gap-3">
+                <div className="grid size-6 sm:size-7 shrink-0 place-items-center rounded-[6px] border border-border bg-secondary text-[10px] sm:text-[11px] font-mono font-semibold text-foreground">
                   Q
                 </div>
-                <div className="flex-1 rounded-[8px] border border-border bg-secondary/30 px-3.5 py-2.5 text-[13px] text-foreground font-medium">
+                <div className="flex-1 rounded-[8px] border border-border bg-secondary/30 px-3 sm:px-3.5 py-2 sm:py-2.5 text-[12.5px] sm:text-[13px] text-foreground font-medium">
                   {scenario.query}
                 </div>
               </div>
 
               {/* AI Response Box */}
-              <div className="flex items-start gap-3">
-                <div className="grid size-7 shrink-0 place-items-center rounded-[6px] bg-primary text-[11px] font-mono font-semibold text-primary-foreground">
+              <div className="flex items-start gap-2.5 sm:gap-3">
+                <div className="grid size-6 sm:size-7 shrink-0 place-items-center rounded-[6px] bg-primary text-[10px] sm:text-[11px] font-mono font-semibold text-primary-foreground">
                   AI
                 </div>
-                <div className="flex-1 rounded-[8px] border border-border bg-background p-4 space-y-3 shadow-xs">
-                  <p className="text-[13px] leading-relaxed text-foreground">
+                <div className="flex-1 rounded-[8px] border border-border bg-background p-3 sm:p-4 space-y-2.5 sm:space-y-3 shadow-xs">
+                  <p className="text-[12.5px] sm:text-[13px] leading-relaxed text-foreground">
                     {scenario.aiResponse}
                   </p>
 
                   {/* Verifiable Citation Strip */}
                   <div
-                    className={`flex items-center justify-between rounded-[6px] border px-3 py-2 text-[11px] ${
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 rounded-[6px] border px-2.5 sm:px-3 py-2 text-[10.5px] sm:text-[11px] ${
                       scenario.status === "authorized"
                         ? "border-primary/25 bg-primary/5 text-primary"
                         : "border-destructive/25 bg-destructive/5 text-destructive"
                     }`}
                   >
-                    <span className="flex items-center gap-1.5 font-mono">
-                      <FileText className="size-3.5" />
-                      {scenario.citation}
+                    <span className="flex items-center gap-1.5 font-mono truncate">
+                      <FileText className="size-3.5 shrink-0" />
+                      <span className="truncate">{scenario.citation}</span>
                     </span>
                     {scenario.status === "authorized" && (
-                      <span className="flex items-center gap-1 text-[10px] font-semibold underline underline-offset-2">
+                      <span className="flex items-center gap-1 text-[10px] font-semibold underline underline-offset-2 shrink-0">
                         Inspect Source <ExternalLink className="size-3" />
                       </span>
                     )}
@@ -273,15 +273,15 @@ export function HeroProductWindow() {
             </div>
 
             {/* Prompt Input Indicator */}
-            <div className="flex items-center gap-2 rounded-[6px] border border-border bg-secondary/30 px-3 py-2">
-              <Search className="size-4 text-muted-foreground" />
+            <div className="flex items-center gap-2 rounded-[6px] border border-border bg-secondary/30 px-2.5 sm:px-3 py-2">
+              <Search className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
               <input
                 type="text"
                 readOnly
                 value="Ask a question grounded in authorized internal policies..."
-                className="w-full bg-transparent text-[12px] text-muted-foreground focus:outline-none cursor-default"
+                className="w-full bg-transparent text-[11.5px] sm:text-[12px] text-muted-foreground focus:outline-none cursor-default truncate"
               />
-              <span className="rounded-[4px] border border-border bg-background px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+              <span className="hidden sm:inline-block rounded-[4px] border border-border bg-background px-2 py-0.5 font-mono text-[10px] text-muted-foreground shrink-0">
                 Enter ↵
               </span>
             </div>

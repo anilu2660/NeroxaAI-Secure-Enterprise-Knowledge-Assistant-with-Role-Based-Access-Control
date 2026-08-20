@@ -122,17 +122,16 @@ function DocumentsPage() {
         </div>
       ) : null}
 
-      {/* Filter Toolbar Container */}
-      <section className="rounded-[10px] border border-border bg-card p-4 shadow-sm space-y-3">
-        <div className="flex flex-col gap-3 lg:flex-row">
+      <section className="rounded-[10px] border border-border bg-card p-3 sm:p-4 shadow-sm space-y-3">
+        <div className="flex flex-col gap-2.5 sm:gap-3 lg:flex-row">
           <label className="relative flex min-w-0 flex-1 items-center">
             <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by document name or content..."
+              placeholder="Search documents by name, content, or scope..."
               aria-label="Search documents"
-              className="h-9 w-full rounded-[6px] border border-border bg-background/60 pl-9 pr-3 text-[12.5px] text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+              className="h-9 w-full rounded-[6px] border border-border bg-background/60 pl-9 pr-8 text-[12.5px] text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
             />
             {search && (
               <button
@@ -145,7 +144,7 @@ function DocumentsPage() {
             )}
           </label>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
             <select
               value={department}
               onChange={(event) => setDepartment(event.target.value)}
@@ -166,7 +165,7 @@ function DocumentsPage() {
               aria-label="Filter by document type"
               className={selectClass}
             >
-              <option value="">All types</option>
+              <option value="">All document types</option>
               {(filters.data?.documentTypes ?? []).map((value) => (
                 <option key={value} value={value}>
                   {value}
@@ -180,7 +179,7 @@ function DocumentsPage() {
               aria-label="Filter by access scope"
               className={selectClass}
             >
-              <option value="">All access scopes</option>
+              <option value="">All scopes</option>
               {(filters.data?.accessScopes ?? []).map((value) => (
                 <option key={value} value={value}>
                   {value}
@@ -188,17 +187,16 @@ function DocumentsPage() {
               ))}
             </select>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={reset}
-              disabled={!hasFilters}
-              className="h-9 rounded-[6px] border-border bg-secondary/30 px-3 text-[12px] font-medium text-foreground hover:bg-secondary disabled:opacity-40"
-            >
-              <RotateCcw className="size-3.5 mr-1" />
-              Reset
-            </Button>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={reset}
+                className="col-span-2 sm:col-span-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-[6px] border border-border bg-secondary/50 px-3 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+              >
+                <RotateCcw className="size-3.5" />
+                <span>Reset</span>
+              </button>
+            )}
           </div>
         </div>
 

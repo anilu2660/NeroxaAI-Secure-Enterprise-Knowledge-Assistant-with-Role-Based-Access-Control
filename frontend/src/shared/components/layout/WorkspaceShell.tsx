@@ -21,10 +21,10 @@ function WorkspaceShellInner({ children }: { children: ReactNode }) {
     <div className="relative min-h-svh overflow-hidden bg-background">
       <SkipToContent />
       <WorkspaceBackground />
-      <div className="relative pb-20 lg:pb-0">
+      <div className="relative pb-24 lg:pb-0">
         <WorkspaceHeader />
         <div
-          className={`mx-auto flex w-full gap-5 px-4 pb-10 sm:px-6 lg:px-8 transition-all duration-300 ${
+          className={`mx-auto flex w-full gap-5 px-3 sm:px-6 lg:px-8 transition-all duration-300 ${
             collapsed ? "max-w-[1680px]" : "max-w-[1440px]"
           }`}
         >
@@ -43,7 +43,7 @@ function WorkspaceShellInner({ children }: { children: ReactNode }) {
           <main
             id="workspace-main"
             tabIndex={-1}
-            className="min-w-0 flex-1 pt-4 outline-none lg:pt-5 transition-all duration-300"
+            className="min-w-0 flex-1 pt-3.5 outline-none lg:pt-5 transition-all duration-300"
           >
             {children}
           </main>

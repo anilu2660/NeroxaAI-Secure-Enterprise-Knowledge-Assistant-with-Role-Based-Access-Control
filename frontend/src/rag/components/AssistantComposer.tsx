@@ -170,21 +170,21 @@ export function AssistantComposer({
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-3 px-1">
+    <div className="mx-auto w-full max-w-4xl space-y-2.5 sm:space-y-3 px-0.5 sm:px-1">
       <form
         onSubmit={handleSubmit}
-        className="rounded-[10px] border border-border bg-card p-3 shadow-xs space-y-2.5"
+        className="rounded-[10px] border border-border bg-card p-2.5 sm:p-3 shadow-xs space-y-2 sm:space-y-2.5"
       >
         {files.length > 0 && (
-          <div className="flex flex-wrap gap-2 pb-1">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 pb-1">
             {files.map(({ meta }) => (
               <span
                 key={meta.id}
-                className="inline-flex items-center gap-1.5 rounded-[4px] border border-border bg-secondary/40 px-2 py-1 font-mono text-[11px] text-foreground"
+                className="inline-flex items-center gap-1.5 rounded-[4px] border border-border bg-secondary/40 px-2 py-0.5 sm:py-1 font-mono text-[10.5px] sm:text-[11px] text-foreground"
               >
-                <Paperclip className="size-3 text-muted-foreground" />
-                <span className="max-w-[140px] truncate">{meta.name}</span>
-                <span className="text-[9.5px] text-muted-foreground">({meta.sizeLabel})</span>
+                <Paperclip className="size-3 text-muted-foreground shrink-0" />
+                <span className="max-w-[110px] sm:max-w-[140px] truncate">{meta.name}</span>
+                <span className="text-[9px] sm:text-[9.5px] text-muted-foreground shrink-0">({meta.sizeLabel})</span>
                 <button
                   type="button"
                   onClick={() => handleRemoveFile(meta.id)}
@@ -205,12 +205,12 @@ export function AssistantComposer({
           placeholder="Ask a question grounded in authorized documents (Shift+Enter for new line)..."
           rows={2}
           disabled={pending}
-          className="w-full resize-none bg-transparent text-[13.5px] text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed"
+          className="w-full resize-none bg-transparent text-[13px] sm:text-[13.5px] text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed"
         />
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 border-t border-border/60 pt-1.5 sm:pt-2">
           {/* Left: Attachment & Tool Triggers */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap min-w-0">
             <input
               ref={docInputRef}
               type="file"
@@ -233,7 +233,7 @@ export function AssistantComposer({
               aria-label="Attach document"
               title="Attach document"
               onClick={() => docInputRef.current?.click()}
-              className="grid size-7 place-items-center rounded-[4px] border border-border bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+              className="grid size-7 place-items-center rounded-[4px] border border-border bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer shrink-0"
             >
               <Paperclip className="size-3.5" />
             </button>
@@ -243,7 +243,7 @@ export function AssistantComposer({
               aria-label="Attach image"
               title="Attach image"
               onClick={() => imageInputRef.current?.click()}
-              className="grid size-7 place-items-center rounded-[4px] border border-border bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+              className="grid size-7 place-items-center rounded-[4px] border border-border bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer shrink-0"
             >
               <ImagePlus className="size-3.5" />
             </button>
@@ -254,7 +254,7 @@ export function AssistantComposer({
               aria-pressed={webSearch}
               title={webSearch ? "Web search: Enabled" : "Web search: Disabled"}
               onClick={handleToggleGlobe}
-              className={`grid size-7 place-items-center rounded-[4px] border transition-colors cursor-pointer ${
+              className={`grid size-7 place-items-center rounded-[4px] border transition-colors cursor-pointer shrink-0 ${
                 webSearch
                   ? "border-sky-500/50 bg-sky-500/15 text-sky-600 dark:text-sky-400 font-bold"
                   : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -270,7 +270,7 @@ export function AssistantComposer({
                 aria-expanded={toolsOpen}
                 title="Configure search & AI tools"
                 onClick={() => setToolsOpen((current) => !current)}
-                className={`flex h-7 items-center gap-1.5 rounded-[4px] border px-2 text-[11px] font-medium transition-colors cursor-pointer ${
+                className={`flex h-7 items-center gap-1 sm:gap-1.5 rounded-[4px] border px-1.5 sm:px-2 text-[10.5px] sm:text-[11px] font-medium transition-colors cursor-pointer shrink-0 ${
                   toolsOpen || enabledToolCount
                     ? "border-primary/40 bg-primary/10 text-primary"
                     : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -279,7 +279,7 @@ export function AssistantComposer({
                 <Settings2 className="size-3" />
                 <span>Tools</span>
                 {enabledToolCount ? (
-                  <span className="font-mono text-[10px] font-bold text-primary">({enabledToolCount})</span>
+                  <span className="font-mono text-[9.5px] sm:text-[10px] font-bold text-primary">({enabledToolCount})</span>
                 ) : null}
               </button>
 
@@ -287,14 +287,14 @@ export function AssistantComposer({
                 <div
                   role="dialog"
                   aria-label="Assistant tools"
-                  className="absolute bottom-[calc(100%+8px)] left-0 z-50 w-[280px] rounded-[8px] border border-border bg-card p-3 shadow-lg"
+                  className="absolute bottom-[calc(100%+8px)] left-0 z-50 w-[calc(100vw-2.5rem)] sm:w-[280px] max-w-[280px] rounded-[8px] border border-border bg-card p-3 shadow-xl"
                 >
                   <div className="flex items-center justify-between pb-2 border-b border-border text-[11px] font-mono">
                     <span className="font-bold text-foreground">Pipeline Tools</span>
                     <span className="text-muted-foreground">{enabledToolCount} active</span>
                   </div>
 
-                  <ul className="mt-2 max-h-[260px] space-y-1 overflow-y-auto pr-1">
+                  <ul className="mt-2 max-h-[240px] sm:max-h-[260px] space-y-1 overflow-y-auto pr-1">
                     {tools.map((tool) => {
                       const active =
                         tool.id === "web-search" ? webSearch : toolIds.includes(tool.id);
@@ -314,16 +314,16 @@ export function AssistantComposer({
                             <div className="flex items-center gap-2 min-w-0">
                               {getToolIcon(tool.id)}
                               <div className="min-w-0">
-                                <span className="block truncate text-[11.5px] font-medium text-foreground">
+                                <span className="block truncate text-[11px] sm:text-[11.5px] font-medium text-foreground">
                                   {tool.label}
                                 </span>
-                                <span className="block truncate text-[9.5px] text-muted-foreground font-mono">
+                                <span className="block truncate text-[9px] sm:text-[9.5px] text-muted-foreground font-mono">
                                   {tool.detail}
                                 </span>
                               </div>
                             </div>
                             <span
-                              className={`shrink-0 rounded-[3px] px-1.5 py-0.2 text-[9px] font-mono font-bold uppercase ${
+                              className={`shrink-0 rounded-[3px] px-1.5 py-0.2 text-[8.5px] sm:text-[9px] font-mono font-bold uppercase ${
                                 active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
                               }`}
                             >
@@ -346,14 +346,14 @@ export function AssistantComposer({
           </div>
 
           {/* Right: Submit / Stop Button */}
-          <div>
+          <div className="shrink-0">
             {pending ? (
               <button
                 type="button"
                 onClick={onStop}
                 aria-label="Stop generating"
                 title="Stop generating"
-                className="grid size-7 place-items-center rounded-[6px] bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors cursor-pointer"
+                className="grid size-7.5 place-items-center rounded-[6px] bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors cursor-pointer"
               >
                 <Square className="size-3.5 fill-current" />
               </button>
@@ -362,7 +362,7 @@ export function AssistantComposer({
                 type="submit"
                 aria-label="Send query"
                 disabled={!question.trim()}
-                className="grid size-7 place-items-center rounded-[6px] bg-primary text-primary-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] border border-primary/40 hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="grid size-7.5 place-items-center rounded-[6px] bg-primary text-primary-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] border border-primary/40 hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 <SendHorizontal className="size-3.5" />
               </button>

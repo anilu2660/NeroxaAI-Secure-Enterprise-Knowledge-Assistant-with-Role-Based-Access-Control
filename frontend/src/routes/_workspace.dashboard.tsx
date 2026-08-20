@@ -117,9 +117,9 @@ function DashboardPage() {
   const userName = profile?.name ?? session?.user.name ?? "User";
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="space-y-4 sm:space-y-6 pb-6">
       {/* Hero Welcome Banner with Glow Effects & Live Clock */}
-      <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-card/90 via-card/50 to-primary/[0.08] p-6 shadow-2xl backdrop-blur-2xl transition-all duration-300">
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-primary/20 bg-gradient-to-br from-card/90 via-card/50 to-primary/[0.08] p-4 sm:p-6 shadow-xl backdrop-blur-2xl transition-all duration-300">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -right-16 -top-16 size-72 rounded-full bg-primary/20 blur-3xl animate-pulse"
@@ -129,20 +129,20 @@ function DashboardPage() {
           className="pointer-events-none absolute -bottom-16 left-1/3 size-64 rounded-full bg-purple-500/15 blur-3xl"
         />
 
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-2 min-w-0 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-[11px] font-semibold tracking-wide text-primary shadow-xs">
-                <Zap className="size-3.5 animate-pulse text-primary" />
-                <span>ENTERPRISE KNOWLEDGE WORKSPACE</span>
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="space-y-1.5 sm:space-y-2 min-w-0 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-primary/30 bg-primary/10 px-2.5 sm:px-3.5 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-semibold tracking-wide text-primary shadow-xs">
+                <Zap className="size-3 sm:size-3.5 animate-pulse text-primary shrink-0" />
+                <span className="truncate">KNOWLEDGE WORKSPACE</span>
               </div>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-secondary/50 px-3 py-1 text-[11px] font-mono text-muted-foreground shadow-xs">
-                <span className="size-1.5 rounded-full bg-primary animate-ping" />
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-secondary/50 px-2.5 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-mono text-muted-foreground shadow-xs">
+                <span className="size-1.5 rounded-full bg-primary animate-ping shrink-0" />
                 <span>{formattedTime}</span>
               </div>
             </div>
 
-            <h1 className="font-display text-2xl sm:text-3.5xl font-bold tracking-tight text-foreground flex flex-wrap items-center gap-2">
+            <h1 className="font-display text-xl sm:text-2xl sm:text-3.5xl font-bold tracking-tight text-foreground flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span>
                 {greeting} {icon},
               </span>
@@ -151,25 +151,25 @@ function DashboardPage() {
               </span>
             </h1>
 
-            <p className="text-[13px] leading-relaxed text-muted-foreground">
+            <p className="text-[12px] sm:text-[13px] leading-relaxed text-muted-foreground">
               Search authorized organizational knowledge, inspect sources, and manage your workspace from one secure surface.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 backdrop-blur-md shadow-xs">
-            <span className="relative flex size-2.5">
+          <div className="flex items-center gap-2 rounded-xl sm:rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 sm:px-3.5 sm:py-2 backdrop-blur-md shadow-xs shrink-0 self-start sm:self-auto">
+            <span className="relative flex size-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            <span className="text-[12px] font-semibold text-emerald-400">
-              RAG Services Operational
+            <span className="text-[11px] sm:text-[12px] font-semibold text-emerald-500 dark:text-emerald-400">
+              Operational
             </span>
           </div>
         </div>
       </section>
 
       {/* Metric Cards Grid */}
-      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3.5">
         <MetricCard
           label="Knowledge Base"
           value={documentCount}
@@ -179,25 +179,25 @@ function DashboardPage() {
         <MetricCard
           label="Connected Sources"
           value={sourceCount}
-          detail="Indexed knowledge sources"
+          detail="Indexed sources"
           icon={<Database className="size-4 text-primary" />}
         />
         <MetricCard
           label="Access Level"
           value={profile?.roleLabel?.split("·").pop()?.trim() ?? "Protected"}
-          detail={profile?.department ?? "Role-aware workspace"}
+          detail={profile?.department ?? "Role-aware"}
           icon={<ShieldCheck className="size-4 text-primary" />}
         />
         <MetricCard
           label="System Status"
           value="Active"
-          detail="Local AI + secure retrieval"
+          detail="Local AI + RBAC"
           icon={<Activity className="size-4 text-emerald-400" />}
         />
       </div>
 
       {/* Interactive Quick Action Shortcut Pills */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {can("assistant:query") ? (
           <Link
             to="/assistant"

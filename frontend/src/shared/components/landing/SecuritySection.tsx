@@ -37,19 +37,19 @@ const AUDIT_LOGS = [
 
 export function SecuritySection() {
   return (
-    <section id="security" className="relative mx-auto w-full max-w-[1280px] px-6 py-16">
-      <div className="rounded-[10px] border border-border bg-card p-6 sm:p-10 shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+    <section id="security" className="relative mx-auto w-full max-w-[1280px] px-4 sm:px-6 py-12 sm:py-16">
+      <div className="rounded-[10px] border border-border bg-card p-4 sm:p-10 shadow-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-10 items-start">
           {/* Left Column: Security Blueprint */}
-          <div className="lg:col-span-6 space-y-6">
+          <div className="lg:col-span-6 space-y-5 sm:space-y-6">
             <div>
               <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary">
                 Security &amp; Compliance
               </span>
-              <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              <h2 className="mt-2 font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-foreground">
                 Zero-Trust architecture from vector storage to inference.
               </h2>
-              <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
+              <p className="mt-2.5 sm:mt-3 text-[13px] sm:text-[14px] leading-relaxed text-muted-foreground">
                 Engineered for defense, financial institutions, healthcare, and regulated enterprises where unverified access or document leakage is an unacceptable risk.
               </p>
             </div>

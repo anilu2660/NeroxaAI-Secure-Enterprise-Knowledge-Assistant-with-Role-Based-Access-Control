@@ -527,35 +527,72 @@ function AssistantPage() {
   const sessionTurnCount = turns.filter((turn) => turn.answer !== null).length;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] min-h-[580px] gap-3 pt-1">
-      <header className="shrink-0 flex flex-wrap items-end justify-between gap-3">
+    <div className="flex flex-col h-[calc(100svh-8.5rem)] sm:h-[calc(100vh-100px)] min-h-[460px] sm:min-h-[580px] gap-2.5 sm:gap-3 pt-0.5 sm:pt-1">
+      {/* Assistant Header */}
+      <header className="shrink-0 flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 sm:gap-3">
         <div className="min-w-0">
-          <h1 className="font-display text-[20px] font-medium tracking-tight text-foreground">AI Knowledge Assistant</h1>
-          <p className="mt-0.5 text-[12px] text-muted-foreground">
-            Ask questions about your organization&apos;s knowledge. Answers are grounded in real-time by your local Ollama LLM and vector store.
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-[17px] sm:text-[20px] font-semibold sm:font-medium tracking-tight text-foreground">
+              AI Knowledge Assistant
+            </h1>
+            <span className="inline-flex sm:hidden items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9.5px] font-mono text-primary">
+              Air-gapped
+            </span>
+          </div>
+          <p className="mt-0.5 text-[11px] sm:text-[12px] text-muted-foreground line-clamp-1 sm:line-clamp-none">
+            Grounded answers from your internal documents with deterministic RBAC.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
           <ReasoningModelSelector models={models.data ?? []} selectedId={modelId} onSelect={setModelId} />
-          <div className="flex items-center gap-3 rounded-2xl border border-hairline bg-card/50 px-3.5 py-2 backdrop-blur-xl">
-            <div><p className="text-[10px] text-muted-foreground">Department</p><p className="text-[12px] text-foreground">{profile?.department ?? "—"}</p></div>
-            <span className="h-6 w-px bg-hairline" />
-            <div><p className="text-[10px] text-muted-foreground">Access scope</p><p className="text-[12px] text-foreground">{access.data?.knowledgeAccess ?? "Unavailable"}</p></div>
+
+          <div className="hidden sm:flex items-center gap-3 rounded-2xl border border-hairline bg-card/50 px-3.5 py-1.5 backdrop-blur-xl">
+            <div>
+              <p className="text-[9.5px] text-muted-foreground">Department</p>
+              <p className="text-[11.5px] font-medium text-foreground">{profile?.department ?? "—"}</p>
+            </div>
+            <span className="h-5 w-px bg-hairline" />
+            <div>
+              <p className="text-[9.5px] text-muted-foreground">Access scope</p>
+              <p className="text-[11.5px] font-medium text-foreground">{access.data?.knowledgeAccess ?? "Protected"}</p>
+            </div>
           </div>
+
           {sessionTurnCount > 0 && (
-            <div className="flex items-center gap-1.5 rounded-2xl border border-hairline bg-card/50 px-3 py-2 backdrop-blur-xl">
-              <span className="text-[10.5px] text-muted-foreground">{sessionTurnCount} exchange{sessionTurnCount === 1 ? "" : "s"}</span>
-              <span className="h-3.5 w-px bg-hairline" />
-              <button id="new-session-btn" type="button" onClick={() => void handleNewSession()} disabled={pending} title="Start a new conversation session" className="flex items-center gap-1.5 rounded-lg border border-hairline bg-secondary/40 px-2 py-1 text-[10.5px] text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"><Trash2 className="size-3" />Clear session</button>
-              <button id="new-chat-btn" type="button" onClick={() => void handleNewSession()} disabled={pending} title="Start a fresh conversation" className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[10.5px] text-primary transition-colors hover:bg-primary/20 disabled:pointer-events-none disabled:opacity-40"><PlusCircle className="size-3" />New chat</button>
+            <div className="flex items-center gap-1.5 rounded-xl border border-hairline bg-card/50 px-2.5 py-1 backdrop-blur-xl text-[10.5px]">
+              <span className="text-muted-foreground hidden xs:inline">{sessionTurnCount} msg</span>
+              <button
+                id="new-session-btn"
+                type="button"
+                onClick={() => void handleNewSession()}
+                disabled={pending}
+                title="Clear session"
+                className="flex items-center gap-1 rounded-md border border-hairline bg-secondary/40 px-1.5 py-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+              >
+                <Trash2 className="size-3" />
+                <span className="hidden sm:inline">Clear</span>
+              </button>
+              <button
+                id="new-chat-btn"
+                type="button"
+                onClick={() => void handleNewSession()}
+                disabled={pending}
+                title="New chat"
+                className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 font-medium"
+              >
+                <PlusCircle className="size-3" />
+                <span>New</span>
+              </button>
             </div>
           )}
         </div>
       </header>
 
+      {/* Main Conversation & Context Area */}
       <div className="flex flex-1 min-h-0 gap-3 xl:flex-row xl:items-stretch">
-        <div className="flex flex-col flex-1 min-w-0 min-h-0 rounded-2xl border border-hairline bg-card/40 p-3 backdrop-blur-xl">
-          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pr-1">
+        <div className="flex flex-col flex-1 min-w-0 min-h-0 rounded-2xl border border-hairline bg-card/40 p-2 sm:p-3 backdrop-blur-xl shadow-xs">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pr-0.5 sm:pr-1">
             <AssistantConversation
               turns={turns}
               userName={actor}
@@ -567,16 +604,44 @@ function AssistantPage() {
               }
             />
           </div>
+
           {canQuery ? (
-            <div className="shrink-0 pt-2 border-t border-hairline/50 mt-2 bg-card/20">
-              <AssistantComposer onSubmit={(submission) => void handleAsk(submission)} onStop={handleStop} tools={tools.data ?? []} pending={pending} suggestions={turns.length ? [] : (suggestions.data ?? [])} activeModelLabel={activeModel?.shortLabel ?? ""} />
-              {turns.length > 0 && !pending && <p className="mt-1 text-center text-[10.5px] text-muted-foreground">Session continues · {sessionTurnCount} exchange{sessionTurnCount === 1 ? "" : "s"} in this session · <button type="button" onClick={() => void handleNewSession()} className="underline underline-offset-2 hover:text-foreground">Start new session</button></p>}
+            <div className="shrink-0 pt-1.5 sm:pt-2 border-t border-hairline/50 mt-1.5 sm:mt-2 bg-card/20">
+              <AssistantComposer
+                onSubmit={(submission) => void handleAsk(submission)}
+                onStop={handleStop}
+                tools={tools.data ?? []}
+                pending={pending}
+                suggestions={turns.length ? [] : (suggestions.data ?? [])}
+                activeModelLabel={activeModel?.shortLabel ?? ""}
+              />
+              {turns.length > 0 && !pending && (
+                <p className="mt-1 text-center text-[10px] text-muted-foreground hidden sm:block">
+                  Session active · {sessionTurnCount} exchange{sessionTurnCount === 1 ? "" : "s"} ·{" "}
+                  <button
+                    type="button"
+                    onClick={() => void handleNewSession()}
+                    className="underline underline-offset-2 hover:text-foreground"
+                  >
+                    New session
+                  </button>
+                </p>
+              )}
             </div>
-          ) : <p className="shrink-0 mt-2 rounded-2xl border border-hairline bg-card/50 px-4 py-3 text-[12.5px] text-muted-foreground">Your role does not have permission to query the assistant.</p>}
+          ) : (
+            <p className="shrink-0 mt-2 rounded-2xl border border-hairline bg-card/50 px-4 py-3 text-[12.5px] text-muted-foreground">
+              Your role does not have permission to query the assistant.
+            </p>
+          )}
         </div>
 
-        <div className="shrink-0 xl:w-[320px] overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none]">
-          <AssistantContextPanel capabilities={capabilities.data ?? []} user={user} accessScope={access.data?.knowledgeAccess ?? "Unavailable"} />
+        {/* Desktop Context Panel */}
+        <div className="hidden xl:block shrink-0 xl:w-[320px] overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none]">
+          <AssistantContextPanel
+            capabilities={capabilities.data ?? []}
+            user={user}
+            accessScope={access.data?.knowledgeAccess ?? "Unavailable"}
+          />
         </div>
       </div>
     </div>

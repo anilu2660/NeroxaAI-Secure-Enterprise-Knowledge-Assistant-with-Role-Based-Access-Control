@@ -53,8 +53,73 @@ export function AuditEventsTable({ page, loading, onInspect }: Props) {
   const events = page.events;
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-hairline bg-card/60 shadow-xl backdrop-blur-2xl transition-all">
-      <div className="max-h-[520px] overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-secondary/20">
+    <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-hairline bg-card/60 shadow-xl backdrop-blur-2xl transition-all">
+      {/* Mobile Card List View (< lg) */}
+      <div className="block lg:hidden divide-y divide-hairline/60">
+        {events.length === 0 ? (
+          <div className="px-4 py-12">
+            <EmptyOrUnavailable page={page} loading={loading} />
+          </div>
+        ) : (
+          events.map((event) => (
+            <div
+              key={event.id}
+              className="flex flex-col gap-2.5 p-4 transition-colors hover:bg-primary/[0.03]"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  {formatTimestamp(event.timestampIso)}
+                </span>
+                <span
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[9.5px] font-mono tracking-wider uppercase ${severityClass[event.severity]}`}
+                >
+                  {event.severity}
+                </span>
+              </div>
+
+              <div className="min-w-0">
+                <p className="font-display text-[13px] font-semibold text-foreground">
+                  {event.actionLabel}
+                </p>
+                <p className="text-[11.5px] text-muted-foreground line-clamp-1 mt-0.5">
+                  Target: {event.resourceLabel}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-hairline/40 text-[11px]">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-medium text-foreground truncate">{event.actorName}</span>
+                  <span className="rounded-full bg-secondary/60 px-1.5 py-0.2 text-[9px] font-bold uppercase text-muted-foreground border border-hairline/60">
+                    {event.actorRole}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.2 text-[10.5px] ${resultClass[event.result]}`}
+                  >
+                    {event.result === "success" ? (
+                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    ) : null}
+                    <span className="capitalize">{event.result}</span>
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => onInspect(event)}
+                    className="rounded-lg border border-hairline bg-secondary/35 px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-card hover:border-primary/40 hover:text-primary transition-colors cursor-pointer"
+                  >
+                    View
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Multi-column Table (>= lg) */}
+      <div className="hidden lg:block max-h-[520px] overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-secondary/20">
         <table className="w-full min-w-[1020px] border-collapse text-left">
           <thead className="sticky top-0 z-20 border-b border-hairline/80 bg-card/95 backdrop-blur-2xl">
             <tr>
@@ -130,7 +195,7 @@ export function AuditEventsTable({ page, loading, onInspect }: Props) {
                     <button
                       type="button"
                       onClick={() => onInspect(event)}
-                      className="rounded-xl border border-hairline bg-secondary/35 px-3 py-1.5 text-[11.5px] font-medium text-foreground transition-all hover:bg-card hover:border-primary/40 hover:text-primary shadow-xs active:scale-95"
+                      className="rounded-xl border border-hairline bg-secondary/35 px-3 py-1.5 text-[11.5px] font-medium text-foreground transition-all hover:bg-card hover:border-primary/40 hover:text-primary shadow-xs active:scale-95 cursor-pointer"
                     >
                       View
                     </button>

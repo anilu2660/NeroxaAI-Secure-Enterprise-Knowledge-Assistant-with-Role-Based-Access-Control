@@ -41,34 +41,34 @@ export function CoreBenefits() {
   const activeRole = ROLES[selectedRoleIndex] ?? ROLES[0]!;
 
   return (
-    <section id="benefits" className="relative mx-auto w-full max-w-[1280px] px-6 py-16">
+    <section id="benefits" className="relative mx-auto w-full max-w-[1280px] px-4 sm:px-6 py-12 sm:py-16">
       {/* Section Header */}
       <div className="max-w-2xl">
         <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary">
           Core Capabilities
         </span>
-        <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <h2 className="mt-2 font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-foreground">
           Three non-negotiable guarantees for internal enterprise AI.
         </h2>
-        <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
+        <p className="mt-2.5 sm:mt-3 text-[13px] sm:text-[14px] leading-relaxed text-muted-foreground">
           Eliminate hallucinations, guarantee verifiable document provenance, and mathematically protect sensitive organizational knowledge.
         </p>
       </div>
 
       {/* 3 Core Benefits Showcase Layout */}
-      <div className="mt-12 space-y-8">
+      <div className="mt-8 sm:mt-12 space-y-6 sm:space-y-8">
         {/* Benefit 1: Interactive Deterministic RBAC Boundaries */}
-        <div className="rounded-[10px] border border-border bg-card p-6 sm:p-8 shadow-sm">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <div className="lg:col-span-5 space-y-4">
+        <div className="rounded-[10px] border border-border bg-card p-4 sm:p-8 shadow-sm">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+            <div className="lg:col-span-5 space-y-3.5 sm:space-y-4">
               <div className="inline-flex items-center gap-2 rounded-[6px] bg-primary/10 px-2.5 py-1 text-[11px] font-mono font-semibold text-primary">
                 <ShieldCheck className="size-3.5" />
                 <span>01. Deterministic RBAC Boundaries</span>
               </div>
-              <h3 className="font-display text-2xl font-bold text-foreground">
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-foreground">
                 Query-time vector gating by department and tier.
               </h3>
-              <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+              <p className="text-[13px] sm:text-[13.5px] leading-relaxed text-muted-foreground">
                 Unlike consumer chatbots where all documents sit in one open pool, Nexora AI evaluates role boundaries inside the vector retrieval pipeline. Employees cannot retrieve, synthesize, or even see vector embeddings from unauthorized departments.
               </p>
 

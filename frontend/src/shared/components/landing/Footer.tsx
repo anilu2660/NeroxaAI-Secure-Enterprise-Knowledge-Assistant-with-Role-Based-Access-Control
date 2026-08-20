@@ -5,10 +5,10 @@ import { ThemeToggle } from "@/shared/components/ui/ThemeToggle";
 export function Footer() {
   return (
     <footer className="border-t border-border bg-card">
-      <div className="mx-auto w-full max-w-[1280px] px-6 py-12 lg:py-14">
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-4 lg:gap-12">
+      <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6 py-10 sm:py-12 lg:py-14">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4 lg:gap-12">
           {/* Col 1: Brand */}
-          <div className="space-y-4 md:col-span-1">
+          <div className="space-y-3.5 sm:space-y-4 sm:col-span-2 md:col-span-1">
             <Link to="/" className="flex items-center gap-2">
               <Logo className="size-5 shrink-0" />
               <span className="font-display text-base font-bold tracking-tight text-foreground">
@@ -72,9 +72,9 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-[12px] text-muted-foreground">
+        <div className="mt-10 sm:mt-12 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-[12px] text-muted-foreground text-center sm:text-left">
           <p>&copy; {new Date().getFullYear()} Nexora AI Enterprise. All rights reserved.</p>
-          <div className="flex items-center gap-6 font-mono text-[11px]">
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 font-mono text-[11px]">
             <a href="#security" className="hover:text-foreground transition-colors">Privacy Policy</a>
             <a href="#security" className="hover:text-foreground transition-colors">Terms of Service</a>
             <a href="#security" className="hover:text-foreground transition-colors">Security Disclosures</a>

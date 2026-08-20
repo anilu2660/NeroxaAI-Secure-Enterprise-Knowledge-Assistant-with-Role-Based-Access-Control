@@ -184,9 +184,9 @@ export function WorkspaceHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-hairline/80 bg-background/80 backdrop-blur-2xl">
-      <div className="mx-auto flex h-14 w-full max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center gap-3">
+    <header className="sticky top-0 z-40 border-b border-hairline/80 bg-background/85 backdrop-blur-2xl">
+      <div className="mx-auto flex h-14 w-full max-w-[1440px] items-center justify-between gap-2.5 px-3 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Link to="/dashboard" className="flex shrink-0 items-center gap-2 lg:hidden">
             <span className="grid size-7 place-items-center rounded-xl bg-gradient-to-br from-primary via-primary/90 to-purple-600 text-primary-foreground text-xs font-semibold shadow-md shadow-primary/20 ring-2 ring-primary/30">
               N
@@ -198,7 +198,7 @@ export function WorkspaceHeader() {
           <span className="hidden h-4 w-px bg-hairline lg:block" />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <p className="truncate font-display text-[13px] font-semibold text-foreground">
+              <p className="truncate font-display text-[12.5px] sm:text-[13px] font-semibold text-foreground">
                 {pageLabel}
               </p>
               <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9.5px] font-medium text-emerald-400">
@@ -212,7 +212,7 @@ export function WorkspaceHeader() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Command Palette Search Trigger */}
           <WorkspaceCommandPalette />
 
@@ -244,10 +244,10 @@ export function WorkspaceHeader() {
                 setShowNotifications(!showNotifications);
                 setShowUserDropdown(false);
               }}
-              className="relative size-8.5 rounded-xl border border-hairline/60 bg-secondary/30 text-muted-foreground transition-all hover:border-primary/40 hover:bg-card hover:text-foreground shadow-xs"
+              className="relative size-8 sm:size-8.5 rounded-xl border border-hairline/60 bg-secondary/30 text-muted-foreground transition-all hover:border-primary/40 hover:bg-card hover:text-foreground shadow-xs"
               aria-label="Notifications"
             >
-              <Bell className="size-4" />
+              <Bell className="size-3.5 sm:size-4" />
               {unreadCount > 0 ? (
                 <span className="absolute -right-0.5 -top-0.5 flex size-2.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
@@ -258,7 +258,7 @@ export function WorkspaceHeader() {
 
             {/* Notification Drawer Popover */}
             {showNotifications ? (
-              <div className="absolute right-0 top-11 z-50 w-80 sm:w-96 rounded-[10px] border border-border bg-card p-4 shadow-sm transition-all">
+              <div className="fixed sm:absolute right-3 sm:right-0 top-14 sm:top-11 z-50 w-[calc(100vw-1.5rem)] sm:w-96 max-w-sm rounded-[10px] border border-border bg-card p-4 shadow-xl transition-all">
                 <div className="flex items-center justify-between pb-3 border-b border-border">
                   <div className="flex items-center gap-2">
                     <span className="grid size-6 place-items-center rounded-[4px] bg-primary/10 text-primary">

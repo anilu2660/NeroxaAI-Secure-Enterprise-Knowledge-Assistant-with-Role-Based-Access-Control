@@ -298,15 +298,15 @@ export function AssistantConversation({
 
   if (!turns.length) {
     return (
-      <div className="flex min-h-[420px] flex-col items-center justify-center px-4 py-8 text-center">
-        <div className="mb-3 flex items-center justify-center">
-          <NexoraLogo size={44} animated={false} withGlow={false} variant="plain" />
+      <div className="flex min-h-[360px] sm:min-h-[420px] flex-col items-center justify-center px-2 sm:px-4 py-4 sm:py-8 text-center">
+        <div className="mb-2 sm:mb-3 flex items-center justify-center">
+          <NexoraLogo size={38} animated={false} withGlow={false} variant="plain" />
         </div>
 
         <AnimatedVanishingGreeting />
 
         {/* Prompt Starter Grid */}
-        <div className="mt-6 grid w-full max-w-2xl gap-2.5 sm:grid-cols-2">
+        <div className="mt-4 sm:mt-6 grid w-full max-w-2xl gap-2 sm:gap-2.5 grid-cols-1 sm:grid-cols-2">
           {samplePrompts.map((item) => {
             const Icon = item.icon;
             return (
@@ -314,17 +314,17 @@ export function AssistantConversation({
                 key={item.title}
                 type="button"
                 onClick={() => onSelectSuggestion?.(item.prompt)}
-                className="group flex flex-col items-start rounded-[8px] border border-border bg-card p-3.5 text-left shadow-2xs transition-colors hover:border-primary/40 hover:bg-secondary/40 cursor-pointer"
+                className="group flex flex-col items-start rounded-[8px] border border-border bg-card p-2.5 sm:p-3.5 text-left shadow-2xs transition-colors hover:border-primary/40 hover:bg-secondary/40 cursor-pointer"
               >
                 <div className="flex items-center gap-2">
-                  <span className="grid size-6 place-items-center rounded-[4px] bg-secondary text-primary">
-                    <Icon className="size-3.5" />
+                  <span className="grid size-5.5 sm:size-6 place-items-center rounded-[4px] bg-secondary text-primary">
+                    <Icon className="size-3 sm:size-3.5" />
                   </span>
-                  <span className="text-[12px] font-semibold text-foreground group-hover:text-primary transition-colors">
+                  <span className="text-[11.5px] sm:text-[12px] font-semibold text-foreground group-hover:text-primary transition-colors">
                     {item.title}
                   </span>
                 </div>
-                <p className="mt-1.5 text-[11px] text-muted-foreground line-clamp-1">
+                <p className="mt-1 sm:mt-1.5 text-[10.5px] sm:text-[11px] text-muted-foreground line-clamp-1">
                   &ldquo;{item.prompt}&rdquo;
                 </p>
               </button>
@@ -333,15 +333,15 @@ export function AssistantConversation({
         </div>
 
         {/* Status Bar */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono text-muted-foreground">
-          <span className="flex items-center gap-1.5 rounded-[4px] border border-border bg-card px-2.5 py-1">
+        <div className="mt-4 sm:mt-6 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-mono text-muted-foreground">
+          <span className="flex items-center gap-1.5 rounded-[4px] border border-border bg-card px-2 sm:px-2.5 py-1">
             <span
               className={`size-1.5 rounded-full ${providerConfigured ? "bg-emerald-500" : "bg-muted-foreground"}`}
             />
             Local Inference: {providerConfigured ? "Connected" : "Standby"}
           </span>
 
-          <span className="flex items-center gap-1.5 rounded-[4px] border border-border bg-card px-2.5 py-1">
+          <span className="flex items-center gap-1.5 rounded-[4px] border border-border bg-card px-2 sm:px-2.5 py-1">
             <span
               className={`size-1.5 rounded-full ${retrievalConnected ? "bg-emerald-500" : "bg-muted-foreground"}`}
             />
@@ -353,17 +353,17 @@ export function AssistantConversation({
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-5 px-1 py-2">
+    <div className="mx-auto w-full max-w-4xl space-y-3.5 sm:space-y-5 px-0.5 sm:px-1 py-1 sm:py-2">
       {turns.map((turn) => (
-        <div key={turn.id} className="space-y-4">
+        <div key={turn.id} className="space-y-3 sm:space-y-4">
           {/* User Message */}
-          <div className="flex items-start justify-end gap-2.5 px-2">
-            <div className="max-w-[82%] rounded-[8px] border border-border bg-secondary/60 px-4 py-2.5 shadow-2xs">
-              <div className="mb-1 flex items-center justify-end gap-2 text-[10px] font-mono text-muted-foreground">
+          <div className="flex items-start justify-end gap-2 px-1 sm:px-2">
+            <div className="max-w-[88%] sm:max-w-[82%] rounded-[8px] border border-border bg-secondary/60 px-3 sm:px-4 py-2 sm:py-2.5 shadow-2xs">
+              <div className="mb-0.5 sm:mb-1 flex items-center justify-end gap-2 text-[9.5px] sm:text-[10px] font-mono text-muted-foreground">
                 <span className="font-semibold text-foreground">{userName || "You"}</span>
                 <span>{timeLabel(turn.askedAt)}</span>
               </div>
-              <p className="text-[13.5px] leading-relaxed text-foreground whitespace-pre-wrap">
+              <p className="text-[12.5px] sm:text-[13.5px] leading-relaxed text-foreground whitespace-pre-wrap">
                 {turn.question}
               </p>
             </div>
@@ -371,30 +371,30 @@ export function AssistantConversation({
               <img
                 src={userAvatarUrl}
                 alt={userName || "You"}
-                className="size-7 shrink-0 rounded-[6px] border border-border object-cover"
+                className="size-6 sm:size-7 shrink-0 rounded-[6px] border border-border object-cover"
               />
             ) : (
-              <span className="grid size-7 shrink-0 place-items-center rounded-[6px] bg-secondary text-[10.5px] font-mono font-semibold text-foreground border border-border">
+              <span className="grid size-6 sm:size-7 shrink-0 place-items-center rounded-[6px] bg-secondary text-[10px] sm:text-[10.5px] font-mono font-semibold text-foreground border border-border">
                 {initials(userName)}
               </span>
             )}
           </div>
 
           {/* Assistant Message */}
-          <div className="rounded-[10px] border border-border bg-card p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="rounded-[10px] border border-border bg-card p-3 sm:p-5 shadow-xs space-y-2.5 sm:space-y-3">
             {/* Header / Identity */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
-              <div className="flex items-center gap-2">
-                <NexoraLogo size={20} animated={false} withGlow={false} variant="plain" />
-                <span className="font-display text-[13px] font-bold text-foreground">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2 sm:pb-2.5">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <NexoraLogo size={18} animated={false} withGlow={false} variant="plain" />
+                <span className="font-display text-[12.5px] sm:text-[13px] font-bold text-foreground">
                   Nexora AI
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-[4px] bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[9.5px] font-mono font-medium text-emerald-600 dark:text-emerald-400">
-                  <span className="size-1 rounded-full bg-emerald-500" /> Grounded &amp; RBAC Filtered
+                <span className="inline-flex items-center gap-1 rounded-[4px] bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[9px] sm:text-[9.5px] font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="size-1 rounded-full bg-emerald-500" /> RBAC Clear
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5 font-mono text-[10px]">
+              <div className="flex items-center gap-1.5 font-mono text-[9.5px] sm:text-[10px]">
                 {turn.answer?.modelLabel ? (
                   <span className="rounded-[4px] border border-border bg-secondary/40 px-2 py-0.5 text-muted-foreground flex items-center gap-1">
                     <Cpu className="size-2.5 text-primary" /> {turn.answer.modelLabel}

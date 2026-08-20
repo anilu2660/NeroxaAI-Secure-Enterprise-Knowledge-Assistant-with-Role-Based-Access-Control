@@ -76,20 +76,20 @@ export function HowItWorks() {
   const current = PIPELINE_STEPS[activeStep] ?? PIPELINE_STEPS[0]!;
 
   return (
-    <section id="how-it-works" className="relative mx-auto w-full max-w-[1280px] px-6 py-16">
+    <section id="how-it-works" className="relative mx-auto w-full max-w-[1280px] px-4 sm:px-6 py-12 sm:py-16">
       <div className="max-w-2xl">
         <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary">
           Execution Flow
         </span>
-        <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <h2 className="mt-2 font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-foreground">
           How Nexora AI processes and protects internal knowledge.
         </h2>
-        <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
+        <p className="mt-2.5 sm:mt-3 text-[13px] sm:text-[14px] leading-relaxed text-muted-foreground">
           A high-throughput, low-latency Retrieval-Augmented Generation pipeline built from first principles for strict enterprise security.
         </p>
       </div>
 
-      <div className="mt-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="mt-8 sm:mt-12 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
         {/* Left Column: Interactive Step Selector */}
         <div className="lg:col-span-5 space-y-3">
           {PIPELINE_STEPS.map((step, idx) => {

@@ -321,27 +321,27 @@ export function ArchitectureSimulation() {
   };
 
   return (
-    <section id="architecture" className="relative mx-auto w-full max-w-[1280px] px-6 py-16">
+    <section id="architecture" className="relative mx-auto w-full max-w-[1280px] px-4 sm:px-6 py-12 sm:py-16">
       {/* Section Header */}
       <div className="max-w-2xl">
         <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary">
           Interactive Architecture Simulation
         </span>
-        <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <h2 className="mt-2 font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-foreground">
           Visual request &amp; token flow workflow engine.
         </h2>
-        <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
+        <p className="mt-2.5 sm:mt-3 text-[13px] sm:text-[14px] leading-relaxed text-muted-foreground">
           Simulate real-time requests traversing the Nexora AI zero-trust pipeline. Inspect node inputs, outputs, query-time vector boundaries, and local inference telemetry.
         </p>
       </div>
 
       {/* Main n8n-Style Workflow Canvas Container */}
-      <div className="mt-10 rounded-[10px] border border-border bg-card shadow-sm overflow-hidden">
+      <div className="mt-8 sm:mt-10 rounded-[10px] border border-border bg-card shadow-sm overflow-hidden">
         {/* Top Workflow Control Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/40 px-4 py-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 border-b border-border bg-secondary/40 px-3 sm:px-4 py-2.5 sm:py-3">
           {/* Scenario Trigger Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-[11px] font-semibold text-muted-foreground mr-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <span className="font-mono text-[10.5px] sm:text-[11px] font-semibold text-muted-foreground mr-1 shrink-0">
               WORKFLOW:
             </span>
             {(Object.keys(SCENARIOS) as ScenarioId[]).map((id) => {
@@ -352,7 +352,7 @@ export function ArchitectureSimulation() {
                   key={id}
                   type="button"
                   onClick={() => handleScenarioChange(id)}
-                  className={`rounded-[6px] border px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                  className={`shrink-0 rounded-[6px] border px-2.5 py-1 text-[10.5px] sm:text-[11px] font-medium transition-colors cursor-pointer ${
                     isActive
                       ? "border-primary bg-primary text-primary-foreground font-semibold shadow-xs"
                       : "border-border bg-background text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -365,7 +365,7 @@ export function ArchitectureSimulation() {
           </div>
 
           {/* Playback Controls & Telemetry */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
             <div className="flex items-center gap-1 rounded-[6px] border border-border bg-background p-0.5">
               <button
                 type="button"
@@ -413,8 +413,8 @@ export function ArchitectureSimulation() {
             </div>
 
             {/* Latency Telemetry Chip */}
-            <div className="hidden sm:flex items-center gap-1.5 font-mono text-[11px] bg-background px-2.5 py-1 rounded-[6px] border border-border">
-              <span className="text-muted-foreground text-[10px]">LATENCY:</span>
+            <div className="flex items-center gap-1.5 font-mono text-[10.5px] sm:text-[11px] bg-background px-2 sm:px-2.5 py-1 rounded-[6px] border border-border shrink-0">
+              <span className="text-muted-foreground text-[9.5px] sm:text-[10px]">LATENCY:</span>
               <span className="font-bold text-primary">
                 +{scenario.timing[currentStepIndex] || 0}ms
               </span>
@@ -425,24 +425,24 @@ export function ArchitectureSimulation() {
         {/* Workflow Canvas Body (Split: Node Grid + Inspector Drawer) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border">
           {/* Node Grid Canvas Area */}
-          <div className="p-5 lg:col-span-8 bg-secondary/10 space-y-6">
+          <div className="p-3.5 sm:p-5 lg:col-span-8 bg-secondary/10 space-y-4 sm:space-y-6">
             {/* Canvas Header Status Banner */}
-            <div className="flex items-center justify-between rounded-[6px] border border-border bg-background px-3 py-2 text-[11px] font-mono">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between rounded-[6px] border border-border bg-background px-3 py-2 text-[10.5px] sm:text-[11px] font-mono">
+              <div className="flex items-center gap-2 min-w-0">
                 <span
-                  className={`size-2 rounded-full ${
+                  className={`size-2 shrink-0 rounded-full ${
                     isPlaying ? "bg-emerald-500 animate-pulse" : "bg-primary"
                   }`}
                 />
-                <span className="font-semibold text-foreground">{scenario.badge}</span>
+                <span className="font-semibold text-foreground truncate">{scenario.badge}</span>
               </div>
-              <span className="text-muted-foreground">
-                Step {currentStepIndex + 1} of {scenario.path.length} Active
+              <span className="text-muted-foreground shrink-0">
+                Step {currentStepIndex + 1}/{scenario.path.length}
               </span>
             </div>
 
             {/* Visual Node Grid (Interactive n8n Node Blocks) */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
               {Object.values(ALL_NODES).map((node) => {
                 const Icon = node.icon;
                 const isInCurrentScenario = scenario.path.includes(node.id);
@@ -457,7 +457,7 @@ export function ArchitectureSimulation() {
                     key={node.id}
                     type="button"
                     onClick={() => setSelectedNodeId(node.id)}
-                    className={`relative text-left rounded-[8px] border p-3 transition-all cursor-pointer ${
+                    className={`relative text-left rounded-[8px] border p-2.5 sm:p-3 transition-all cursor-pointer ${
                       isSelected
                         ? "ring-2 ring-primary border-primary bg-card shadow-sm"
                         : isCurrentlyActive
@@ -485,14 +485,14 @@ export function ArchitectureSimulation() {
                         >
                           <Icon className="size-3.5" />
                         </span>
-                        <span className="truncate font-display text-[12px] font-bold text-foreground">
+                        <span className="truncate font-display text-[11.5px] sm:text-[12px] font-bold text-foreground">
                           {node.name}
                         </span>
                       </div>
 
                       {/* Status Indicator Pill */}
                       {isCurrentlyActive ? (
-                        <span className="size-2 rounded-full bg-primary animate-ping" />
+                        <span className="size-2 rounded-full bg-primary animate-ping shrink-0" />
                       ) : isCompleted ? (
                         isBlockedNode ? (
                           <XCircle className="size-3.5 text-destructive shrink-0" />
@@ -500,17 +500,17 @@ export function ArchitectureSimulation() {
                           <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
                         )
                       ) : (
-                        <span className="size-1.5 rounded-full bg-border" />
+                        <span className="size-1.5 rounded-full bg-border shrink-0" />
                       )}
                     </div>
 
-                    <p className="mt-1.5 text-[10px] text-muted-foreground font-mono truncate">
+                    <p className="mt-1 text-[9.5px] sm:text-[10px] text-muted-foreground font-mono truncate">
                       {node.sublabel}
                     </p>
 
                     {/* Step Timing Tag */}
                     {isCompleted && stepIndexInPath !== -1 && (
-                      <div className="mt-2 flex items-center justify-between border-t border-border/50 pt-1.5 text-[9.5px] font-mono text-muted-foreground">
+                      <div className="mt-1.5 sm:mt-2 flex items-center justify-between border-t border-border/50 pt-1 text-[9px] sm:text-[9.5px] font-mono text-muted-foreground">
                         <span>STAGE 0{stepIndexInPath + 1}</span>
                         <span className="font-semibold text-foreground">
                           +{scenario.timing[stepIndexInPath]}ms
@@ -523,18 +523,18 @@ export function ArchitectureSimulation() {
             </div>
 
             {/* Live Packet Execution Stream */}
-            <div className="rounded-[8px] border border-border bg-background p-3.5 space-y-2">
-              <div className="flex items-center justify-between border-b border-border pb-1.5 text-[10.5px] font-mono">
-                <span className="text-muted-foreground uppercase font-bold">
-                  Workflow Execution Trace ({currentStepIndex + 1}/{scenario.path.length})
+            <div className="rounded-[8px] border border-border bg-background p-3 sm:p-3.5 space-y-2">
+              <div className="flex items-center justify-between border-b border-border pb-1.5 text-[10px] sm:text-[10.5px] font-mono">
+                <span className="text-muted-foreground uppercase font-bold truncate mr-2">
+                  Trace ({currentStepIndex + 1}/{scenario.path.length})
                 </span>
-                <span className="text-primary font-semibold">{scenario.finalMetric}</span>
+                <span className="text-primary font-semibold shrink-0">{scenario.finalMetric}</span>
               </div>
-              <div className="space-y-1 max-h-28 overflow-y-auto font-mono text-[11px]">
+              <div className="space-y-1 max-h-24 sm:max-h-28 overflow-y-auto font-mono text-[10.5px] sm:text-[11px]">
                 {scenario.logs.slice(0, currentStepIndex + 1).map((log, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-foreground/90 py-0.5">
-                    <span className="text-muted-foreground text-[10px]">[{idx + 1}]</span>
-                    <span className="truncate">{log}</span>
+                  <div key={idx} className="flex items-start gap-1.5 sm:gap-2 text-foreground/90 py-0.5">
+                    <span className="text-muted-foreground text-[9.5px] sm:text-[10px] shrink-0">[{idx + 1}]</span>
+                    <span className="break-words leading-tight">{log}</span>
                   </div>
                 ))}
               </div>
@@ -542,22 +542,22 @@ export function ArchitectureSimulation() {
           </div>
 
           {/* Right Column: Node Inspector Drawer */}
-          <div className="p-5 lg:col-span-4 bg-background flex flex-col justify-between space-y-4">
-            <div className="space-y-4">
+          <div className="p-3.5 sm:p-5 lg:col-span-4 bg-background flex flex-col justify-between space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {/* Selected Node Header */}
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <div className="flex items-center gap-2">
-                  <Code2 className="size-4 text-primary" />
-                  <div>
-                    <h4 className="font-display text-[13px] font-bold text-foreground">
+              <div className="flex items-center justify-between border-b border-border pb-2.5 sm:pb-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Code2 className="size-4 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <h4 className="font-display text-[12.5px] sm:text-[13px] font-bold text-foreground truncate">
                       Node: {selectedNode.name}
                     </h4>
-                    <p className="text-[10px] text-muted-foreground font-mono">
+                    <p className="text-[9.5px] sm:text-[10px] text-muted-foreground font-mono truncate">
                       Category: {selectedNode.category.toUpperCase()}
                     </p>
                   </div>
                 </div>
-                <span className="rounded-[4px] border border-border bg-secondary/40 px-2 py-0.5 font-mono text-[10px] text-foreground">
+                <span className="rounded-[4px] border border-border bg-secondary/40 px-1.5 sm:px-2 py-0.5 font-mono text-[9.5px] sm:text-[10px] text-foreground shrink-0">
                   ID: {selectedNode.id}
                 </span>
               </div>
@@ -567,11 +567,11 @@ export function ArchitectureSimulation() {
                 <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground mb-1">
                   Engine Parameters:
                 </p>
-                <div className="rounded-[6px] border border-border bg-secondary/20 p-2.5 font-mono text-[10.5px] space-y-1">
+                <div className="rounded-[6px] border border-border bg-secondary/20 p-2 sm:p-2.5 font-mono text-[10px] sm:text-[10.5px] space-y-1">
                   {Object.entries(selectedNode.config).map(([key, val]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <span className="text-muted-foreground">{key}:</span>
-                      <span className="text-foreground font-medium">
+                    <div key={key} className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground truncate">{key}:</span>
+                      <span className="text-foreground font-medium truncate">
                         {Array.isArray(val) ? val.join(", ") : String(val)}
                       </span>
                     </div>
@@ -584,7 +584,7 @@ export function ArchitectureSimulation() {
                 <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground mb-1">
                   Node Input Payload:
                 </p>
-                <div className="rounded-[6px] border border-border bg-secondary/30 p-2.5 font-mono text-[11px] overflow-x-auto max-h-28">
+                <div className="rounded-[6px] border border-border bg-secondary/30 p-2 sm:p-2.5 font-mono text-[10.5px] sm:text-[11px] overflow-x-auto max-h-24 sm:max-h-28">
                   <pre className="text-foreground/90">
                     {JSON.stringify(selectedNode.inputSchema, null, 2)}
                   </pre>
@@ -596,7 +596,7 @@ export function ArchitectureSimulation() {
                 <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground mb-1">
                   Node Output Result:
                 </p>
-                <div className="rounded-[6px] border border-border bg-secondary/30 p-2.5 font-mono text-[11px] overflow-x-auto max-h-28">
+                <div className="rounded-[6px] border border-border bg-secondary/30 p-2 sm:p-2.5 font-mono text-[10.5px] sm:text-[11px] overflow-x-auto max-h-24 sm:max-h-28">
                   <pre className="text-emerald-600 dark:text-emerald-400 font-semibold">
                     {JSON.stringify(selectedNode.outputSchema, null, 2)}
                   </pre>
@@ -605,7 +605,7 @@ export function ArchitectureSimulation() {
             </div>
 
             {/* Footer Trust Stamp */}
-            <div className="pt-3 border-t border-border flex items-center justify-between text-[10.5px] font-mono text-muted-foreground">
+            <div className="pt-2.5 sm:pt-3 border-t border-border flex items-center justify-between text-[10px] sm:text-[10.5px] font-mono text-muted-foreground">
               <span>Deterministic Execution</span>
               <span className="text-emerald-500 font-semibold flex items-center gap-1">
                 <CheckCircle2 className="size-3" /> Air-Gapped

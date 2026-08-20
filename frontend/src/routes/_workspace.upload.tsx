@@ -158,10 +158,10 @@ function UploadDocumentPage() {
       />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-5">
           {/* Step 1: Select Source */}
-          <section className="rounded-3xl border border-hairline bg-card/60 p-6 shadow-xl backdrop-blur-2xl transition-all">
-            <div className="mb-4 flex items-center justify-between pb-3 border-b border-hairline/80">
+          <section className="rounded-2xl sm:rounded-3xl border border-hairline bg-card/60 p-4 sm:p-6 shadow-xl backdrop-blur-2xl transition-all">
+            <div className="mb-3.5 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-hairline/80">
               <div>
                 <h2 className="font-display text-sm font-semibold text-foreground">
                   1. Select source
@@ -170,7 +170,7 @@ function UploadDocumentPage() {
                   Upload a supported file for vector chunking &amp; ingestion.
                 </p>
               </div>
-              <StatusPill tone={validation?.valid ? "success" : "neutral"}>
+              <StatusPill tone={validation?.valid ? "success" : "neutral"} className="self-start sm:self-auto">
                 {file ? (validation?.valid ? "Validated" : "Needs attention") : "Waiting for file"}
               </StatusPill>
             </div>
@@ -184,8 +184,8 @@ function UploadDocumentPage() {
           </section>
 
           {/* Step 2: Define Knowledge Metadata */}
-          <section className="rounded-3xl border border-hairline bg-card/60 p-6 shadow-xl backdrop-blur-2xl transition-all">
-            <div className="mb-4 pb-3 border-b border-hairline/80">
+          <section className="rounded-2xl sm:rounded-3xl border border-hairline bg-card/60 p-4 sm:p-6 shadow-xl backdrop-blur-2xl transition-all">
+            <div className="mb-3.5 sm:mb-4 pb-3 border-b border-hairline/80">
               <h2 className="font-display text-sm font-semibold text-foreground">
                 2. Define knowledge metadata
               </h2>
@@ -194,7 +194,7 @@ function UploadDocumentPage() {
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-3.5 sm:grid-cols-3">
               <label className="space-y-1.5">
                 <FieldLabel required>Document name</FieldLabel>
                 <input
@@ -242,7 +242,7 @@ function UploadDocumentPage() {
               </label>
             </div>
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="mt-3.5 sm:mt-4 grid gap-3.5 sm:grid-cols-3">
               <label className="space-y-1.5">
                 <FieldLabel>Access scope</FieldLabel>
                 <select
