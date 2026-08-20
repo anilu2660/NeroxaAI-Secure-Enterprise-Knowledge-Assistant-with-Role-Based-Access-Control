@@ -27,10 +27,21 @@ export async function getLiveAdminMetrics(): Promise<AdminMetric[]> {
     getJson(auditPath),
   ]);
 
+  const now = Date.now();
+  const twoHoursMs = 2 * 60 * 60 * 1000;
+  const recentDocsCount = Array.isArray(documents)
+    ? documents.filter((doc: any) => {
+        const rawDate = doc.created_at || doc.createdAt || doc.preparedAtIso || doc.uploaded_at;
+        if (!rawDate) return false;
+        const t = new Date(rawDate).getTime();
+        return !isNaN(t) && now - t <= twoHoursMs && now >= t;
+      }).length
+    : 0;
+
   return [
     { id: "total-users", label: "Total Users", value: String(Array.isArray(users) ? users.length : 0), unavailableReason: "", hint: "Active user accounts managed in PostgreSQL database." },
     { id: "total-documents", label: "Total Documents", value: String(Array.isArray(documents) ? documents.length : 0), unavailableReason: "", hint: "Indexed documents stored in PostgreSQL and represented in Qdrant." },
-    { id: "recent-uploads", label: "Recent Uploads", value: String(Array.isArray(documents) ? documents.length : 0), unavailableReason: "", hint: "Documents currently indexed by the backend ingestion pipeline." },
+    { id: "recent-uploads", label: "Recent Uploads", value: String(recentDocsCount), unavailableReason: "", hint: "Documents uploaded within the last 2 hours." },
     { id: "recent-activity", label: "Recent Activity", value: String(Array.isArray(audit) ? audit.length : 0), unavailableReason: "", hint: "Audit events currently stored in PostgreSQL." },
   ];
 }

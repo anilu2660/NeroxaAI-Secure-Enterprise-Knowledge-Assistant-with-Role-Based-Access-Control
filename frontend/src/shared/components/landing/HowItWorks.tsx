@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UploadCloud, Search, Cpu, ArrowRight, Code2, CheckCircle2 } from "lucide-react";
+import { UploadCloud, Search, Cpu, ArrowRight, Code2, CheckCircle2, Terminal } from "lucide-react";
 
 const PIPELINE_STEPS = [
   {
@@ -9,7 +9,7 @@ const PIPELINE_STEPS = [
     description:
       "Enterprise manuals (PDF, DOCX, TXT) are parsed. Text is extracted into 512-token chunks with 64-token overlap. SHA-256 document hashing guarantees duplicate vectors are never stored.",
     tech: "FastAPI · PyPDF · SHA256",
-    codeSnippet: `{
+    jsonSnippet: `{
   "document_id": "doc_8f94e21",
   "filename": "Global_Expense_Policy_2025.pdf",
   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427...",
@@ -17,6 +17,13 @@ const PIPELINE_STEPS = [
   "clearance_level": "Tier-2",
   "chunks_created": 48
 }`,
+    pythonSnippet: `@router.post("/upload")
+async def ingest_document(file: UploadFile, db: Session = Depends(get_db)):
+    doc_hash = hashlib.sha256(content).hexdigest()
+    chunks = recursive_chunker.split_text(raw_text, chunk_size=512)
+    embeddings = embedding_service.embed_batch(chunks)
+    qdrant_client.upsert(collection="enterprise_kb", points=embeddings)
+    return {"status": "indexed", "chunks": len(chunks)}`,
   },
   {
     step: "02",
@@ -24,14 +31,19 @@ const PIPELINE_STEPS = [
     title: "RBAC Gated Retrieval & Cross-Encoder",
     description:
       "At query time, the user's validated JWT claims restrict the search filter. Dense embeddings query Qdrant via cosine distance, followed by a BAAI Cross-Encoder reranking the top-5 candidates.",
-    tech: "Qdrant Vector DB · BAAI/bge-small-en · Cosine",
-    codeSnippet: `{
+    tech: "Qdrant Vector DB · BAAI/bge-reranker · Cosine",
+    jsonSnippet: `{
   "query": "international travel reimbursement cap",
   "user_claims": { "role": "Finance_Manager", "dept": "Finance" },
   "qdrant_filter": { "must": [{ "key": "dept", "match": "Finance" }] },
   "rerank_top_k": 5,
   "top_score": 0.942
 }`,
+    pythonSnippet: `def retrieve_authorized_chunks(query: str, user: User) -> list[Chunk]:
+    filter_expr = Filter(must=[FieldCondition(key="department", match=MatchValue(value=user.department))])
+    candidates = qdrant.search(collection="enterprise_kb", query_vector=embed(query), query_filter=filter_expr, limit=25)
+    reranked = cross_encoder.predict([(query, c.payload["text"]) for c in candidates])
+    return [c for c, s in zip(candidates, reranked) if s >= 0.70][:5]`,
   },
   {
     step: "03",
@@ -40,18 +52,27 @@ const PIPELINE_STEPS = [
     description:
       "The retrieved context is injected into a strict system prompt. The private local Ollama instance synthesizes a factual response, citing exact PDF titles, page numbers, and paragraphs.",
     tech: "Ollama (Qwen 2.5 / Llama 3) · Verifiable Citations",
-    codeSnippet: `{
+    jsonSnippet: `{
   "model": "ollama/qwen2.5:7b-instruct-q4_K_M",
   "temperature": 0.0,
   "air_gapped": true,
   "synthesis_latency_ms": 118,
   "citations": ["Global_Expense_Policy_2025.pdf:p14"]
 }`,
+    pythonSnippet: `async def generate_grounded_answer(prompt: str, contexts: list[Chunk]) -> Answer:
+    system_prompt = build_grounded_system_prompt(contexts)
+    async for chunk in ollama_client.chat_stream(
+        model="qwen2.5:7b",
+        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
+        options={"temperature": 0.0}
+    ):
+        yield format_stream_with_citations(chunk, contexts)`,
   },
 ];
 
 export function HowItWorks() {
   const [activeStep, setActiveStep] = useState(0);
+  const [viewTab, setViewTab] = useState<"json" | "python">("json");
   const current = PIPELINE_STEPS[activeStep] ?? PIPELINE_STEPS[0]!;
 
   return (
@@ -61,10 +82,10 @@ export function HowItWorks() {
           Execution Flow
         </span>
         <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          How NeroxaAI processes and protects internal knowledge.
+          How Nexora AI processes and protects internal knowledge.
         </h2>
         <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
-          A high-throughput, low-latency Retrieval-Augmented Generation pipeline built from first principles for enterprise security.
+          A high-throughput, low-latency Retrieval-Augmented Generation pipeline built from first principles for strict enterprise security.
         </p>
       </div>
 
@@ -79,7 +100,7 @@ export function HowItWorks() {
                 key={step.step}
                 type="button"
                 onClick={() => setActiveStep(idx)}
-                className={`w-full text-left rounded-[10px] border p-5 transition-all ${
+                className={`w-full text-left rounded-[10px] border p-5 transition-all cursor-pointer ${
                   isSelected
                     ? "border-primary bg-secondary/60 shadow-sm"
                     : "border-border bg-card/60 hover:bg-secondary/30"
@@ -109,7 +130,7 @@ export function HowItWorks() {
                   <span>{step.tech}</span>
                   {isSelected && (
                     <span className="flex items-center gap-1 text-primary font-sans font-medium text-[11px]">
-                      Active Step <ArrowRight className="size-3" />
+                      Active Stage <ArrowRight className="size-3" />
                     </span>
                   )}
                 </div>
@@ -124,18 +145,40 @@ export function HowItWorks() {
             <div className="flex items-center gap-2">
               <Code2 className="size-4 text-primary" />
               <span className="font-mono text-[12px] font-semibold text-foreground">
-                Pipeline Stage Inspection — {current.title}
+                Pipeline Stage {current.step} — {current.title}
               </span>
             </div>
-            <span className="rounded-[4px] border border-border bg-background px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
-              JSON Payload
-            </span>
+
+            <div className="flex items-center gap-1 bg-background rounded-[4px] p-0.5 border border-border">
+              <button
+                type="button"
+                onClick={() => setViewTab("json")}
+                className={`px-2 py-0.5 font-mono text-[10px] rounded-[3px] transition-colors cursor-pointer ${
+                  viewTab === "json"
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                JSON Payload
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewTab("python")}
+                className={`px-2 py-0.5 font-mono text-[10px] rounded-[3px] transition-colors cursor-pointer ${
+                  viewTab === "python"
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Python Backend
+              </button>
+            </div>
           </div>
 
           <div className="p-5 bg-secondary/15 space-y-4">
             <div className="rounded-[8px] border border-border bg-background p-4 overflow-x-auto">
-              <pre className="font-mono text-[12px] leading-relaxed text-foreground/90">
-                {current.codeSnippet}
+              <pre className="font-mono text-[11.5px] leading-relaxed text-foreground/90">
+                {viewTab === "json" ? current.jsonSnippet : current.pythonSnippet}
               </pre>
             </div>
 
@@ -144,7 +187,7 @@ export function HowItWorks() {
                 <span className="text-muted-foreground block text-[10px] uppercase font-mono">
                   Execution Guarantee
                 </span>
-                <span className="font-semibold text-foreground mt-0.5 flex items-center gap-1">
+                <span className="font-semibold text-foreground mt-0.5 flex items-center gap-1 font-mono">
                   <CheckCircle2 className="size-3.5 text-emerald-500" /> Deterministic &amp; Logged
                 </span>
               </div>
@@ -152,7 +195,7 @@ export function HowItWorks() {
                 <span className="text-muted-foreground block text-[10px] uppercase font-mono">
                   Network Isolation
                 </span>
-                <span className="font-semibold text-foreground mt-0.5 flex items-center gap-1">
+                <span className="font-semibold text-foreground mt-0.5 flex items-center gap-1 font-mono">
                   <CheckCircle2 className="size-3.5 text-emerald-500" /> 100% On-Premises
                 </span>
               </div>

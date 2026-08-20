@@ -8,8 +8,9 @@ import {
   BarChart,
   Bar,
   Cell,
+  CartesianGrid,
 } from "recharts";
-import { Zap, ShieldCheck, Database, CheckCircle2, TrendingUp } from "lucide-react";
+import { Zap, ShieldCheck, Database, TrendingUp } from "lucide-react";
 
 const LATENCY_DATA = [
   { percentile: "P10", latency: 22, cacheHit: 18 },
@@ -22,9 +23,9 @@ const LATENCY_DATA = [
 ];
 
 const PRECISION_DATA = [
-  { method: "Raw Vector Search", precision: 74.2, fill: "#64748b" },
-  { method: "Hybrid Dense+BM25", precision: 86.5, fill: "#94a3b8" },
-  { method: "Neroxa Cross-Encoder", precision: 98.4, fill: "#2563eb" },
+  { method: "Raw Vector", precision: 74.2, fill: "#94a3b8" },
+  { method: "Hybrid BM25", precision: 86.5, fill: "#60a5fa" },
+  { method: "Cross-Encoder", precision: 98.4, fill: "#2563eb" },
 ];
 
 const METRICS_SUMMARY = [
@@ -53,6 +54,26 @@ const METRICS_SUMMARY = [
     icon: Database,
   },
 ];
+
+function CustomChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-[6px] border border-border bg-popover/95 px-3 py-2 text-popover-foreground shadow-lg backdrop-blur-md font-mono text-[11.5px] space-y-1 min-w-[150px]">
+      {label && <p className="font-semibold text-foreground border-b border-border pb-1 mb-1">{label}</p>}
+      {payload.map((entry: any, index: number) => (
+        <div key={index} className="flex items-center justify-between gap-4">
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: entry.color || entry.payload?.fill || "#2563eb" }} />
+            {entry.name || "Value"}:
+          </span>
+          <span className="font-semibold text-foreground">
+            {entry.value}{entry.name?.includes("Precision") || entry.dataKey === "precision" ? "%" : "ms"}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function MetricsSection() {
   return (
@@ -104,7 +125,7 @@ export function MetricsSection() {
                 Measured from client request ingress to citation synthesis completion (ms)
               </p>
             </div>
-            <span className="font-mono text-[11px] text-emerald-500 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-[4px]">
+            <span className="font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-[4px] border border-emerald-500/20">
               P99 &lt; 185ms
             </span>
           </div>
@@ -114,43 +135,38 @@ export function MetricsSection() {
               <AreaChart data={LATENCY_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="latencyGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4} />
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
                     <stop offset="95%" stopColor="#2563eb" stopOpacity={0.0} />
                   </linearGradient>
                   <linearGradient id="cacheGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.6} />
                 <XAxis
                   dataKey="percentile"
-                  stroke="rgba(255,255,255,0.3)"
-                  fontSize={11}
-                  fontFamily="monospace"
+                  stroke="var(--color-muted-foreground)"
+                  tick={{ fill: "currentColor", fontSize: 11, fontFamily: "monospace" }}
+                  className="text-muted-foreground"
                   tickLine={false}
+                  axisLine={{ stroke: "var(--color-border)" }}
                 />
                 <YAxis
-                  stroke="rgba(255,255,255,0.3)"
-                  fontSize={11}
-                  fontFamily="monospace"
+                  stroke="var(--color-muted-foreground)"
+                  tick={{ fill: "currentColor", fontSize: 11, fontFamily: "monospace" }}
+                  className="text-muted-foreground"
                   tickLine={false}
+                  axisLine={{ stroke: "var(--color-border)" }}
                   unit="ms"
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "rgba(15, 23, 42, 0.95)",
-                    borderColor: "rgba(255, 255, 255, 0.1)",
-                    borderRadius: "6px",
-                    fontSize: "12px",
-                    fontFamily: "monospace",
-                  }}
-                />
+                <Tooltip content={<CustomChartTooltip />} />
                 <Area
                   type="monotone"
                   dataKey="latency"
                   name="Full RAG Pipeline"
                   stroke="#2563eb"
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                   fillOpacity={1}
                   fill="url(#latencyGrad)"
                 />
@@ -188,6 +204,9 @@ export function MetricsSection() {
                 Precision comparison across retrieval architectures
               </p>
             </div>
+            <span className="font-mono text-[11px] text-blue-600 dark:text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded-[4px] border border-blue-500/20">
+              98.4% Acc.
+            </span>
           </div>
 
           <div className="h-64 w-full pt-2">
@@ -195,36 +214,31 @@ export function MetricsSection() {
               <BarChart
                 data={PRECISION_DATA}
                 layout="vertical"
-                margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
+                margin={{ top: 10, right: 25, left: 10, bottom: 0 }}
               >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border)" opacity={0.6} />
                 <XAxis
                   type="number"
                   domain={[0, 100]}
-                  stroke="rgba(255,255,255,0.3)"
-                  fontSize={11}
-                  fontFamily="monospace"
+                  stroke="var(--color-muted-foreground)"
+                  tick={{ fill: "currentColor", fontSize: 11, fontFamily: "monospace" }}
+                  className="text-muted-foreground"
                   tickLine={false}
+                  axisLine={{ stroke: "var(--color-border)" }}
                   unit="%"
                 />
                 <YAxis
                   type="category"
                   dataKey="method"
-                  stroke="rgba(255,255,255,0.6)"
-                  fontSize={11}
+                  stroke="var(--color-foreground)"
+                  tick={{ fill: "currentColor", fontSize: 12, fontWeight: 500 }}
+                  className="text-foreground"
                   tickLine={false}
-                  width={110}
+                  axisLine={{ stroke: "var(--color-border)" }}
+                  width={115}
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "rgba(15, 23, 42, 0.95)",
-                    borderColor: "rgba(255, 255, 255, 0.1)",
-                    borderRadius: "6px",
-                    fontSize: "12px",
-                    fontFamily: "monospace",
-                  }}
-                  formatter={(value: number) => [`${value}%`, "Accuracy"]}
-                />
-                <Bar dataKey="precision" radius={[0, 4, 4, 0]}>
+                <Tooltip content={<CustomChartTooltip />} />
+                <Bar dataKey="precision" name="Precision" radius={[0, 6, 6, 0]}>
                   {PRECISION_DATA.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
@@ -233,9 +247,9 @@ export function MetricsSection() {
             </ResponsiveContainer>
           </div>
 
-          <div className="rounded-[6px] border border-border bg-secondary/30 p-2.5 text-[11px] text-muted-foreground">
+          <div className="rounded-[6px] border border-border bg-secondary/40 p-2.5 text-[11px] text-muted-foreground">
             <span className="font-semibold text-foreground">BAAI Cross-Encoder advantage:</span>{" "}
-            Eliminates false-positive dense vector chunks before sending to Ollama.
+            Eliminates false-positive dense vector chunks before sending to local LLM context.
           </div>
         </div>
       </div>

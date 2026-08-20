@@ -262,22 +262,22 @@ export function Markdown({ content, className = "" }: MarkdownProps) {
   );
 }
 
-/** Shadcn Skeleton marker loader for AI thinking / searching state */
-export function MarkdownSkeleton({ message = "Searching knowledge base and generating answer…" }: { message?: string }) {
+/** Sleek, modern marker loader for AI thinking / searching state */
+export function MarkdownSkeleton({ message = "Searching authorized knowledge & synthesizing response…" }: { message?: string }) {
   return (
-    <div className="space-y-2.5 py-1">
-      <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+    <div className="space-y-3 py-2">
+      <div className="flex items-center gap-2 text-[12px] font-mono text-muted-foreground">
         <span className="relative flex size-2 shrink-0">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
           <span className="relative inline-flex size-2 rounded-full bg-primary" />
         </span>
-        <span className="font-medium text-foreground/80">{message}</span>
+        <span className="font-medium text-foreground">{message}</span>
       </div>
 
-      <div className="space-y-2 pt-1 max-w-[560px]">
-        <Skeleton className="h-3.5 w-full rounded-md" />
-        <Skeleton className="h-3.5 w-[88%] rounded-md" />
-        <Skeleton className="h-3.5 w-[65%] rounded-md" />
+      <div className="space-y-2 max-w-[520px]">
+        <div className="h-2.5 w-full rounded-full bg-secondary/80 animate-pulse" />
+        <div className="h-2.5 w-[85%] rounded-full bg-secondary/60 animate-pulse" />
+        <div className="h-2.5 w-[60%] rounded-full bg-secondary/40 animate-pulse" />
       </div>
     </div>
   );

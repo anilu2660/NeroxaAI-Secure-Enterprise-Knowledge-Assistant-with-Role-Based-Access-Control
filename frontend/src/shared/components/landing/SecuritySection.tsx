@@ -3,7 +3,7 @@ import { Shield, Key, Fingerprint, Lock, CheckCircle2, ShieldAlert } from "lucid
 const AUDIT_LOGS = [
   {
     time: "19:14:02 UTC",
-    actor: "sarah.chen@neroxa.internal",
+    actor: "sarah.chen@nexora.internal",
     role: "Finance Lead",
     action: "QUERY_EXECUTE",
     resource: "Global_Expense_Policy_2025.pdf",
@@ -11,7 +11,7 @@ const AUDIT_LOGS = [
   },
   {
     time: "19:14:18 UTC",
-    actor: "david.kim@neroxa.internal",
+    actor: "david.kim@nexora.internal",
     role: "Marketing Specialist",
     action: "UNAUTHORIZED_RETRIEVAL_ATTEMPT",
     resource: "Exec_Compensation_Q4.pdf",
@@ -19,7 +19,7 @@ const AUDIT_LOGS = [
   },
   {
     time: "19:15:40 UTC",
-    actor: "alex.kumar@neroxa.internal",
+    actor: "alex.kumar@nexora.internal",
     role: "Security Admin",
     action: "POLICY_UPDATE",
     resource: "Tier-3 Engineering Vector ACL",
@@ -122,7 +122,7 @@ export function SecuritySection() {
                     <span
                       className={`rounded-[4px] px-1.5 py-0.5 text-[9.5px] font-bold ${
                         log.status.includes("ALLOWED") || log.status.includes("COMMITTED")
-                          ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                           : log.status.includes("BLOCKED")
                             ? "bg-destructive/10 text-destructive border border-destructive/20"
                             : "bg-primary/10 text-primary border border-primary/20"

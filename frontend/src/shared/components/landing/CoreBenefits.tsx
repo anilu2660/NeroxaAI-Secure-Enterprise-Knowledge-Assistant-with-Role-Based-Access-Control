@@ -6,27 +6,33 @@ import {
   Lock,
   XCircle,
   CheckCircle2,
-  Layers,
-  ArrowRight,
   Server,
   CloudOff,
+  Hash,
+  Terminal,
 } from "lucide-react";
 
 const ROLES = [
   {
     name: "Engineering",
-    allowed: ["System Architecture", "API Specifications", "Security Runbooks", "General Policies"],
+    clearance: "Level 4 · Engineering & Infrastructure",
+    allowed: ["System Architecture", "API Specifications", "Security Runbooks", "General Company Policies"],
     blocked: ["Executive Compensation", "Audited Financials", "Employee Medical Records"],
+    hash: "0x4f8a...c91e",
   },
   {
     name: "Finance",
-    allowed: ["P&L Statements", "Audited Financials", "Travel Expense Policy", "General Policies"],
-    blocked: ["Engineering Source Code", "API Keys", "Employee Medical Records"],
+    clearance: "Level 3 · Financial Operations & P&L",
+    allowed: ["P&L Statements", "Audited Financials", "Travel Expense Policy", "General Company Policies"],
+    blocked: ["Engineering Source Repos", "Infrastructure Credentials", "Employee Medical Records"],
+    hash: "0x88e1...3a0f",
   },
   {
     name: "HR Operations",
-    allowed: ["Employee Handbooks", "Benefits Guides", "Medical Leave Policies", "General Policies"],
-    blocked: ["Q4 Board Deck", "AWS Infrastructure Keys", "PostgreSQL HA Runbooks"],
+    clearance: "Level 2 · People & Benefits",
+    allowed: ["Employee Handbooks", "Benefits Guides", "Medical Leave Policies", "General Company Policies"],
+    blocked: ["Q4 Board Deck", "AWS Production IAM Secrets", "PostgreSQL HA Runbooks"],
+    hash: "0x12bb...9fd4",
   },
 ];
 
@@ -44,8 +50,8 @@ export function CoreBenefits() {
         <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           Three non-negotiable guarantees for internal enterprise AI.
         </h2>
-        <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-          Eliminate hallucinations, guarantee mathematical document provenance, and protect sensitive organizational knowledge.
+        <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
+          Eliminate hallucinations, guarantee verifiable document provenance, and mathematically protect sensitive organizational knowledge.
         </p>
       </div>
 
@@ -55,7 +61,7 @@ export function CoreBenefits() {
         <div className="rounded-[10px] border border-border bg-card p-6 sm:p-8 shadow-sm">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-5 space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-[6px] bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              <div className="inline-flex items-center gap-2 rounded-[6px] bg-primary/10 px-2.5 py-1 text-[11px] font-mono font-semibold text-primary">
                 <ShieldCheck className="size-3.5" />
                 <span>01. Deterministic RBAC Boundaries</span>
               </div>
@@ -63,12 +69,12 @@ export function CoreBenefits() {
                 Query-time vector gating by department and tier.
               </h3>
               <p className="text-[13.5px] leading-relaxed text-muted-foreground">
-                Unlike consumer chatbots where all documents sit in one open pool, NeroxaAI evaluates role boundaries inside the vector retrieval pipeline. Employees cannot retrieve, synthesize, or even see vector embeddings from unauthorized departments.
+                Unlike consumer chatbots where all documents sit in one open pool, Nexora AI evaluates role boundaries inside the vector retrieval pipeline. Employees cannot retrieve, synthesize, or even see vector embeddings from unauthorized departments.
               </p>
 
               <div className="pt-2">
                 <p className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground mb-2">
-                  Test Role Boundary:
+                  Select Role Clearance:
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {ROLES.map((role, idx) => (
@@ -76,9 +82,9 @@ export function CoreBenefits() {
                       key={role.name}
                       type="button"
                       onClick={() => setSelectedRoleIndex(idx)}
-                      className={`rounded-[6px] border px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                      className={`rounded-[6px] border px-3 py-1.5 text-[12px] font-medium transition-colors cursor-pointer ${
                         selectedRoleIndex === idx
-                          ? "border-primary bg-primary text-primary-foreground font-semibold"
+                          ? "border-primary bg-primary text-primary-foreground font-semibold shadow-xs"
                           : "border-border bg-secondary/40 text-foreground hover:bg-secondary"
                       }`}
                     >
@@ -92,18 +98,19 @@ export function CoreBenefits() {
             {/* Interactive Live RBAC Matrix Viewer */}
             <div className="lg:col-span-7 rounded-[8px] border border-border bg-secondary/20 p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-border pb-3">
-                <span className="font-mono text-[12px] font-medium text-foreground">
-                  Active Filter: <span className="text-primary font-bold">{activeRole.name}</span>
-                </span>
-                <span className="text-[11px] font-mono text-muted-foreground">
-                  Strict Deny-by-Default Engine
+                <div className="flex items-center gap-2 font-mono text-[12px]">
+                  <span className="text-muted-foreground">Active Filter:</span>
+                  <span className="text-primary font-bold">{activeRole.name}</span>
+                </div>
+                <span className="text-[10.5px] font-mono text-muted-foreground flex items-center gap-1">
+                  <Hash className="size-3 text-primary" /> Tenant Sig: {activeRole.hash}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Accessible Knowledge Collections */}
                 <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-500 uppercase tracking-wide">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide font-mono">
                     <CheckCircle2 className="size-3.5" />
                     <span>Authorized Collections</span>
                   </div>
@@ -114,7 +121,7 @@ export function CoreBenefits() {
                         className="flex items-center gap-2 rounded-[6px] border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1.5 text-[12px] text-foreground"
                       >
                         <span className="size-1.5 rounded-full bg-emerald-500" />
-                        <span>{item}</span>
+                        <span className="font-medium">{item}</span>
                       </div>
                     ))}
                   </div>
@@ -122,7 +129,7 @@ export function CoreBenefits() {
 
                 {/* Blocked Collections */}
                 <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-destructive uppercase tracking-wide">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-destructive uppercase tracking-wide font-mono">
                     <XCircle className="size-3.5" />
                     <span>Isolated &amp; Blocked</span>
                   </div>
@@ -148,7 +155,7 @@ export function CoreBenefits() {
           {/* Benefit 2: 100% Private Local Inference Architecture */}
           <div className="rounded-[10px] border border-border bg-card p-6 sm:p-7 flex flex-col justify-between shadow-sm space-y-6">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-[6px] bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              <div className="inline-flex items-center gap-2 rounded-[6px] bg-primary/10 px-2.5 py-1 text-[11px] font-mono font-semibold text-primary">
                 <Cpu className="size-3.5" />
                 <span>02. 100% Private Local Inference</span>
               </div>
@@ -156,7 +163,7 @@ export function CoreBenefits() {
                 Air-gapped on-premises execution.
               </h3>
               <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-                Runs on private local LLMs via Ollama (Qwen 2.5, Llama 3) on your own hardware or VPC. Prompts, documents, and vectors are never sent to external cloud APIs.
+                Runs on private local LLMs via Ollama (Qwen 2.5, Llama 3) on your own hardware or dedicated VPC. Prompts, documents, and vectors are never sent to external cloud APIs.
               </p>
             </div>
 
@@ -169,9 +176,9 @@ export function CoreBenefits() {
               <div className="flex items-center justify-between font-mono text-[11px] text-foreground">
                 <span className="flex items-center gap-2 font-semibold">
                   <Server className="size-3.5 text-primary" />
-                  NeroxaAI Air-Gapped Engine
+                  Nexora AI Air-Gapped Engine
                 </span>
-                <span className="text-emerald-500 font-semibold flex items-center gap-1">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                   <CloudOff className="size-3.5" /> 0 External Network Calls
                 </span>
               </div>
@@ -181,7 +188,7 @@ export function CoreBenefits() {
           {/* Benefit 3: Verifiable Citations */}
           <div className="rounded-[10px] border border-border bg-card p-6 sm:p-7 flex flex-col justify-between shadow-sm space-y-6">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-[6px] bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              <div className="inline-flex items-center gap-2 rounded-[6px] bg-primary/10 px-2.5 py-1 text-[11px] font-mono font-semibold text-primary">
                 <FileCheck2 className="size-3.5" />
                 <span>03. Verifiable Multi-Page Citations</span>
               </div>
@@ -189,7 +196,7 @@ export function CoreBenefits() {
                 Zero hallucination with source provenance.
               </h3>
               <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-                Every sentence synthesized by the engine includes direct, clickable links to the exact source PDF, document title, and page chunk.
+                Every response synthesized by the engine includes direct, verifiable links to the exact source PDF, document title, and page chunk.
               </p>
             </div>
 

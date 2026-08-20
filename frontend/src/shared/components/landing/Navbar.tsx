@@ -165,7 +165,7 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => navigate({ to: "/login" })}
-                className="inline-flex h-8 items-center justify-center rounded-[6px] bg-primary px-3.5 text-[12.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="inline-flex h-8 items-center justify-center rounded-[6px] bg-primary px-3.5 text-[12.5px] font-medium text-primary-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] border border-primary/30 transition-all hover:bg-primary/90 active:scale-[0.98] cursor-pointer"
               >
                 Launch Workspace
               </button>

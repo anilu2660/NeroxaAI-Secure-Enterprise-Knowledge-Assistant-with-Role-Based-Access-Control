@@ -1245,7 +1245,16 @@ export async function getAdminMetrics(): Promise<AdminMetric[]> {
       if (dRes.ok) {
         const docs = await dRes.json();
         docCount = docs.length;
-        recentUploads = docs.length;
+        const now = Date.now();
+        const twoHoursMs = 2 * 60 * 60 * 1000;
+        recentUploads = Array.isArray(docs)
+          ? docs.filter((doc: any) => {
+              const rawDate = doc.created_at || doc.createdAt || doc.preparedAtIso || doc.uploaded_at;
+              if (!rawDate) return false;
+              const t = new Date(rawDate).getTime();
+              return !isNaN(t) && now - t <= twoHoursMs && now >= t;
+            }).length
+          : 0;
       }
 
       const aRes = await fetch(getApiUrl("/api/v1/admin/audit-logs/"), { headers: { Authorization: `Bearer ${token}` } });
@@ -1278,7 +1287,7 @@ export async function getAdminMetrics(): Promise<AdminMetric[]> {
       label: "Recent Uploads",
       value: String(recentUploads),
       unavailableReason: "",
-      hint: "Total document upload & vector embedding operations.",
+      hint: "Documents uploaded within the last 2 hours.",
     },
     {
       id: "recent-activity",

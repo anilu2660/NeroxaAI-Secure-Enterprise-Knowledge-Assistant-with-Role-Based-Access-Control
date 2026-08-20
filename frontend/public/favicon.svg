@@ -1,55 +1,82 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="100%" height="100%">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0a0d18"/>
-      <stop offset="100%" stop-color="#121829"/>
+    <!-- Left Pillar Gradient -->
+    <linearGradient id="fav-grad-left" x1="15" y1="15" x2="35" y2="105" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="50%" stop-color="#1d4ed8" />
+      <stop offset="100%" stop-color="#1e3a8a" />
     </linearGradient>
-    <linearGradient id="cyanPurple" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00f2fe"/>
-      <stop offset="50%" stop-color="#4facfe"/>
-      <stop offset="100%" stop-color="#00c6ff"/>
+
+    <!-- Diagonal Slash Gradient -->
+    <linearGradient id="fav-grad-diag" x1="15" y1="15" x2="100" y2="105" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="30%" stop-color="#2563eb" />
+      <stop offset="70%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#7c3aed" />
     </linearGradient>
-    <linearGradient id="accentGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#9b51e0"/>
-      <stop offset="100%" stop-color="#00f2fe"/>
+
+    <!-- Right Pillar Gradient -->
+    <linearGradient id="fav-grad-right" x1="75" y1="45" x2="100" y2="105" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4338ca" />
+      <stop offset="60%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#7c3aed" />
     </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="12" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
+
+    <!-- Shield Gradient -->
+    <linearGradient id="fav-shield-grad" x1="68" y1="12" x2="98" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <!-- Shield Stroke -->
+    <linearGradient id="fav-shield-stroke" x1="68" y1="12" x2="98" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
   </defs>
 
-  <!-- Background Card -->
-  <rect width="512" height="512" rx="110" fill="url(#bgGrad)" stroke="#1e293b" stroke-width="4"/>
+  <!-- Left Vertical Element -->
+  <path d="M16 20L38 42V98L16 104V20Z" fill="url(#fav-grad-left)" />
 
-  <!-- Outer Glowing Shield -->
-  <path d="M 256 90 L 390 140 C 390 280 320 375 256 420 C 192 375 122 280 122 140 Z" 
-        fill="none" 
-        stroke="url(#cyanPurple)" 
-        stroke-width="14" 
-        stroke-linejoin="round"
-        filter="url(#glow)"/>
+  <!-- Main Diagonal Slash -->
+  <path d="M16 16L102 104H78L16 42V16Z" fill="url(#fav-grad-diag)" />
 
-  <!-- Inner Cyber Cube/Node -->
-  <polygon points="256,180 320,215 320,285 256,320 192,285 192,215" 
-           fill="none" 
-           stroke="url(#accentGrad)" 
-           stroke-width="10" 
-           stroke-linejoin="round"/>
-  
-  <line x1="256" y1="180" x2="256" y2="320" stroke="url(#accentGrad)" stroke-width="8"/>
-  <line x1="256" y1="250" x2="320" y2="215" stroke="url(#accentGrad)" stroke-width="8"/>
-  <line x1="256" y1="250" x2="192" y2="215" stroke="url(#accentGrad)" stroke-width="8"/>
+  <!-- Right Vertical Pillar -->
+  <path d="M80 48L102 70V104L80 82V48Z" fill="url(#fav-grad-right)" />
 
-  <!-- Dynamic Arrow / N geometric vector -->
-  <path d="M 180 340 L 256 220 L 332 340 L 332 200 L 370 170" 
-        fill="none" 
-        stroke="#00f2fe" 
-        stroke-width="12" 
-        stroke-linecap="round" 
-        stroke-linejoin="round"
-        filter="url(#glow)"/>
+  <!-- Highlight Line -->
+  <path d="M16 16L102 104" stroke="rgba(255, 255, 255, 0.45)" stroke-width="1.5" stroke-linecap="round" />
 
-  <!-- Arrow Head -->
-  <polygon points="370,170 345,175 365,195" fill="#00f2fe"/>
+  <!-- Top-Right Security Shield & Lock Badge -->
+  <g>
+    <!-- Shield Base -->
+    <path
+      d="M84 8C84 8 94 11 104 8V27C104 38 94 48 84 52C74 48 64 38 64 27V8C74 11 84 8 84 8Z"
+      fill="url(#fav-shield-grad)"
+      stroke="url(#fav-shield-stroke)"
+      stroke-width="2.5"
+      stroke-linejoin="round"
+    />
+
+    <!-- Shield Glow -->
+    <path
+      d="M84 11C84 11 92 13.5 100 11V26C100 34 92 43 84 47C76 43 68 34 68 26V11C76 13.5 84 11 84 11Z"
+      fill="rgba(37, 99, 235, 0.3)"
+    />
+
+    <!-- Lock Shackle -->
+    <path
+      d="M80 23V20C80 17.7909 81.7909 16 84 16C86.2091 16 88 17.7909 88 20V23"
+      stroke="#ffffff"
+      stroke-width="2.2"
+      stroke-linecap="round"
+    />
+
+    <!-- Lock Body -->
+    <rect x="76" y="23" width="16" height="13" rx="3" fill="#ffffff" />
+
+    <!-- Lock Keyhole -->
+    <circle cx="84" cy="28.5" r="1.5" fill="#0f172a" />
+    <path d="M84 30V33" stroke="#0f172a" stroke-width="1.5" stroke-linecap="round" />
+  </g>
 </svg>
