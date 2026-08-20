@@ -17,15 +17,15 @@
       (function() {
         try {
           var saved = localStorage.getItem("neroxa_theme");
-          if (saved === "sunny" || saved === "light") {
-            document.documentElement.classList.remove("dark");
-            document.documentElement.classList.add("sunny");
-          } else {
+          if (saved === "dark") {
             document.documentElement.classList.add("dark");
             document.documentElement.classList.remove("sunny");
+          } else {
+            document.documentElement.classList.remove("dark");
+            document.documentElement.classList.add("sunny");
           }
         } catch (e) {
-          document.documentElement.classList.add("dark");
+          document.documentElement.classList.add("sunny");
         }
       })();
     </script>

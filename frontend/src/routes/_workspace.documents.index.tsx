@@ -35,7 +35,11 @@ function DocumentsPage() {
   const [reindexingId, setReindexingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ message: string; isError?: boolean } | null>(null);
 
-  const filters = useQuery({ queryKey: ["document-filter-options"], queryFn: getDocumentFilterOptions });
+  const filters = useQuery({
+    queryKey: ["document-filter-options"],
+    queryFn: getDocumentFilterOptions,
+  });
+
   const documents = useQuery({
     queryKey: ["documents", search, department, documentType, accessScope],
     queryFn: () => listDocuments({ search, department, documentType, accessScope }),
@@ -67,6 +71,7 @@ function DocumentsPage() {
 
   const rows = documents.data ?? [];
   const hasFilters = !!(search || department || documentType || accessScope);
+
   const restrictedIds = useMemo(() => {
     const identity = profile ? { role: profile.role, accessScope: profile.accessScope } : null;
     return new Set(rows.filter((doc) => !isDocumentInUserScope(doc, identity)).map((doc) => doc.id));
@@ -80,7 +85,7 @@ function DocumentsPage() {
   };
 
   const selectClass =
-    "h-10 rounded-2xl border border-hairline bg-secondary/35 px-3 text-[12px] font-medium text-foreground outline-none transition-all hover:bg-secondary/60 hover:border-primary/40 focus-visible:border-primary/60 shadow-xs";
+    "h-9 rounded-[6px] border border-border bg-secondary/40 px-3 text-[12px] font-medium text-foreground outline-none transition-colors hover:bg-secondary focus:border-primary focus:ring-1 focus:ring-primary shadow-xs cursor-pointer";
 
   return (
     <div className="space-y-6 pb-6">
@@ -97,7 +102,7 @@ function DocumentsPage() {
 
       {notice ? (
         <div
-          className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-[12.5px] shadow-sm backdrop-blur-md transition-all ${
+          className={`flex items-center justify-between rounded-[8px] border px-4 py-3 text-[12.5px] shadow-sm backdrop-blur-md transition-all ${
             notice.isError
               ? "border-destructive/35 bg-destructive/10 text-destructive"
               : "border-emerald-500/35 bg-emerald-500/10 text-emerald-400"
@@ -117,18 +122,29 @@ function DocumentsPage() {
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-hairline bg-gradient-to-br from-card/85 via-card/55 to-primary/[0.04] p-4 shadow-lg backdrop-blur-2xl transition-all">
+      {/* Filter Toolbar Container */}
+      <section className="rounded-[10px] border border-border bg-card p-4 shadow-sm space-y-3">
         <div className="flex flex-col gap-3 lg:flex-row">
           <label className="relative flex min-w-0 flex-1 items-center">
-            <Search className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by document name or content..."
               aria-label="Search documents"
-              className="h-10 w-full rounded-2xl border border-hairline bg-background/40 pl-10 pr-3.5 text-[12.5px] text-foreground placeholder:text-muted-foreground/70 outline-none transition-all focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-9 w-full rounded-[6px] border border-border bg-background/60 pl-9 pr-3 text-[12.5px] text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
           </label>
+
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={department}
@@ -143,6 +159,7 @@ function DocumentsPage() {
                 </option>
               ))}
             </select>
+
             <select
               value={documentType}
               onChange={(event) => setDocumentType(event.target.value)}
@@ -156,6 +173,7 @@ function DocumentsPage() {
                 </option>
               ))}
             </select>
+
             <select
               value={accessScope}
               onChange={(event) => setAccessScope(event.target.value)}
@@ -169,29 +187,59 @@ function DocumentsPage() {
                 </option>
               ))}
             </select>
+
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={reset}
               disabled={!hasFilters}
-              className="h-10 rounded-2xl border-hairline px-3.5 text-[12px] font-medium"
+              className="h-9 rounded-[6px] border-border bg-secondary/30 px-3 text-[12px] font-medium text-foreground hover:bg-secondary disabled:opacity-40"
             >
-              <RotateCcw className="size-3.5" />
+              <RotateCcw className="size-3.5 mr-1" />
               Reset
             </Button>
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-2 px-1 text-[11px] font-medium text-muted-foreground border-t border-hairline/50 pt-2">
-          <SlidersHorizontal className="size-3.5 text-primary" />
-          <span>
-            {rows.length} visible record{rows.length === 1 ? "" : "s"} · Filtered to your workspace scope
-          </span>
+
+        <div className="flex items-center justify-between px-1 text-[11px] font-medium text-muted-foreground border-t border-border pt-2.5">
+          <div className="flex items-center gap-1.5 font-mono">
+            <SlidersHorizontal className="size-3.5 text-primary" />
+            <span>
+              {rows.length} visible record{rows.length === 1 ? "" : "s"} · Filtered to your workspace scope
+            </span>
+          </div>
+
+          {hasFilters && (
+            <div className="flex items-center gap-1.5 text-[10.5px]">
+              <span>Active filters:</span>
+              {search && (
+                <span className="rounded-[4px] bg-primary/10 border border-primary/20 px-1.5 py-0.2 text-primary font-mono">
+                  &quot;{search}&quot;
+                </span>
+              )}
+              {department && (
+                <span className="rounded-[4px] bg-secondary border border-border px-1.5 py-0.2 text-foreground font-mono">
+                  Dept: {department}
+                </span>
+              )}
+              {documentType && (
+                <span className="rounded-[4px] bg-secondary border border-border px-1.5 py-0.2 text-foreground font-mono">
+                  Type: {documentType}
+                </span>
+              )}
+              {accessScope && (
+                <span className="rounded-[4px] bg-secondary border border-border px-1.5 py-0.2 text-foreground font-mono">
+                  Scope: {accessScope}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
       {documents.isLoading ? (
-        <div className="rounded-3xl border border-hairline bg-card/40 px-6 py-16 text-center text-[12.5px] text-muted-foreground backdrop-blur-xl">
+        <div className="rounded-[10px] border border-border bg-card p-12 text-center text-[12.5px] text-muted-foreground">
           Loading authorized documents…
         </div>
       ) : documents.isError ? (

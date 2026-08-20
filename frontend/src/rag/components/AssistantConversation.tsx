@@ -7,10 +7,11 @@ import { Markdown, MarkdownSkeleton } from "@/shared/components/ui/markdown";
 import { getApiUrl, submitFeedbackToDb } from "@/api/workspace-service";
 import { StatusPill } from "@/shared/components/ui/status-pill";
 import { AssistantExecutionMetadata } from "./AssistantExecutionMetadata";
+import { NexoraLogo } from "@/shared/components/ui/NexoraLogo";
 
 const GREETING_PHRASES = [
   {
-    title: "NeroxaAI",
+    title: "Nexora AI",
     subtitle: "Secure Enterprise Knowledge & Intelligence Assistant",
     gradient: "from-sky-400 via-primary to-purple-400",
   },
@@ -204,11 +205,8 @@ export function AssistantConversation({
   if (!turns.length) {
     return (
       <div className="flex min-h-[460px] flex-col items-center justify-center px-4 py-8 text-center">
-        <div className="relative mb-4">
-          <span className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-primary via-purple-500 to-emerald-500 opacity-30 blur-xl animate-pulse" />
-          <div className="relative grid size-16 place-items-center rounded-3xl bg-gradient-to-br from-primary via-purple-600 to-emerald-500 text-primary-foreground shadow-2xl ring-4 ring-primary/25">
-            <Sparkles className="size-8 animate-pulse" />
-          </div>
+        <div className="mb-4 flex items-center justify-center">
+          <NexoraLogo size={64} animated={true} withGlow={true} variant="floating" />
         </div>
 
         <AnimatedVanishingGreeting />
@@ -243,10 +241,10 @@ export function AssistantConversation({
 
         {/* Status Indicators Bar */}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <ServiceStatus label="AI inference" ok={providerConfigured} />
-          <ServiceStatus label="Secure retrieval" ok={retrievalConnected} />
+          <StatusPill tone={providerConfigured ? "success" : "neutral"} icon={<span className="size-1.5 rounded-full bg-current" />}>AI inference · {providerConfigured ? "Connected" : "Not configured"}</StatusPill>
+          <StatusPill tone={retrievalConnected ? "success" : "neutral"} icon={<span className="size-1.5 rounded-full bg-current" />}>Secure retrieval · {retrievalConnected ? "Connected" : "Not configured"}</StatusPill>
           <StatusPill
-            tone={backendConnected ? "success" : "neutral"}
+            tone={backendChecked ? (backendConnected ? "success" : "neutral") : "neutral"}
             icon={<Server className="size-3" />}
           >
             {backendChecked
@@ -284,12 +282,10 @@ export function AssistantConversation({
           <article className="rounded-3xl border border-hairline/80 bg-gradient-to-br from-card/85 via-card/50 to-primary/[0.04] p-5 shadow-lg backdrop-blur-2xl sm:p-6 transition-all">
             <header className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-hairline">
               <div className="flex items-center gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-purple-600 text-primary-foreground text-xs font-bold shadow-md shadow-primary/25 ring-2 ring-primary/30">
-                  N
-                </span>
+                <NexoraLogo size={32} animated={false} withGlow={false} variant="plain" />
                 <div>
                   <h3 className="font-display text-[13px] font-semibold text-foreground">
-                    NeroxaAI Assistant
+                    Nexora AI Assistant
                   </h3>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />

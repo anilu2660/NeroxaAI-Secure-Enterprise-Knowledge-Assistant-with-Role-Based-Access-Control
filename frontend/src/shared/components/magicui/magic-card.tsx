@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import { cn } from "@/shared/utils/utils";
 
 interface MagicCardProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -11,9 +11,9 @@ interface MagicCardProps extends React.HTMLAttributes<HTMLDivElement> {
 export function MagicCard({
   children,
   className,
-  gradientSize = 250,
-  gradientColor = "oklch(0.65 0.2 260 / 0.15)",
-  gradientOpacity = 0.8,
+  gradientSize = 200,
+  gradientColor = "rgba(37, 99, 235, 0.08)",
+  gradientOpacity = 0.6,
   ...props
 }: MagicCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -39,16 +39,15 @@ export function MagicCard({
       ref={cardRef}
       onMouseMove={handleMouseMove}
       className={cn(
-        "group relative overflow-hidden rounded-3xl border border-hairline/80 bg-card/75 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:border-primary/50 hover:shadow-2xl hover:-translate-y-1",
+        "group relative overflow-hidden rounded-[10px] border border-border bg-card p-6 shadow-sm transition-colors hover:border-primary/40",
         className,
       )}
       {...props}
     >
-      {/* Dynamic Cursor Spotlight Radial Glow */}
       <div
-        className="pointer-events-none absolute -inset-px rounded-3xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        className="pointer-events-none absolute -inset-px rounded-[10px] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
         style={{
-          background: `radial-gradient(var(--gradient-size, 250px) circle at var(--mouse-x, 0px) var(--mouse-y, 0px), var(--gradient-color, oklch(0.65 0.2 260 / 0.15)), transparent 70%)`,
+          background: `radial-gradient(var(--gradient-size, 200px) circle at var(--mouse-x, 0px) var(--mouse-y, 0px), var(--gradient-color, rgba(37, 99, 235, 0.08)), transparent 70%)`,
         }}
       />
       <div className="relative z-10">{children}</div>

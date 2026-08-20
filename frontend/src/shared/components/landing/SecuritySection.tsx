@@ -1,79 +1,152 @@
-import { Shield, Key, Fingerprint, Lock, FileLock2, ServerShield, Check } from "lucide-react";
+import { Shield, Key, Fingerprint, Lock, CheckCircle2, ShieldAlert } from "lucide-react";
 
-const PILLARS = [
+const AUDIT_LOGS = [
   {
-    icon: Lock,
-    title: "Air-Gapped Local Inference",
-    description: "Prompts and enterprise documents never leave your self-hosted network. Zero data sent to public AI APIs.",
+    time: "19:14:02 UTC",
+    actor: "sarah.chen@neroxa.internal",
+    role: "Finance Lead",
+    action: "QUERY_EXECUTE",
+    resource: "Global_Expense_Policy_2025.pdf",
+    status: "ALLOWED",
   },
   {
-    icon: Key,
-    title: "OAuth2 & Two-Factor SMS OTP",
-    description: "Enterprise single sign-on with Google, Microsoft 365, and GitHub, backed by carrier-grade Twilio Verify SMS.",
+    time: "19:14:18 UTC",
+    actor: "david.kim@neroxa.internal",
+    role: "Marketing Specialist",
+    action: "UNAUTHORIZED_RETRIEVAL_ATTEMPT",
+    resource: "Exec_Compensation_Q4.pdf",
+    status: "BLOCKED_403",
   },
   {
-    icon: Shield,
-    title: "Deterministic RBAC Boundaries",
-    description: "Query middleware mathematically prevents users from retrieving documents outside their authorized department.",
+    time: "19:15:40 UTC",
+    actor: "alex.kumar@neroxa.internal",
+    role: "Security Admin",
+    action: "POLICY_UPDATE",
+    resource: "Tier-3 Engineering Vector ACL",
+    status: "COMMITTED",
   },
   {
-    icon: Fingerprint,
-    title: "Audit Logs & Access Traceability",
-    description: "Every query, upload, permission toggle, and authentication event is immutably recorded with timestamp & user ID.",
+    time: "19:16:05 UTC",
+    actor: "system.auth",
+    role: "Twilio Verify 2FA",
+    action: "SESSION_ROTATE_HTTPONLY",
+    resource: "JWT Token Handshake",
+    status: "ENCRYPTED_AES256",
   },
 ];
 
 export function SecuritySection() {
   return (
-    <section id="security" className="relative mx-auto w-full max-w-[1400px] px-5 sm:px-8 py-16 lg:py-24">
-      <div className="overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-card/90 via-card/60 to-primary/[0.05] p-8 sm:p-12 shadow-2xl backdrop-blur-2xl">
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-400 shadow-xs">
-              <Shield className="size-3.5" />
-              <span>Enterprise Grade Security</span>
+    <section id="security" className="relative mx-auto w-full max-w-[1280px] px-6 py-16">
+      <div className="rounded-[10px] border border-border bg-card p-6 sm:p-10 shadow-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          {/* Left Column: Security Blueprint */}
+          <div className="lg:col-span-6 space-y-6">
+            <div>
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary">
+                Security &amp; Compliance
+              </span>
+              <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Zero-Trust architecture from vector storage to inference.
+              </h2>
+              <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
+                Engineered for defense, financial institutions, healthcare, and regulated enterprises where unverified access or document leakage is an unacceptable risk.
+              </p>
             </div>
-            <h2 className="mt-4 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Zero-Trust Architecture from Vector Storage to Inference.
-            </h2>
-            <p className="mt-4 text-[14px] leading-relaxed text-muted-foreground">
-              Designed for regulated industries including financial services, healthcare, legal, and government operations where data isolation is paramount.
-            </p>
 
-            <ul className="mt-8 space-y-3">
-              {[
-                "AES-256 vector store encryption at rest and in transit",
-                "HttpOnly secure JWT cookies with short token lifespans",
-                "Automatic Sha256 content deduplication preventing storage bloat",
-                "Deny-by-default retrieval policy if role clearance is missing",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-3 text-[13px] text-foreground/90 font-medium">
-                  <span className="grid size-5 shrink-0 place-items-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    <Check className="size-3" />
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {PILLARS.map((pillar) => (
-              <div
-                key={pillar.title}
-                className="rounded-2xl border border-hairline/80 bg-secondary/30 p-5 shadow-xs transition-all duration-300 hover:border-primary/40 hover:bg-secondary/50"
-              >
-                <span className="grid size-10 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary shadow-xs">
-                  <pillar.icon className="size-5" />
-                </span>
-                <h3 className="mt-3.5 font-display text-sm font-bold text-foreground">
-                  {pillar.title}
-                </h3>
-                <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted-foreground">
-                  {pillar.description}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-[8px] border border-border bg-secondary/30 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-foreground font-semibold text-[13px]">
+                  <Lock className="size-4 text-primary" />
+                  <span>AES-256 Encryption</span>
+                </div>
+                <p className="text-[12px] text-muted-foreground leading-relaxed">
+                  All vector embeddings and source document chunks encrypted at rest and in transit.
                 </p>
               </div>
-            ))}
+
+              <div className="rounded-[8px] border border-border bg-secondary/30 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-foreground font-semibold text-[13px]">
+                  <Key className="size-4 text-primary" />
+                  <span>Twilio 2FA + OAuth2</span>
+                </div>
+                <p className="text-[12px] text-muted-foreground leading-relaxed">
+                  Carrier-grade SMS two-factor authentication and single sign-on with Google and Microsoft.
+                </p>
+              </div>
+
+              <div className="rounded-[8px] border border-border bg-secondary/30 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-foreground font-semibold text-[13px]">
+                  <Shield className="size-4 text-primary" />
+                  <span>Deny-by-Default ACL</span>
+                </div>
+                <p className="text-[12px] text-muted-foreground leading-relaxed">
+                  Queries are rejected if explicit clearance tier or department membership is not met.
+                </p>
+              </div>
+
+              <div className="rounded-[8px] border border-border bg-secondary/30 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-foreground font-semibold text-[13px]">
+                  <Fingerprint className="size-4 text-primary" />
+                  <span>Immutable Audit Log</span>
+                </div>
+                <p className="text-[12px] text-muted-foreground leading-relaxed">
+                  Every search query, document upload, and permission modification is recorded for compliance.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Live Audit Event Stream Simulation */}
+          <div className="lg:col-span-6 rounded-[8px] border border-border bg-secondary/20 p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-mono text-[12px] font-semibold text-foreground">
+                  Security Event Stream
+                </span>
+              </div>
+              <span className="font-mono text-[11px] text-muted-foreground">
+                SOC2 Type II Audit Standard
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {AUDIT_LOGS.map((log, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-[6px] border border-border bg-background p-3 text-[11px] font-mono space-y-1.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{log.time}</span>
+                    <span
+                      className={`rounded-[4px] px-1.5 py-0.5 text-[9.5px] font-bold ${
+                        log.status.includes("ALLOWED") || log.status.includes("COMMITTED")
+                          ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                          : log.status.includes("BLOCKED")
+                            ? "bg-destructive/10 text-destructive border border-destructive/20"
+                            : "bg-primary/10 text-primary border border-primary/20"
+                      }`}
+                    >
+                      {log.status}
+                    </span>
+                  </div>
+                  <div className="text-foreground/90">
+                    <span className="font-semibold text-primary">{log.actor}</span> ({log.role})
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground text-[10px]">
+                    <span>Action: {log.action}</span>
+                    <span className="truncate max-w-[180px]">{log.resource}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 text-center">
+              <span className="text-[11px] text-muted-foreground font-mono">
+                Continuous compliance monitoring active · Zero tamper guarantee
+              </span>
+            </div>
           </div>
         </div>
       </div>

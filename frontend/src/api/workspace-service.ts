@@ -140,69 +140,171 @@ function scopedDocuments(identity: ScopeIdentity | null): DocumentRecord[] {
  * the same call shape when this becomes GET /documents?search=&department=...
  */
 export async function listDocuments(query: DocumentQuery = {}): Promise<DocumentRecord[]> {
-  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
-  if (!token) return [];
+  const token = getAuthToken();
 
-  try {
-    const params = new URLSearchParams();
-    if (query.department) params.append("department", query.department);
+  let records: DocumentRecord[] = [];
 
-    const res = await fetch(getApiUrl(`/api/v1/documents/?${params.toString()}`), {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  if (token) {
+    try {
+      const params = new URLSearchParams();
+      if (query.department) params.append("department", query.department);
 
-    if (!res.ok) return [];
+      const res = await fetch(getApiUrl(`/api/v1/documents/?${params.toString()}`), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    const data = await res.json();
-    const records: DocumentRecord[] = data.map((doc: any) => {
-      const fileKind = (doc.filename || doc.title || "").split(".").pop()?.toUpperCase() || "PDF";
-      return {
-        id: doc.document_id,
-        title: doc.title || doc.filename,
-        description: `Indexed document with ${doc.total_chunks || 0} vector chunks in ${doc.department} department.`,
-        department: doc.department,
-        documentType: "Document",
-        accessScope: doc.department === "General" ? "General Knowledge" : `${doc.department} Knowledge`,
-        accessRestricted: doc.department !== "General",
-        updatedLabel: doc.created_at
-          ? new Date(doc.created_at).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })
-          : "Recently",
-        updatedBy: "Administrator",
-        kind: fileKind,
-        pageCount: null,
-        version: "1.0",
-        about: `Uploaded and chunked into ${doc.total_chunks || 0} vector embeddings.`,
-        prototype: false,
-      };
-    });
+      if (res.ok) {
+        const data = await res.json();
+        records = data.map((doc: any) => {
+          const fileKind = (doc.filename || doc.title || "").split(".").pop()?.toUpperCase() || "PDF";
+          const titleLower = (doc.title || doc.filename || "").toLowerCase();
+          const docType =
+            titleLower.includes("policy")
+              ? "Policy"
+              : titleLower.includes("sop")
+                ? "SOP"
+                : titleLower.includes("handbook")
+                  ? "Handbook"
+                  : titleLower.includes("runbook")
+                    ? "Runbook"
+                    : titleLower.includes("spec")
+                      ? "Specification"
+                      : fileKind || "Document";
 
-    const term = query.search?.trim().toLowerCase() ?? "";
-    if (!term) return records;
-    return records.filter(
+          const accessScope = doc.department === "General" ? "General Knowledge" : `${doc.department} Knowledge`;
+
+          return {
+            id: doc.document_id,
+            title: doc.title || doc.filename,
+            description: `Indexed document with ${doc.total_chunks || 0} vector chunks in ${doc.department} department.`,
+            department: doc.department,
+            documentType: docType,
+            accessScope: accessScope,
+            accessRestricted: doc.department !== "General",
+            updatedLabel: doc.created_at
+              ? new Date(doc.created_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "Recently",
+            updatedBy: "Administrator",
+            kind: fileKind,
+            pageCount: null,
+            version: "1.0",
+            about: `Uploaded and chunked into ${doc.total_chunks || 0} vector embeddings.`,
+            prototype: false,
+          };
+        });
+      }
+    } catch {
+      // fallback below
+    }
+  }
+
+  // Fallback to catalog documents if empty or not authenticated
+  if (records.length === 0) {
+    records = userVisibleDocuments().map(toDocumentRecord);
+  }
+
+  // Apply Search filter
+  const term = query.search?.trim().toLowerCase() ?? "";
+  if (term) {
+    records = records.filter(
       (doc) =>
         doc.title.toLowerCase().includes(term) ||
         doc.department.toLowerCase().includes(term) ||
-        doc.description.toLowerCase().includes(term),
+        doc.description.toLowerCase().includes(term) ||
+        doc.kind.toLowerCase().includes(term) ||
+        doc.documentType.toLowerCase().includes(term) ||
+        doc.accessScope.toLowerCase().includes(term),
     );
-  } catch {
-    return [];
   }
+
+  // Apply Department filter
+  if (query.department) {
+    records = records.filter(
+      (doc) => doc.department.toLowerCase() === query.department?.toLowerCase(),
+    );
+  }
+
+  // Apply Document Type filter
+  if (query.documentType) {
+    records = records.filter(
+      (doc) =>
+        doc.documentType.toLowerCase() === query.documentType?.toLowerCase() ||
+        doc.kind.toLowerCase() === query.documentType?.toLowerCase(),
+    );
+  }
+
+  // Apply Access Scope filter
+  if (query.accessScope) {
+    records = records.filter(
+      (doc) =>
+        doc.accessScope.toLowerCase() === query.accessScope?.toLowerCase() ||
+        (doc as any).accessScopeLabel?.toLowerCase() === query.accessScope?.toLowerCase(),
+    );
+  }
+
+  return records;
 }
 
-/** Filter vocabularies — served by the backend later, derived from data now. */
+/** Filter vocabularies — dynamically derived from all active documents and catalog */
 export async function getDocumentFilterOptions(): Promise<DocumentFilterOptions> {
-  const unique = (values: string[]) => [...new Set(values)].sort();
-  const docs = userVisibleDocuments();
+  const unique = (values: string[]) => [...new Set(values.filter(Boolean))].sort();
+  
+  // Collect options from both backend and catalog to ensure complete options
+  let allDocs: DocumentRecord[] = [];
+  const token = getAuthToken();
+  if (token) {
+    try {
+      const res = await fetch(getApiUrl("/api/v1/documents/"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        allDocs = data.map((doc: any) => {
+          const fileKind = (doc.filename || doc.title || "").split(".").pop()?.toUpperCase() || "PDF";
+          const titleLower = (doc.title || doc.filename || "").toLowerCase();
+          const docType =
+            titleLower.includes("policy")
+              ? "Policy"
+              : titleLower.includes("sop")
+                ? "SOP"
+                : titleLower.includes("handbook")
+                  ? "Handbook"
+                  : titleLower.includes("runbook")
+                    ? "Runbook"
+                    : titleLower.includes("spec")
+                      ? "Specification"
+                      : fileKind || "Document";
+
+          return {
+            department: doc.department,
+            documentType: docType,
+            accessScope: doc.department === "General" ? "General Knowledge" : `${doc.department} Knowledge`,
+            kind: fileKind,
+          };
+        });
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  const catalogDocs = userVisibleDocuments().map(toDocumentRecord);
+  const combined = [...allDocs, ...catalogDocs];
+
+  const departments = unique(combined.map((d) => d.department));
+  const documentTypes = unique(combined.map((d) => d.documentType || d.kind));
+  const accessScopes = unique(combined.map((d) => d.accessScope || (d as any).accessScopeLabel));
+
   return {
-    departments: unique(docs.map((d) => d.department)),
-    documentTypes: unique(docs.map((d) => d.documentType)),
-    accessScopes: unique(docs.map((d) => d.accessScopeLabel)),
+    departments: departments.length > 0 ? departments : ["Engineering", "Finance", "General", "HR", "Legal", "Operations"],
+    documentTypes: documentTypes.length > 0 ? documentTypes : ["PDF", "DOCX", "TXT", "Policy", "Handbook", "SOP"],
+    accessScopes: accessScopes.length > 0 ? accessScopes : ["General Knowledge", "Engineering Knowledge", "Finance Knowledge", "HR Knowledge"],
   };
 }
 
@@ -1512,7 +1614,9 @@ const DOC_NOT_PERSISTED =
   "No document backend is connected, so this change was not saved. It applies to this browser session only.";
 
 export async function listAdminDocuments(query: AdminDocumentQuery = {}): Promise<AdminDocument[]> {
-  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
+  const token = getAuthToken();
+
+  let adminDocs: AdminDocument[] = [];
 
   if (token) {
     try {
@@ -1524,8 +1628,22 @@ export async function listAdminDocuments(query: AdminDocumentQuery = {}): Promis
 
       if (res.ok) {
         const dbDocs = await res.json();
-        const adminDocs: AdminDocument[] = dbDocs.map((doc: any) => {
+        adminDocs = dbDocs.map((doc: any) => {
           const extension = (doc.filename || doc.title || "").split(".").pop()?.toUpperCase() || "PDF";
+          const titleLower = (doc.title || doc.filename || "").toLowerCase();
+          const docType =
+            titleLower.includes("policy")
+              ? "Policy"
+              : titleLower.includes("sop")
+                ? "SOP"
+                : titleLower.includes("handbook")
+                  ? "Handbook"
+                  : titleLower.includes("runbook")
+                    ? "Runbook"
+                    : titleLower.includes("spec")
+                      ? "Specification"
+                      : extension || "Document";
+
           const updatedDate = doc.created_at ? new Date(doc.created_at) : new Date();
 
           return {
@@ -1533,7 +1651,7 @@ export async function listAdminDocuments(query: AdminDocumentQuery = {}): Promis
             name: doc.title || doc.filename,
             description: `Indexed document (${doc.total_chunks || 0} vector chunks) in ${doc.department} department.`,
             department: doc.department || "General",
-            documentType: "Policy",
+            documentType: docType,
             fileKind: extension,
             accessScopeLabel: doc.department === "General" ? "General Knowledge" : `${doc.department} Knowledge`,
             accessScopeKind: doc.department === "General" ? "organization" : "department",
@@ -1547,49 +1665,47 @@ export async function listAdminDocuments(query: AdminDocumentQuery = {}): Promis
             prototype: false,
           };
         });
-
-        const term = query.search?.trim().toLowerCase() ?? "";
-        return adminDocs.filter((doc) => {
-          if (query.department && doc.department !== query.department) return false;
-          if (query.documentType && doc.documentType !== query.documentType) return false;
-          if (query.accessScope && doc.accessScopeLabel !== query.accessScope) return false;
-          if (query.status && doc.status !== query.status) return false;
-          if (!term) return true;
-          return (
-            doc.name.toLowerCase().includes(term) ||
-            doc.description.toLowerCase().includes(term) ||
-            doc.department.toLowerCase().includes(term)
-          );
-        });
       }
     } catch {
       /* fallback to catalog */
     }
   }
 
+  if (adminDocs.length === 0) {
+    adminDocs = listCatalog().map(toAdminDocument);
+  }
+
   const term = query.search?.trim().toLowerCase() ?? "";
-  return listCatalog()
-    .map(toAdminDocument)
-    .filter((doc) => {
-      if (query.department && doc.department !== query.department) return false;
-      if (query.documentType && doc.documentType !== query.documentType) return false;
-      if (query.accessScope && doc.accessScopeLabel !== query.accessScope) return false;
-      if (query.status && doc.status !== query.status) return false;
-      if (!term) return true;
-      return (
-        doc.name.toLowerCase().includes(term) ||
-        doc.description.toLowerCase().includes(term) ||
-        doc.department.toLowerCase().includes(term) ||
-        doc.documentType.toLowerCase().includes(term)
-      );
-    });
+  return adminDocs.filter((doc) => {
+    if (query.department && doc.department.toLowerCase() !== query.department.toLowerCase()) return false;
+    if (
+      query.documentType &&
+      doc.documentType.toLowerCase() !== query.documentType.toLowerCase() &&
+      doc.fileKind.toLowerCase() !== query.documentType.toLowerCase()
+    ) {
+      return false;
+    }
+    if (query.accessScope && doc.accessScopeLabel.toLowerCase() !== query.accessScope.toLowerCase()) return false;
+    if (query.status && doc.status !== query.status) return false;
+    if (!term) return true;
+    return (
+      doc.name.toLowerCase().includes(term) ||
+      doc.description.toLowerCase().includes(term) ||
+      doc.department.toLowerCase().includes(term) ||
+      doc.documentType.toLowerCase().includes(term) ||
+      doc.fileKind.toLowerCase().includes(term) ||
+      doc.accessScopeLabel.toLowerCase().includes(term)
+    );
+  });
 }
 
 /** Filter vocabularies — derived from backend docs when authenticated, catalog fallback otherwise. */
 export async function getAdminDocumentFilterOptions(): Promise<AdminDocumentFilterOptions> {
-  const unique = (values: string[]) => [...new Set(values)].sort();
+  const unique = (values: string[]) => [...new Set(values.filter(Boolean))].sort();
 
-  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
+  let allDocs: { department: string; documentType: string; accessScopeLabel: string }[] = [];
+  const token = getAuthToken();
+
   if (token) {
     try {
       const res = await fetch(getApiUrl("/api/v1/documents/"), {
@@ -1597,28 +1713,52 @@ export async function getAdminDocumentFilterOptions(): Promise<AdminDocumentFilt
       });
       if (res.ok) {
         const dbDocs = await res.json();
-        const departments = unique(dbDocs.map((d: any) => d.department || "General"));
-        return {
-          departments,
-          documentTypes: ["Policy", "Procedure", "Report", "Document"],
-          accessScopes: unique(
-            dbDocs.map((d: any) =>
-              d.department === "General" ? "General Knowledge" : `${d.department} Knowledge`,
-            ),
-          ),
-          statuses: ["available"],
-        };
+        allDocs = dbDocs.map((d: any) => {
+          const extension = (d.filename || d.title || "").split(".").pop()?.toUpperCase() || "PDF";
+          const titleLower = (d.title || d.filename || "").toLowerCase();
+          const docType =
+            titleLower.includes("policy")
+              ? "Policy"
+              : titleLower.includes("sop")
+                ? "SOP"
+                : titleLower.includes("handbook")
+                  ? "Handbook"
+                  : titleLower.includes("runbook")
+                    ? "Runbook"
+                    : titleLower.includes("spec")
+                      ? "Specification"
+                      : extension || "Document";
+
+          return {
+            department: d.department || "General",
+            documentType: docType,
+            accessScopeLabel: d.department === "General" ? "General Knowledge" : `${d.department} Knowledge`,
+          };
+        });
       }
     } catch {
       /* fallback */
     }
   }
 
-  const docs = listCatalog();
+  const catalogDocs = listCatalog();
+  const combined = [
+    ...allDocs,
+    ...catalogDocs.map((d) => ({
+      department: d.department,
+      documentType: d.documentType,
+      accessScopeLabel: d.accessScopeLabel,
+    })),
+  ];
+
+  const departments = unique(combined.map((d) => d.department));
+  const documentTypes = unique(combined.map((d) => d.documentType));
+  const accessScopes = unique(combined.map((d) => d.accessScopeLabel));
+
   return {
-    departments: unique(docs.map((doc) => doc.department)),
-    documentTypes: unique(docs.map((doc) => doc.documentType)),
-    accessScopes: unique(docs.map((doc) => doc.accessScopeLabel)),
+    departments: departments.length > 0 ? departments : ["Engineering", "Finance", "General", "HR", "Legal", "Operations"],
+    documentTypes: documentTypes.length > 0 ? documentTypes : ["Policy", "SOP", "Handbook", "Specification", "PDF", "DOCX"],
+    accessScopes: accessScopes.length > 0 ? accessScopes : ["General Knowledge", "Engineering Knowledge", "Finance Knowledge", "HR Knowledge"],
     statuses: ["available", "archived"],
   };
 }

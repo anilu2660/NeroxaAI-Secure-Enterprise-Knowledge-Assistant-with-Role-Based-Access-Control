@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Navbar } from "@/shared/components/landing/Navbar";
 import { Hero } from "@/shared/components/landing/Hero";
-import { StatsBar } from "@/shared/components/landing/StatsBar";
-import { BentoGrid } from "@/shared/components/landing/BentoGrid";
-import { HowItWorks } from "@/shared/components/landing/HowItWorks";
+import { HeroProductWindow } from "@/shared/components/landing/HeroProductWindow";
+import { CoreBenefits } from "@/shared/components/landing/CoreBenefits";
 import { SecuritySection } from "@/shared/components/landing/SecuritySection";
-import { FaqSection } from "@/shared/components/landing/FaqSection";
+import { HowItWorks } from "@/shared/components/landing/HowItWorks";
+import { ArchitectureSimulation } from "@/shared/components/landing/ArchitectureSimulation";
+import { MetricsSection } from "@/shared/components/landing/MetricsSection";
 import { CtaSection } from "@/shared/components/landing/CtaSection";
 import { Footer } from "@/shared/components/landing/Footer";
 
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "NeroxaAI lets organizations securely search and retrieve internal knowledge using RAG, Role-Based Access Control, and local AI models.",
+          "NeroxaAI lets organizations securely search and retrieve internal knowledge using RAG, Role-Based Access Control, and air-gapped local AI models.",
       },
       { property: "og:title", content: "NeroxaAI — Secure Enterprise AI" },
       {
@@ -32,25 +33,33 @@ export const Route = createFileRoute("/")({
 function Index() {
   return (
     <div className="relative min-h-svh bg-background text-foreground transition-colors duration-300 overflow-x-hidden">
-      {/* Dynamic atmospheric radial lighting & mesh aura */}
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,oklch(0.65_0.18_260/0.12),transparent)]" />
-      <div className="pointer-events-none fixed -top-40 left-1/2 -translate-x-1/2 size-[650px] rounded-full bg-primary/10 blur-[140px]" />
-      <div className="pointer-events-none fixed top-1/2 -right-40 size-[500px] rounded-full bg-purple-500/10 blur-[140px]" />
-      <div className="pointer-events-none fixed bottom-10 -left-40 size-[500px] rounded-full bg-blue-500/10 blur-[140px]" />
+      <Navbar />
+      <main>
+        {/* 1. Hero */}
+        <Hero />
 
-      <div className="relative z-10">
-        <Navbar />
-        <main>
-          <Hero />
-          <StatsBar />
-          <BentoGrid />
-          <HowItWorks />
-          <SecuritySection />
-          <FaqSection />
-          <CtaSection />
-        </main>
-        <Footer />
-      </div>
+        {/* 2. Product Demonstration */}
+        <HeroProductWindow />
+
+        {/* 3. Three Core Benefits */}
+        <CoreBenefits />
+
+        {/* 4. Security & Zero-Trust Blueprint */}
+        <SecuritySection />
+
+        {/* 5. How It Works Pipeline */}
+        <HowItWorks />
+
+        {/* 6. System Architecture Simulation */}
+        <ArchitectureSimulation />
+
+        {/* 7. Proof / Empirical Metrics */}
+        <MetricsSection />
+
+        {/* 8. Call to Action */}
+        <CtaSection />
+      </main>
+      <Footer />
     </div>
   );
 }

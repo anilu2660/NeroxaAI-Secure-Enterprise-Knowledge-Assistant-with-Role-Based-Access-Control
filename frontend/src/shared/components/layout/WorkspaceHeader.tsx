@@ -258,17 +258,17 @@ export function WorkspaceHeader() {
 
             {/* Notification Drawer Popover */}
             {showNotifications ? (
-              <div className="absolute right-0 top-11 z-50 w-80 sm:w-96 rounded-3xl border border-hairline bg-card/95 p-4 shadow-2xl backdrop-blur-2xl transition-all">
-                <div className="flex items-center justify-between pb-3 border-b border-hairline">
+              <div className="absolute right-0 top-11 z-50 w-80 sm:w-96 rounded-[10px] border border-border bg-card p-4 shadow-sm transition-all">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
                   <div className="flex items-center gap-2">
-                    <span className="grid size-7 place-items-center rounded-lg bg-primary/15 text-primary border border-primary/30">
+                    <span className="grid size-6 place-items-center rounded-[4px] bg-primary/10 text-primary">
                       <Bell className="size-3.5" />
                     </span>
                     <span className="font-display text-xs font-semibold text-foreground">
                       Notifications
                     </span>
                     {unreadCount > 0 ? (
-                      <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                      <span className="rounded-[4px] bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
                         {unreadCount} new
                       </span>
                     ) : null}
@@ -309,22 +309,22 @@ export function WorkspaceHeader() {
                       <div
                         key={item.id}
                         onClick={() => markSingleAsRead(item.id)}
-                        className={`group relative cursor-pointer rounded-2xl border p-3 transition-all duration-200 ${
+                        className={`group relative cursor-pointer rounded-[6px] border p-3 transition-colors ${
                           !item.read
-                            ? "border-primary/30 bg-primary/[0.06] hover:bg-primary/[0.12]"
-                            : "border-hairline bg-secondary/20 hover:bg-secondary/40"
+                            ? "border-primary/30 bg-primary/5 hover:bg-primary/10"
+                            : "border-border bg-secondary/20 hover:bg-secondary/40"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-[12px] font-semibold text-foreground">{item.title}</p>
-                          <span className="text-[10px] text-muted-foreground">{item.time}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">{item.time}</span>
                         </div>
                         <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                           {item.detail}
                         </p>
                         {!item.read ? (
                           <span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-primary">
-                            <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+                            <span className="size-1.5 rounded-full bg-primary" />
                             Unread
                           </span>
                         ) : null}
@@ -344,9 +344,9 @@ export function WorkspaceHeader() {
                 setShowUserDropdown(!showUserDropdown);
                 setShowNotifications(false);
               }}
-              className="flex items-center gap-2 rounded-full border border-hairline/80 bg-secondary/30 p-1 transition-all hover:border-primary/40 hover:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-xs"
+              className="flex items-center gap-2 rounded-[6px] border border-border bg-secondary/30 p-1 transition-colors hover:bg-secondary focus:outline-none"
             >
-              <Avatar className="size-7.5 border border-primary/30">
+              <Avatar className="size-7 border border-border">
                 <AvatarImage src={identity?.avatarUrl ?? undefined} alt={identity?.name ?? "Account"} />
                 <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-semibold">
                   {initials}
@@ -357,9 +357,9 @@ export function WorkspaceHeader() {
 
             {/* User Account Popover Dropdown */}
             {showUserDropdown ? (
-              <div className="absolute right-0 top-11 z-50 w-64 rounded-3xl border border-hairline bg-card/95 p-3 shadow-2xl backdrop-blur-2xl transition-all">
-                <div className="flex items-center gap-3 p-2.5 pb-3 border-b border-hairline">
-                  <Avatar className="size-10 border border-primary/40 shadow-sm">
+              <div className="absolute right-0 top-11 z-50 w-64 rounded-[10px] border border-border bg-card p-3 shadow-sm transition-all">
+                <div className="flex items-center gap-3 p-2 pb-3 border-b border-border">
+                  <Avatar className="size-9 border border-border">
                     <AvatarImage src={identity?.avatarUrl ?? undefined} alt={identity?.name ?? "Account"} />
                     <AvatarFallback className="bg-primary/20 text-primary text-xs font-semibold">
                       {initials}
@@ -372,7 +372,7 @@ export function WorkspaceHeader() {
                     <p className="truncate text-[10.5px] text-muted-foreground">
                       {identity?.email ?? ""}
                     </p>
-                    <span className="mt-1 inline-block rounded-full bg-primary/15 border border-primary/30 px-2 py-0.5 text-[9.5px] font-semibold text-primary uppercase">
+                    <span className="mt-1 inline-block rounded-[4px] bg-secondary border border-border px-1.5 py-0.5 text-[9.5px] font-mono font-semibold text-muted-foreground uppercase">
                       {identity?.role ?? "USER"}
                     </span>
                   </div>

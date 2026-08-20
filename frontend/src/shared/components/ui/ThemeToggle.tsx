@@ -3,10 +3,10 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "./button";
 
 function getActiveTheme(): "dark" | "sunny" {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "sunny";
   const saved = localStorage.getItem("neroxa_theme");
-  if (saved === "sunny" || saved === "light") return "sunny";
-  return "dark";
+  if (saved === "dark") return "dark";
+  return "sunny";
 }
 
 export function useTheme() {
@@ -39,7 +39,7 @@ export function useTheme() {
   };
 
   const toggleTheme = () => {
-    const next = theme === "dark" ? "sunny" : "dark";
+    const next = theme === "sunny" ? "dark" : "sunny";
     setTheme(next);
   };
 
@@ -54,10 +54,10 @@ export function ThemeToggle({ className }: { className?: string }) {
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
-      title={isSunny ? "Switch to Dark Mode (Obsidian)" : "Switch to Sunny Theme (Daylight)"}
-      aria-label={isSunny ? "Switch to Dark Mode" : "Switch to Sunny Theme"}
-      className={`relative size-8.5 rounded-xl border border-hairline/70 bg-secondary/30 text-foreground transition-all duration-300 hover:border-primary/40 hover:bg-card shadow-xs group ${
-        isSunny ? "hover:text-amber-500 border-amber-500/30 bg-amber-500/10 text-amber-500" : "hover:text-primary"
+      title={isSunny ? "Switch to Dark Mode" : "Switch to Light Mode"}
+      aria-label={isSunny ? "Switch to Dark Mode" : "Switch to Light Mode"}
+      className={`relative size-8 rounded-[6px] border border-border bg-secondary/40 text-foreground transition-colors hover:border-primary/40 hover:bg-secondary shadow-xs cursor-pointer ${
+        isSunny ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-foreground"
       } ${className ?? ""}`}
     >
       <div className="relative size-4 flex items-center justify-center">

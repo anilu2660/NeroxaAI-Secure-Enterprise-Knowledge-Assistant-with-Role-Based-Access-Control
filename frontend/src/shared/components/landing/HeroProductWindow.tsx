@@ -1,163 +1,274 @@
-import { ArrowUp, FileText, Lock } from "lucide-react";
-import { FEATURE_STATES, type FeatureId } from "@/shared/utils/hero-features";
-import { BorderBeam } from "@/shared/components/magicui/border-beam";
+import { useState } from "react";
+import {
+  FileText,
+  Lock,
+  ShieldCheck,
+  ShieldAlert,
+  ArrowRight,
+  CheckCircle2,
+  Database,
+  ExternalLink,
+  ChevronRight,
+  Search,
+} from "lucide-react";
 
-/**
- * Single, immutable product-window shell. Geometry, spacing, typography and
- * structure never change between feature states — only content and the
- * supporting background atmosphere behind the window.
- */
-export function HeroProductWindow({ feature }: { feature: FeatureId }) {
-  const data = FEATURE_STATES[feature];
+interface DemoScenario {
+  id: string;
+  role: string;
+  department: string;
+  query: string;
+  status: "authorized" | "denied";
+  latency: string;
+  confidence: number;
+  retrievedDocs: { name: string; page: number; dept: string; matchScore: string }[];
+  aiResponse: string;
+  citation: string;
+  cacheHit?: boolean;
+}
+
+const SCENARIOS: DemoScenario[] = [
+  {
+    id: "finance",
+    role: "Finance Manager",
+    department: "Finance & Accounting",
+    query: "What is the maximum reimbursement cap for international flights without VP approval?",
+    status: "authorized",
+    latency: "142ms",
+    confidence: 98,
+    retrievedDocs: [
+      { name: "Global_Expense_Policy_2025.pdf", page: 14, dept: "Finance", matchScore: "0.942" },
+      { name: "Travel_Compliance_Addendum.pdf", page: 3, dept: "Finance", matchScore: "0.887" },
+    ],
+    aiResponse:
+      "Per Section 4.2 of the Global Expense Policy, international economy flights up to $2,500 do not require VP approval. Any booking exceeding $2,500 or business-class upgrades requires written pre-authorization from the Department VP.",
+    citation: "Global_Expense_Policy_2025.pdf · Page 14, Paragraph 3",
+  },
+  {
+    id: "engineering",
+    role: "Staff Infrastructure Engineer",
+    department: "Engineering & SRE",
+    query: "What is the failover SLA and max acceptable replication lag for our primary PostgreSQL cluster?",
+    status: "authorized",
+    latency: "168ms",
+    confidence: 96,
+    retrievedDocs: [
+      { name: "Database_HA_Runbook_v3.pdf", page: 8, dept: "Engineering", matchScore: "0.961" },
+      { name: "Disaster_Recovery_Architecture.pdf", page: 22, dept: "Engineering", matchScore: "0.894" },
+    ],
+    aiResponse:
+      "The PostgreSQL HA runbook defines an automated Patroni failover SLA of < 30 seconds. Maximum allowable asynchronous replication lag across availability zones is bounded to 500ms before alerts escalate to the on-call engineer.",
+    citation: "Database_HA_Runbook_v3.pdf · Page 8, Section 2.1",
+  },
+  {
+    id: "unauthorized",
+    role: "Marketing Specialist",
+    department: "Growth & Marketing",
+    query: "Retrieve executive salary bands and Q4 board-level equity dilution spreadsheets.",
+    status: "denied",
+    latency: "28ms",
+    confidence: 0,
+    retrievedDocs: [],
+    aiResponse:
+      "Access Denied (RBAC Policy Violation): Your clearance tier (Growth & Marketing) does not have read permissions for Executive Compensation & Board Governance vectors. This retrieval attempt has been immutably logged to the audit trail.",
+    citation: "Audit Event #4892 · Deny-by-default retrieval policy enforced",
+  },
+];
+
+export function HeroProductWindow() {
+  const [activeTab, setActiveTab] = useState<string>("finance");
+  const scenario = SCENARIOS.find((s) => s.id === activeTab) ?? SCENARIOS[0]!;
 
   return (
-    <div className="relative w-full">
-      {/* environmental glow behind the window */}
-      <div className="pointer-events-none absolute -inset-x-16 -inset-y-12 bg-[radial-gradient(55%_50%_at_50%_50%,oklch(0.75_0.01_264/0.18)_0%,transparent_72%)]" />
-
-      {/* supporting background atmosphere */}
-      <div className="absolute -inset-x-6 -inset-y-4 overflow-hidden rounded-2xl">
-        {Object.values(FEATURE_STATES).map((state) => (
-          <img
-            key={state.id}
-            src={state.background}
-            alt=""
-            aria-hidden
-            width={1280}
-            height={960}
-            loading={state.id === "secure" ? "eager" : "lazy"}
-            className={`absolute inset-0 size-full object-cover transition-opacity duration-500 ${
-              state.id === feature ? "opacity-70" : "opacity-0"
-            }`}
-          />
-        ))}
-        <div className="absolute inset-0 bg-[linear-gradient(to_top,var(--background),transparent_75%)]" />
-      </div>
-
-      {/* metallic outer frame */}
-      <div className="relative m-3 rounded-[18px] bg-gradient-to-br from-white/20 via-white/5 to-white/10 p-px shadow-2xl">
-        {/* product window — identical in every state */}
-        <div className="relative overflow-hidden rounded-[17px] border border-hairline/80 bg-card/90 shadow-2xl backdrop-blur-2xl">
-          <BorderBeam size={320} duration={12} delay={0} colorFrom="#3b82f6" colorTo="#a855f7" />
-          {/* soft environmental reflection across the glass */}
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(160deg,oklch(1_0_0/0.09)_0%,transparent_30%,transparent_78%,oklch(1_0_0/0.05)_100%)]" />
-          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(to_right,transparent,oklch(1_0_0/0.5),transparent)]" />
-
-          {/* window chrome */}
-          <div className="flex items-center gap-3 border-b border-hairline/70 bg-secondary/20 px-3.5 py-2.5">
-            <span className="flex gap-1.5">
-              <span className="size-2.5 rounded-full bg-rose-500/70" />
-              <span className="size-2.5 rounded-full bg-amber-500/70" />
-              <span className="size-2.5 rounded-full bg-emerald-500/70" />
+    <section className="relative mx-auto w-full max-w-[1280px] px-6 pb-16">
+      {/* Product Demonstration Container */}
+      <div className="overflow-hidden rounded-[10px] border border-border bg-card shadow-sm">
+        {/* Workspace Mockup Header Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/40 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 pr-2 border-r border-border">
+              <span className="size-2.5 rounded-full bg-border" />
+              <span className="size-2.5 rounded-full bg-border" />
+              <span className="size-2.5 rounded-full bg-border" />
+            </div>
+            <span className="font-mono text-[12px] font-medium text-foreground/80">
+              NeroxaAI Workspace
             </span>
-            <span className="rounded-md border border-hairline/60 bg-secondary/40 px-3 py-0.5 text-[10.5px] font-medium text-foreground/85 shadow-xs">
-              Ask NeroxaAI
-            </span>
-            <span className="ml-auto flex items-center gap-1.5 text-[9.5px] tracking-wide text-muted-foreground uppercase font-semibold">
-              Illustrative preview
-              <Lock className="size-3 text-emerald-400" />
+            <span className="rounded-[4px] border border-border bg-background px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+              v2.4-airgap
             </span>
           </div>
 
-          <div key={feature} className="animate-in fade-in-0 space-y-3 p-4 duration-500">
-            {/* user query */}
-            <div className="rounded-xl border border-primary/25 bg-primary/[0.08] px-3.5 py-2.5 text-[12px] font-medium text-foreground">
-              {data.query}
-            </div>
+          {/* Scenario Switcher Tabs */}
+          <div className="flex items-center gap-1 rounded-[6px] border border-border bg-background/80 p-0.5">
+            {SCENARIOS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setActiveTab(s.id)}
+                className={`rounded-[4px] px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  activeTab === s.id
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                }`}
+              >
+                {s.id === "finance"
+                  ? "Finance Query"
+                  : s.id === "engineering"
+                    ? "Engineering Query"
+                    : "Unauthorized Attempt"}
+              </button>
+            ))}
+          </div>
+        </div>
 
-            {/* main result + status badge */}
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-[12px] font-medium text-foreground">{data.resultTitle}</p>
-              <span className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-[9px] tracking-wide text-foreground/70">
-                {data.badge}
-              </span>
-            </div>
-
-            {/* meta rows */}
-            {data.metaRows ? (
-              <div className="grid grid-cols-3 gap-2">
-                {data.metaRows.map((row) => (
-                  <div key={row.label} className="rounded-md border border-hairline px-2 py-1.5">
-                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">
-                      {row.label}
-                    </p>
-                    <p className="text-[11px] text-foreground/90">{row.value}</p>
+        {/* Product Workspace Body */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border">
+          {/* Left Column: Query Context & RBAC Evaluation */}
+          <div className="p-5 lg:col-span-4 bg-secondary/15 flex flex-col justify-between space-y-4">
+            <div className="space-y-4">
+              <div>
+                <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">
+                  Authenticated Identity
+                </p>
+                <div className="mt-1 flex items-center justify-between rounded-[6px] border border-border bg-background p-2.5 text-[12px]">
+                  <div>
+                    <p className="font-semibold text-foreground">{scenario.role}</p>
+                    <p className="text-[11px] text-muted-foreground">{scenario.department}</p>
                   </div>
-                ))}
-              </div>
-            ) : null}
-
-            {/* document / result rows */}
-            <div className="space-y-1.5">
-              <p className="text-[9.5px] uppercase tracking-wide text-muted-foreground">
-                {data.listTitle}
-              </p>
-              {data.rows.map((row) => (
-                <div
-                  key={row.label}
-                  className="flex items-center justify-between gap-3 rounded-md border border-hairline px-2.5 py-1.5"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <FileText className="size-3 shrink-0 text-muted-foreground" />
-                    <span className="truncate text-[11px] text-foreground/90">{row.label}</span>
-                  </span>
                   <span
-                    className={`shrink-0 text-[9.5px] tracking-wide ${
-                      row.state === "allowed"
-                        ? "text-allowed"
-                        : row.state === "blocked"
-                          ? "text-blocked"
-                          : "text-muted-foreground"
+                    className={`inline-flex items-center gap-1 rounded-[4px] px-2 py-0.5 text-[10px] font-medium ${
+                      scenario.status === "authorized"
+                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                        : "bg-destructive/10 text-destructive border border-destructive/20"
                     }`}
                   >
-                    {row.meta}
+                    {scenario.status === "authorized" ? (
+                      <ShieldCheck className="size-3" />
+                    ) : (
+                      <ShieldAlert className="size-3" />
+                    )}
+                    {scenario.status === "authorized" ? "RBAC Clear" : "Restricted"}
                   </span>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            {/* AI response */}
-            <div className="space-y-1">
-              <p className="text-[11px] font-medium text-foreground">{data.responseTitle}</p>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                {data.responseBody}
-              </p>
-            </div>
-
-            {/* supporting tags */}
-            {data.tags?.length ? (
-              <div className="space-y-1.5">
-                <p className="text-[9.5px] uppercase tracking-wide text-muted-foreground">
-                  {data.tagsTitle}
+              <div>
+                <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">
+                  Pipeline Execution
                 </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {data.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-hairline px-2 py-0.5 text-[10px] text-foreground/80"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+                <div className="mt-1 grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="rounded-[6px] border border-border bg-background p-2">
+                    <p className="text-[10px] text-muted-foreground">Search Latency</p>
+                    <p className="font-mono font-bold text-foreground mt-0.5">{scenario.latency}</p>
+                  </div>
+                  <div className="rounded-[6px] border border-border bg-background p-2">
+                    <p className="text-[10px] text-muted-foreground">Confidence</p>
+                    <p className="font-mono font-bold text-foreground mt-0.5">
+                      {scenario.confidence ? `${scenario.confidence}%` : "0% (Blocked)"}
+                    </p>
+                  </div>
                 </div>
               </div>
-            ) : null}
 
-            {/* status */}
-            <p className="text-[10px] text-muted-foreground">{data.status}</p>
+              <div>
+                <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">
+                  Retrieved Vectors ({scenario.retrievedDocs.length})
+                </p>
+                <div className="mt-1 space-y-1.5">
+                  {scenario.retrievedDocs.length > 0 ? (
+                    scenario.retrievedDocs.map((doc) => (
+                      <div
+                        key={doc.name}
+                        className="flex items-center justify-between rounded-[6px] border border-border bg-background px-2.5 py-1.5 text-[11px]"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="size-3.5 shrink-0 text-primary" />
+                          <span className="truncate font-medium text-foreground">{doc.name}</span>
+                        </div>
+                        <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                          p.{doc.page} · {doc.matchScore}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[6px] border border-dashed border-border bg-background/50 p-3 text-center text-[11px] text-muted-foreground">
+                      0 vectors exposed to this role
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
-            {/* bottom input */}
-            <div className="flex items-center gap-2 rounded-lg border border-hairline bg-card/60 px-3 py-2">
-              <span className="flex-1 text-[11px] text-muted-foreground">
-                {data.inputPlaceholder}
+            <div className="pt-3 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Database className="size-3.5 text-primary" />
+                Qdrant Vector DB
               </span>
-              <span className="flex size-6 items-center justify-center rounded-md border border-hairline">
-                <ArrowUp className="size-3 text-foreground/80" />
+              <span className="font-mono">Local Ollama LLM</span>
+            </div>
+          </div>
+
+          {/* Right Column: Interactive Chat & Citations */}
+          <div className="p-5 lg:col-span-8 flex flex-col justify-between space-y-4">
+            <div className="space-y-4">
+              {/* User Prompt Bubble */}
+              <div className="flex items-start gap-3">
+                <div className="grid size-7 shrink-0 place-items-center rounded-[6px] border border-border bg-secondary text-[11px] font-semibold text-foreground">
+                  Q
+                </div>
+                <div className="flex-1 rounded-[8px] border border-border bg-secondary/30 px-3.5 py-2.5 text-[13px] text-foreground font-medium">
+                  {scenario.query}
+                </div>
+              </div>
+
+              {/* AI Response Box */}
+              <div className="flex items-start gap-3">
+                <div className="grid size-7 shrink-0 place-items-center rounded-[6px] bg-primary text-[11px] font-semibold text-primary-foreground">
+                  AI
+                </div>
+                <div className="flex-1 rounded-[8px] border border-border bg-background p-4 space-y-3">
+                  <p className="text-[13px] leading-relaxed text-foreground/90">
+                    {scenario.aiResponse}
+                  </p>
+
+                  {/* Verifiable Citation Strip */}
+                  <div
+                    className={`flex items-center justify-between rounded-[6px] border px-3 py-2 text-[11px] ${
+                      scenario.status === "authorized"
+                        ? "border-primary/25 bg-primary/5 text-primary"
+                        : "border-destructive/25 bg-destructive/5 text-destructive"
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <FileText className="size-3.5" />
+                      {scenario.citation}
+                    </span>
+                    {scenario.status === "authorized" && (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold underline underline-offset-2">
+                        View Page <ExternalLink className="size-3" />
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Prompt Bar in Demo */}
+            <div className="flex items-center gap-2 rounded-[6px] border border-border bg-secondary/30 px-3 py-2">
+              <Search className="size-4 text-muted-foreground" />
+              <input
+                type="text"
+                readOnly
+                value="Ask a follow-up query about enterprise policy or system specs..."
+                className="w-full bg-transparent text-[12px] text-muted-foreground focus:outline-none cursor-default"
+              />
+              <span className="rounded-[4px] border border-border bg-background px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+                Enter
               </span>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
