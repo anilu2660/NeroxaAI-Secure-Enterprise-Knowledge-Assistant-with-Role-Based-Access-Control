@@ -71,13 +71,6 @@ export const prototypePermissions: PermissionDefinition[] = [
     group: "Administration",
     adminOnly: true,
   },
-  {
-    key: "access:manage",
-    label: "Access Control",
-    description: "Review and eventually manage roles, permissions, and access scopes.",
-    group: "Administration",
-    adminOnly: true,
-  },
 ];
 
 export const prototypeAccessScopes: AccessScopeDefinition[] = [

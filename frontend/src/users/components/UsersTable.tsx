@@ -1,9 +1,10 @@
-import { Eye, Lock, Pencil, Trash2, Unlock, Users } from "lucide-react";
+import { Eye, Lock, Pencil, Trash2, Unlock, Users, Shield } from "lucide-react";
 import type { ManagedUser } from "@/api/types";
 import { RoleBadge, StatusBadge, userInitials } from "./UserBadges";
+import { getSavedUserAvatar } from "@/api/workspace-service";
 
 const gridCols =
-  "lg:grid-cols-[minmax(0,2.1fr)_74px_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_156px]";
+  "lg:grid-cols-[minmax(0,2.2fr)_84px_minmax(0,1.1fr)_minmax(0,1.8fr)_minmax(0,1.1fr)_minmax(0,1.2fr)_160px]";
 
 function ActionButton({
   label,
@@ -24,8 +25,8 @@ function ActionButton({
       title={label}
       className={
         destructive
-          ? "grid size-7 place-items-center rounded-lg border border-destructive/35 bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20 focus-visible:outline focus-visible:outline-1 focus-visible:outline-destructive"
-          : "grid size-7 place-items-center rounded-lg border border-hairline bg-secondary/40 text-foreground/75 transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary"
+          ? "grid size-8 place-items-center rounded-xl border border-destructive/35 bg-destructive/10 text-destructive transition-all duration-200 hover:scale-105 hover:bg-destructive/20 active:scale-95 focus-visible:ring-2 focus-visible:ring-destructive"
+          : "grid size-8 place-items-center rounded-xl border border-hairline/70 bg-secondary/35 text-muted-foreground transition-all duration-200 hover:scale-105 hover:border-primary/40 hover:bg-card hover:text-foreground active:scale-95 focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
       }
     >
       {children}
@@ -33,29 +34,26 @@ function ActionButton({
   );
 }
 
-import { getSavedUserAvatar } from "@/api/workspace-service";
-
 function UserAvatar({ user }: { user: ManagedUser }) {
-  const avatarUrl = getSavedUserAvatar(user.id, user.email);
+  const avatarUrl = user.avatarUrl || getSavedUserAvatar(user.id, user.email);
   if (avatarUrl) {
     return (
       <img
         src={avatarUrl}
         alt={user.name}
-        className="size-8 shrink-0 rounded-full border border-primary/40 object-cover shadow-xs"
+        className="size-9.5 shrink-0 rounded-2xl border border-primary/40 object-cover shadow-sm ring-2 ring-primary/20"
       />
     );
   }
   return (
-    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-[11px] font-medium text-foreground/85">
+    <span className="grid size-9.5 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-secondary via-secondary/80 to-primary/10 border border-hairline text-[12px] font-bold text-foreground shadow-xs ring-1 ring-primary/15">
       {userInitials(user.name)}
     </span>
   );
 }
 
 /**
- * Presentation-only user table. Every action is raised to the page, which
- * routes it through the service boundary — no component mutates data itself.
+ * Presentation-only user table.
  */
 export function UsersTable({
   users,
@@ -72,20 +70,22 @@ export function UsersTable({
 }) {
   if (users.length === 0) {
     return (
-      <div className="grid place-items-center rounded-2xl border border-hairline bg-card/60 px-6 py-14 text-center backdrop-blur-xl">
-        <Users className="size-5 text-muted-foreground" />
-        <p className="mt-2.5 text-[13px] text-foreground/85">No users to display</p>
-        <p className="mt-1 max-w-[380px] text-[11.5px] text-muted-foreground">
-          No account matches the current search and filters.
+      <div className="grid place-items-center rounded-3xl border border-hairline bg-card/60 px-6 py-16 text-center backdrop-blur-2xl shadow-lg">
+        <div className="grid size-12 place-items-center rounded-2xl bg-secondary/60 text-muted-foreground mb-3">
+          <Users className="size-6 opacity-60" />
+        </div>
+        <p className="font-display text-sm font-semibold text-foreground">No users to display</p>
+        <p className="mt-1 max-w-[380px] text-[12px] text-muted-foreground">
+          No account matches the current search and filter criteria.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-hairline bg-card/60 backdrop-blur-xl">
+    <div className="overflow-hidden rounded-3xl border border-hairline bg-card/60 shadow-xl backdrop-blur-2xl transition-all">
       <div
-        className={`hidden gap-3 border-b border-hairline px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground lg:grid ${gridCols}`}
+        className={`hidden gap-3 border-b border-hairline/80 bg-secondary/20 px-5 py-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground lg:grid ${gridCols}`}
       >
         <span>User</span>
         <span>Role</span>
@@ -96,65 +96,81 @@ export function UsersTable({
         <span className="text-right">Actions</span>
       </div>
 
-      <div className="divide-y divide-hairline">
+      <div className="divide-y divide-hairline/60">
         {users.map((user) => (
           <div
             key={user.id}
-            className={`grid grid-cols-1 gap-2 px-4 py-2.5 transition-colors hover:bg-accent/30 lg:items-center lg:gap-3 ${gridCols}`}
+            className={`grid grid-cols-1 gap-2.5 px-5 py-3.5 transition-all duration-200 hover:bg-primary/[0.03] lg:items-center lg:gap-3 ${gridCols}`}
           >
-            <div className="flex min-w-0 items-center gap-2.5">
+            {/* User Info */}
+            <div className="flex min-w-0 items-center gap-3">
               <UserAvatar user={user} />
-              <span className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => onView(user)}
-                  className="block max-w-full truncate text-left text-[12.5px] text-foreground outline-none transition-colors hover:text-primary focus-visible:text-primary"
+                  className="block max-w-full truncate text-left font-display text-[13px] font-semibold text-foreground outline-none transition-colors hover:text-primary focus-visible:text-primary"
                 >
                   {user.name}
                 </button>
-                <span className="block truncate text-[11px] text-muted-foreground">
+                <span className="block truncate text-[11.5px] text-muted-foreground">
                   {user.email}
                 </span>
-              </span>
+              </div>
             </div>
 
-            <span>
+            {/* Role */}
+            <div>
               <RoleBadge role={user.role} />
-            </span>
+            </div>
 
-            <span className="truncate text-[12px] text-foreground/85">{user.department}</span>
+            {/* Department */}
+            <div className="truncate text-[12px] font-medium text-foreground/90">
+              {user.department || "General"}
+            </div>
 
-            <span className="min-w-0 text-[11.5px] leading-[1.35] text-foreground/80">
-              {user.accessScope.map((scope, index) => (
-                <span key={scope} className="block truncate">
-                  {index === 0 ? scope : `+ ${scope}`}
-                </span>
-              ))}
-            </span>
+            {/* Access Scope */}
+            <div className="min-w-0 space-y-0.5">
+              {user.accessScope && user.accessScope.length > 0 ? (
+                user.accessScope.map((scope, index) => (
+                  <span
+                    key={scope}
+                    className="inline-block max-w-full truncate rounded-md bg-secondary/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80 border border-hairline/50"
+                  >
+                    {index === 0 ? scope : `+ ${scope}`}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[11px] text-muted-foreground">Default Scope</span>
+              )}
+            </div>
 
-            <span>
+            {/* Status */}
+            <div>
               <StatusBadge status={user.status} />
-            </span>
+            </div>
 
-            <span className="truncate text-[11.5px] text-muted-foreground">
+            {/* Last Sign-In */}
+            <div className="truncate text-[11.5px] text-muted-foreground">
               {user.lastSignInLabel ?? "Unavailable"}
-            </span>
+            </div>
 
-            <span className="flex items-center gap-1.5 lg:justify-end">
+            {/* Actions */}
+            <div className="flex items-center gap-1.5 lg:justify-end">
               <ActionButton label={`View ${user.name}`} onClick={() => onView(user)}>
-                <Eye className="size-3.5" />
+                <Eye className="size-4" />
               </ActionButton>
               <ActionButton label={`Edit ${user.name}`} onClick={() => onEdit(user)}>
-                <Pencil className="size-3.5" />
+                <Pencil className="size-4" />
               </ActionButton>
               <ActionButton
                 label={user.status === "disabled" ? `Enable ${user.name}` : `Disable ${user.name}`}
                 onClick={() => onToggleAccess(user)}
               >
                 {user.status === "disabled" ? (
-                  <Unlock className="size-3.5" />
+                  <Unlock className="size-4 text-emerald-400" />
                 ) : (
-                  <Lock className="size-3.5" />
+                  <Lock className="size-4" />
                 )}
               </ActionButton>
               <ActionButton
@@ -162,9 +178,9 @@ export function UsersTable({
                 destructive
                 onClick={() => onDelete(user)}
               >
-                <Trash2 className="size-3.5" />
+                <Trash2 className="size-4" />
               </ActionButton>
-            </span>
+            </div>
           </div>
         ))}
       </div>

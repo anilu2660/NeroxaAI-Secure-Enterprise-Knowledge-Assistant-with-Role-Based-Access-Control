@@ -7,18 +7,18 @@ import type { ReasoningModelOption } from "@/api/types";
  */
 export const reasoningModels: ReasoningModelOption[] = [
   {
-    id: "ollama-cloud",
-    name: "Ollama Cloud",
-    shortLabel: "Ollama · Cloud",
-    tier: "cloud",
+    id: "qwen2.5:3b",
+    name: "Qwen 2.5:3B",
+    shortLabel: "qwen2.5:3b",
+    tier: "local",
     provider: "Ollama",
-    detail: "Connected through the deployed FastAPI backend",
+    detail: "Fast local Ollama inference model (qwen2.5:3b)",
     available: true,
   },
   {
     id: "gpt-cloud",
-    name: "GPT",
-    shortLabel: "GPT · Cloud",
+    name: "GPT-4o",
+    shortLabel: "GPT-4o · Cloud",
     tier: "cloud",
     provider: "OpenAI",
     detail: "Cloud provider not connected",
@@ -26,7 +26,7 @@ export const reasoningModels: ReasoningModelOption[] = [
   },
   {
     id: "gemini-cloud",
-    name: "Gemini",
+    name: "Gemini 1.5 Pro",
     shortLabel: "Gemini · Cloud",
     tier: "cloud",
     provider: "Google",
@@ -35,6 +35,6 @@ export const reasoningModels: ReasoningModelOption[] = [
   },
 ];
 
-export const defaultReasoningModelId: string | null = "ollama-cloud";
+export const defaultReasoningModelId: string | null = "qwen2.5:3b";
 
 export const noModelConfiguredLabel = "No model configured";

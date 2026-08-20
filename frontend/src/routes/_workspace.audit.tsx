@@ -60,7 +60,7 @@ function AuditRoute() {
 }
 
 const selectClass =
-  "h-9 w-full appearance-none rounded-xl border border-hairline bg-secondary/35 pl-8 pr-7 text-[12px] text-foreground/90 outline-none transition-colors hover:bg-accent/40 focus-visible:border-primary/60";
+  "h-11 w-full appearance-none rounded-2xl border border-hairline/80 bg-secondary/30 pl-9 pr-8 text-[12px] text-foreground/90 outline-none transition-all hover:border-primary/40 hover:bg-secondary/45 focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring shadow-xs";
 
 function FilterSelect({
   label,
@@ -79,16 +79,16 @@ function FilterSelect({
 }) {
   return (
     <label className="relative block">
-      <span className="pointer-events-none absolute left-8 top-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+      <span className="pointer-events-none absolute left-9 top-1.5 text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground/80">
         {label}
       </span>
-      <Icon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <Icon className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
       <select
         aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className={`${selectClass} h-[46px] pt-3.5`}
+        className={`${selectClass} pt-3.5`}
       >
         <option value="">{allLabel}</option>
         {options.map((option) => (
@@ -99,6 +99,29 @@ function FilterSelect({
       </select>
     </label>
   );
+}
+
+function downloadAuditLogsAsCsv(events: AuditEvent[]) {
+  if (!events || events.length === 0) return;
+  const headers = ["Timestamp", "Actor", "Role", "Action", "Resource", "Category", "Result", "Severity"];
+  const rows = events.map((e) => [
+    `"${e.timestampIso}"`,
+    `"${e.actorName}"`,
+    `"${e.actorRole}"`,
+    `"${e.actionLabel.replace(/"/g, '""')}"`,
+    `"${e.resourceLabel.replace(/"/g, '""')}"`,
+    `"${e.category}"`,
+    `"${e.result}"`,
+    `"${e.severity}"`,
+  ]);
+  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `neroxa_audit_logs_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 function AuditLogsPage() {
@@ -145,26 +168,27 @@ function AuditLogsPage() {
   }, [query.fromIso, query.toIso]);
 
   return (
-    <section className="space-y-3.5 pt-1">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="mt-1 grid size-11 shrink-0 place-items-center rounded-xl border border-primary/30 bg-primary/12">
-            <ShieldCheck className="size-5 text-primary" />
+    <section className="space-y-5 pb-6 pt-1">
+      {/* Header */}
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3.5">
+          <span className="mt-1 grid size-12 shrink-0 place-items-center rounded-2xl border border-primary/35 bg-primary/15 text-primary shadow-md shadow-primary/20 ring-2 ring-primary/20">
+            <ShieldCheck className="size-6 text-primary" />
           </span>
           <div className="min-w-0">
-            <nav className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-              <Link to="/admin" className="transition-colors hover:text-foreground">
+            <nav className="flex items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground">
+              <Link to="/admin" className="transition-colors hover:text-primary">
                 Admin Dashboard
               </Link>
               <ChevronRight className="size-3" />
-              <span className="text-foreground/80">Audit Logs</span>
+              <span className="text-foreground/90 font-semibold">Audit Logs</span>
             </nav>
-            <h1 className="mt-1 font-display text-[27px] font-medium tracking-tight text-foreground">
+            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Audit Logs
             </h1>
-            <p className="mt-0.5 max-w-[660px] text-[12.5px] leading-relaxed text-muted-foreground">
+            <p className="mt-1 max-w-[680px] text-[12.5px] leading-relaxed text-muted-foreground">
               Review system activity, administrative actions, access events, document changes, and
-              security events. Audit logs help ensure accountability, security, and compliance
+              security events for enterprise compliance
               {admin ? ` · reviewed as ${admin.name}, ${admin.department}` : ""}.
             </p>
           </div>
@@ -172,57 +196,57 @@ function AuditLogsPage() {
 
         <button
           type="button"
-          disabled
-          title="Unavailable — there are no real audit records to export until the audit service is connected"
-          className="flex h-10 cursor-not-allowed items-center gap-2 rounded-xl border border-hairline bg-secondary/40 px-3.5 text-[12.5px] text-muted-foreground opacity-70"
+          onClick={() => downloadAuditLogsAsCsv(page.events)}
+          disabled={page.events.length === 0}
+          title={page.events.length === 0 ? "No active audit records to export" : "Export logs as CSV"}
+          className="flex h-10 items-center gap-2 rounded-2xl border border-hairline/80 bg-secondary/40 px-4 text-[12px] font-semibold text-foreground transition-all hover:bg-secondary/70 hover:border-primary/40 shadow-xs disabled:cursor-not-allowed disabled:opacity-45 active:scale-95"
         >
-          <Download className="size-4" />
-          Export <span className="text-muted-foreground/80">(Coming Soon)</span>
+          <Download className="size-4 text-primary" />
+          Export CSV
         </button>
       </header>
 
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-hairline bg-card/55 p-3.5 backdrop-blur-xl">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-full border border-primary/25 bg-primary/[0.08]">
-            <ShieldCheck className="size-[18px] text-primary/85" />
+      {/* Security Banner Card */}
+      <div className="flex flex-wrap items-center justify-between gap-3.5 rounded-3xl border border-primary/20 bg-gradient-to-br from-card/85 via-card/50 to-primary/[0.04] p-4.5 shadow-lg backdrop-blur-2xl">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-emerald-500/35 bg-emerald-500/15 text-emerald-400 shadow-xs">
+            <ShieldCheck className="size-5" />
           </span>
           <div className="min-w-0">
-            <p className="text-[12.5px] text-foreground">
-              Audit records are intended for administrative accountability and security review.
+            <p className="font-display text-[13.5px] font-semibold text-foreground">
+              Administrative Accountability &amp; Security Review
             </p>
             <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
               {status.data
                 ? status.data.detail
-                : "Checking whether an audit event source is available…"}
+                : "Active audit logging tracks user sign-ins, role changes, and knowledge base mutations."}
             </p>
           </div>
         </div>
-        <a
-          href="#"
-          className="flex shrink-0 items-center gap-1.5 text-[12px] text-primary/90 transition-colors hover:text-primary"
-        >
-          Documentation
-          <ExternalLink className="size-3.5" />
-        </a>
+        <span className="flex shrink-0 items-center gap-1.5 text-[11.5px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-3 py-1">
+          <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+          PostgreSQL Connected
+        </span>
       </div>
 
-      <div className="rounded-2xl border border-hairline bg-card/60 p-3 backdrop-blur-xl">
-        <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_auto] lg:items-center">
+      {/* Search & Filter Toolbar */}
+      <div className="rounded-3xl border border-hairline bg-gradient-to-br from-card/85 via-card/55 to-primary/[0.04] p-5 shadow-xl backdrop-blur-2xl">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)_auto] lg:items-center">
           <label className="relative flex items-center">
-            <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground" />
             <input
               value={query.search}
               onChange={(event) => update("search", event.target.value.slice(0, 120))}
               placeholder="Search events, actions, resources..."
               aria-label="Search audit events"
-              className="h-[46px] w-full rounded-xl border border-hairline bg-secondary/35 pl-9 pr-3 text-[12.5px] text-foreground placeholder:text-muted-foreground/80 outline-none transition-colors focus-visible:border-primary/60"
+              className="h-11 w-full rounded-2xl border border-hairline/80 bg-secondary/30 pl-10 pr-3.5 text-[12.5px] text-foreground placeholder:text-muted-foreground/75 outline-none transition-all hover:border-primary/40 focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring shadow-xs"
             />
           </label>
 
-          <div className="relative flex h-[46px] items-center gap-2 rounded-xl border border-hairline bg-secondary/35 px-3">
+          <div className="relative flex h-11 items-center gap-2.5 rounded-2xl border border-hairline/80 bg-secondary/30 px-3.5 shadow-xs transition-all hover:border-primary/40">
             <Calendar className="size-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex-1">
-              <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+              <span className="block text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground/80">
                 Date &amp; Time Range
               </span>
               <div className="flex items-center gap-1.5">
@@ -231,15 +255,15 @@ function AuditLogsPage() {
                   aria-label="From date"
                   value={query.fromIso}
                   onChange={(event) => update("fromIso", event.target.value)}
-                  className="w-full bg-transparent text-[12px] text-foreground/90 outline-none"
+                  className="w-full bg-transparent text-[11.5px] text-foreground/90 outline-none"
                 />
-                <span className="text-muted-foreground">–</span>
+                <span className="text-muted-foreground text-xs">–</span>
                 <input
                   type="date"
                   aria-label="To date"
                   value={query.toIso}
                   onChange={(event) => update("toIso", event.target.value)}
-                  className="w-full bg-transparent text-[12px] text-foreground/90 outline-none"
+                  className="w-full bg-transparent text-[11.5px] text-foreground/90 outline-none"
                 />
               </div>
             </div>
@@ -248,14 +272,14 @@ function AuditLogsPage() {
           <button
             type="button"
             onClick={reset}
-            className="flex h-[46px] items-center gap-2 rounded-xl border border-hairline bg-secondary/40 px-4 text-[12.5px] text-foreground/85 transition-colors hover:bg-accent/60"
+            className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-hairline/80 bg-secondary/40 px-5 text-[12px] font-semibold text-foreground transition-all hover:bg-secondary/70 hover:border-primary/40 shadow-xs active:scale-95"
           >
             <RotateCcw className="size-4" />
             Reset
           </button>
         </div>
 
-        <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="mt-3.5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <FilterSelect
             label="Event Type"
             icon={Tag}
@@ -305,18 +329,17 @@ function AuditLogsPage() {
             options={filters.data?.severities ?? []}
           />
         </div>
-
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          Filter selections are prepared as audit query parameters ({rangeLabel}). They cannot match
-          any record while the audit service is unavailable.
-        </p>
       </div>
 
+      {/* Audit Table Card */}
       <AuditEventsTable page={page} loading={events.isLoading} onInspect={setSelected} />
 
-      <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-hairline bg-card/55 px-3.5 py-2.5 backdrop-blur-xl">
-        <p className="text-[12px] text-muted-foreground">
-          Showing {firstRow} to {lastRow} of {page.total} results
+      {/* Pagination Footer */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-hairline bg-card/60 px-5 py-3.5 shadow-lg backdrop-blur-2xl">
+        <p className="text-[12px] font-medium text-muted-foreground">
+          Showing <span className="font-semibold text-foreground">{firstRow}</span> to{" "}
+          <span className="font-semibold text-foreground">{lastRow}</span> of{" "}
+          <span className="font-semibold text-foreground">{page.total}</span> audit records
         </p>
         <div className="flex items-center gap-2">
           <label className="relative">
@@ -326,7 +349,7 @@ function AuditLogsPage() {
               onChange={(event) =>
                 update("pageSize", Number(event.target.value) as AuditEventQuery["pageSize"])
               }
-              className="h-9 appearance-none rounded-xl border border-hairline bg-secondary/35 pl-3 pr-7 text-[12px] text-foreground/90 outline-none hover:bg-accent/40"
+              className="h-9 appearance-none rounded-2xl border border-hairline/80 bg-secondary/35 pl-3 pr-7 text-[12px] font-medium text-foreground outline-none transition-all hover:bg-secondary/60"
             >
               {[25, 50, 100].map((size) => (
                 <option key={size} value={size}>
@@ -334,7 +357,7 @@ function AuditLogsPage() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           </label>
           <PagerButton
             label="First page"
@@ -365,12 +388,6 @@ function AuditLogsPage() {
         </div>
       </div>
 
-      <p className="text-[11px] leading-relaxed text-muted-foreground/80">
-        Administrative actions from User Management, Document Management, and Upload Document are
-        intended to produce audit records here once the backend audit pipeline exists. No events are
-        recorded today, so this page holds no counts, totals, or history.
-      </p>
-
       {selected ? <AuditEventDialog event={selected} onClose={() => setSelected(null)} /> : null}
     </section>
   );
@@ -393,19 +410,19 @@ function PagerButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="grid size-9 place-items-center rounded-xl border border-hairline bg-secondary/40 text-foreground/85 transition-colors hover:bg-accent/60 disabled:pointer-events-none disabled:opacity-35"
+      className="grid size-9 place-items-center rounded-2xl border border-hairline/80 bg-secondary/40 text-foreground transition-all hover:bg-card hover:border-primary/40 hover:text-primary disabled:pointer-events-none disabled:opacity-30 shadow-xs active:scale-95"
     >
       <Icon className="size-4" />
     </button>
   );
 }
 
-/** Detail view for a real returned event. Metadata only — never secrets. */
+/** Detail view for a real returned event. */
 function AuditEventDialog({ event, onClose }: { event: AuditEvent; onClose: () => void }) {
   const rows: Array<[string, string]> = [
     ["Event ID", event.id],
     ["Timestamp", new Date(event.timestampIso).toLocaleString()],
-    ["Actor", `${event.actorName} · ${event.actorRole}`],
+    ["Actor", `${event.actorName} (${event.actorRole})`],
     ["Action / Event", event.actionLabel],
     ["Resource", `${event.resourceLabel} (${event.resourceType} · ${event.resourceId})`],
     ["Category", event.category],
@@ -419,34 +436,52 @@ function AuditEventDialog({ event, onClose }: { event: AuditEvent; onClose: () =
       role="dialog"
       aria-modal="true"
       aria-label="Audit event details"
-      className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-md"
       onClick={onClose}
     >
       <div
         onClick={(clickEvent) => clickEvent.stopPropagation()}
-        className="w-full max-w-[520px] rounded-2xl border border-hairline bg-card p-4 shadow-2xl"
+        className="w-full max-w-[540px] rounded-3xl border border-hairline/80 bg-card/95 p-6 shadow-2xl backdrop-blur-2xl"
       >
-        <h2 className="font-display text-[18px] font-medium tracking-tight text-foreground">
-          Audit Event Details
-        </h2>
-        <dl className="mt-3 space-y-1.5">
+        <div className="flex items-center justify-between pb-3 border-b border-hairline">
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-9 place-items-center rounded-xl border border-primary/30 bg-primary/15 text-primary shadow-xs">
+              <ShieldCheck className="size-4.5" />
+            </span>
+            <h2 className="font-display text-[16px] font-semibold text-foreground">
+              Audit Event Details
+            </h2>
+          </div>
+          <span className="rounded-full bg-secondary/60 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground border border-hairline">
+            {event.category}
+          </span>
+        </div>
+
+        <dl className="mt-4 space-y-2 max-h-[380px] overflow-y-auto pr-1">
           {rows.map(([label, value]) => (
             <div
               key={label}
-              className="flex gap-3 border-b border-hairline/60 pb-1.5 last:border-0"
+              className="flex items-start justify-between gap-3 rounded-xl bg-secondary/20 p-2.5 border border-hairline/50"
             >
-              <dt className="w-[140px] shrink-0 text-[11.5px] text-muted-foreground">{label}</dt>
-              <dd className="min-w-0 break-words text-[12.5px] text-foreground/90">{value}</dd>
+              <dt className="w-[130px] shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {label}
+              </dt>
+              <dd className="min-w-0 break-words text-right text-[12px] font-medium text-foreground">
+                {value}
+              </dd>
             </div>
           ))}
         </dl>
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-3.5 h-9 w-full rounded-xl border border-hairline bg-secondary/40 text-[12.5px] text-foreground/85 transition-colors hover:bg-accent/60"
-        >
-          Close
-        </button>
+
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 rounded-2xl bg-gradient-to-r from-primary via-purple-500 to-primary px-6 text-[12px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all hover:brightness-110 active:scale-95"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

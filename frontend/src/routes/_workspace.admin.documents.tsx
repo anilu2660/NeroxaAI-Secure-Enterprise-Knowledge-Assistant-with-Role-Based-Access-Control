@@ -58,7 +58,7 @@ export const Route = createFileRoute("/_workspace/admin/documents")({
 
 function DocumentManagementRoute() {
   return (
-    <RoleGuard role="ADMIN" permission="documents:upload">
+    <RoleGuard permission="documents:manage">
       <DocumentManagementPage />
     </RoleGuard>
   );

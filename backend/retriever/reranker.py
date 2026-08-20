@@ -9,6 +9,7 @@ Parent-section expansion is handled after ranking by the RAG service.
 import asyncio
 import logging
 
+import torch
 from sentence_transformers import CrossEncoder
 from backend.config import settings
 
@@ -20,13 +21,16 @@ class CrossEncoderReranker:
         self.model_name = settings.RERANKER_MODEL
         self.top_n = settings.RERANKER_TOP_N
         self._model: CrossEncoder | None = None
+        # Auto-detect GPU; fall back to CPU if CUDA is unavailable.
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info("Reranker will use device: %s", self.device)
 
     @property
     def model(self) -> CrossEncoder:
         if self._model is None:
-            logger.info("Loading cross-encoder reranker: %s", self.model_name)
-            self._model = CrossEncoder(self.model_name, max_length=512)
-            logger.info("Reranker loaded successfully")
+            logger.info("Loading cross-encoder reranker: %s on device: %s", self.model_name, self.device)
+            self._model = CrossEncoder(self.model_name, max_length=512, device=self.device)
+            logger.info("Reranker loaded successfully on %s", self.device)
         return self._model
 
     @staticmethod

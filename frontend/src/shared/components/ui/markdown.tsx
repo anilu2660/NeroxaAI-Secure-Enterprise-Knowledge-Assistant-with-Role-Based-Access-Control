@@ -1,15 +1,34 @@
-import React, { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Check, Copy, BarChart3, Table as TableIcon } from "lucide-react";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import { InteractiveChartCard, type ChartConfig, type ChartDataPoint } from "@/rag/components/InteractiveChartCard";
 
 interface MarkdownProps {
   content: string;
   className?: string;
 }
 
-/** Code block component with copy button */
+/** Code block component with copy button and chart detection */
 function CodeBlock({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = useState(false);
+
+  // Check if language is chart or json:chart
+  const isChart =
+    language === "chart" ||
+    language === "json:chart" ||
+    language.startsWith("chart:") ||
+    language === "data:chart";
+
+  if (isChart) {
+    try {
+      const parsed = JSON.parse(code) as ChartConfig;
+      if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
+        return <InteractiveChartCard config={parsed} />;
+      }
+    } catch {
+      // Fallback to normal code display if JSON invalid
+    }
+  }
 
   const handleCopy = async () => {
     try {
@@ -50,9 +69,133 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   );
 }
 
+/** Markdown Table component with optional chart converter */
+function MarkdownTableBlock({
+  headers,
+  rows,
+}: {
+  headers: string[];
+  rows: string[][];
+}) {
+  const [showChart, setShowChart] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Convert markdown table into chart config if numerical columns exist
+  const chartConfig: ChartConfig | null = useMemo(() => {
+    if (!headers.length || !rows.length) return null;
+    const nameColIdx = 0;
+    const numCols = headers
+      .map((h, idx) => ({ h, idx }))
+      .filter(({ idx }) => idx !== nameColIdx && rows.some((r) => !isNaN(Number(r[idx]?.replace(/[^0-9.-]+/g, "")))));
+
+    if (!numCols.length) return null;
+
+    const data: ChartDataPoint[] = rows.map((r) => {
+      const point: ChartDataPoint = {
+        name: r[nameColIdx] || "Item",
+      };
+      numCols.forEach(({ h, idx }) => {
+        const val = Number((r[idx] || "0").replace(/[^0-9.-]+/g, ""));
+        point[h] = isNaN(val) ? 0 : val;
+      });
+      return point;
+    });
+
+    return {
+      title: "Table Data Visualizer",
+      data,
+      keys: numCols.map((c) => c.h),
+      type: "bar",
+    };
+  }, [headers, rows]);
+
+  const handleCopyTable = async () => {
+    const headerStr = headers.join("\t");
+    const rowStrs = rows.map((r) => r.join("\t")).join("\n");
+    try {
+      await navigator.clipboard.writeText(`${headerStr}\n${rowStrs}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // noop
+    }
+  };
+
+  return (
+    <div className="my-3 overflow-hidden rounded-2xl border border-hairline/80 bg-card/60 shadow-lg backdrop-blur-xl">
+      {/* Table toolbar */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-hairline/60 bg-secondary/30 text-[11px] text-muted-foreground">
+        <span className="font-semibold text-foreground/80">Data Table ({rows.length} rows)</span>
+        <div className="flex items-center gap-1.5">
+          {chartConfig ? (
+            <button
+              type="button"
+              onClick={() => setShowChart(!showChart)}
+              className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10.5px] font-semibold text-primary hover:bg-primary/20 transition-all"
+            >
+              {showChart ? <TableIcon className="size-3" /> : <BarChart3 className="size-3" />}
+              <span>{showChart ? "View Table" : "View Chart"}</span>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleCopyTable}
+            className="flex items-center gap-1 rounded-lg border border-hairline px-2 py-0.5 text-[10.5px] hover:bg-secondary/60 hover:text-foreground transition-all"
+          >
+            {copied ? (
+              <>
+                <Check className="size-3 text-emerald-400" />
+                <span className="text-emerald-400 font-semibold">Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy className="size-3" />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {showChart && chartConfig ? (
+        <div className="p-3">
+          <InteractiveChartCard config={chartConfig} />
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-[12px]">
+            {headers.length > 0 && (
+              <thead className="border-b border-hairline bg-secondary/50 font-semibold text-foreground">
+                <tr>
+                  {headers.map((h, i) => (
+                    <th key={i} className="px-3.5 py-2.5">
+                      {renderInlineMarkdown(h)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody className="divide-y divide-hairline/40">
+              {rows.map((row, rIdx) => (
+                <tr key={rIdx} className="hover:bg-secondary/25 transition-colors">
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx} className="px-3.5 py-2 text-foreground/90">
+                      {renderInlineMarkdown(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Shadcn AI Markdown / Marker renderer component.
- * Parses headers, bold, italics, lists, code blocks, tables, blockquotes, and links cleanly.
+ * Parses headers, bold, italics, lists, code blocks, charts, tables, blockquotes, and links cleanly.
  */
 export function Markdown({ content, className = "" }: MarkdownProps) {
   if (!content) return null;
@@ -110,34 +253,7 @@ export function Markdown({ content, className = "" }: MarkdownProps) {
         }
 
         if (block.type === "table") {
-          return (
-            <div key={idx} className="my-2 overflow-x-auto rounded-xl border border-hairline">
-              <table className="w-full text-left text-[12px]">
-                {block.headers.length > 0 && (
-                  <thead className="border-b border-hairline bg-secondary/50 font-medium text-foreground">
-                    <tr>
-                      {block.headers.map((h, i) => (
-                        <th key={i} className="px-3 py-2">
-                          {renderInlineMarkdown(h)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                )}
-                <tbody>
-                  {block.rows.map((row, rIdx) => (
-                    <tr key={rIdx} className="border-b border-hairline/40 last:border-0 hover:bg-secondary/20">
-                      {row.map((cell, cIdx) => (
-                        <td key={cIdx} className="px-3 py-2">
-                          {renderInlineMarkdown(cell)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          );
+          return <MarkdownTableBlock key={idx} headers={block.headers} rows={block.rows} />;
         }
 
         return <p key={idx}>{renderInlineMarkdown(block.content)}</p>;

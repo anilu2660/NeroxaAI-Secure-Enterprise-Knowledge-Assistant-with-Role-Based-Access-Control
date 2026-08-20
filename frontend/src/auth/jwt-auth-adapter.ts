@@ -5,7 +5,18 @@ const TOKEN_KEY = "neroxa.token";
 const SESSION_KEY = "neroxa.session";
 
 interface BackendTokenResponse { access_token: string; token_type: string; user_id: string; email: string; role: string; department: string; }
-interface BackendUserAuthInfo { id: string; email: string; full_name: string; role: string; department: string; is_active: boolean; is_approved?: boolean; requested_role?: string | null; created_at: string; }
+interface BackendUserAuthInfo {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  department: string;
+  avatar_url?: string | null;
+  is_active: boolean;
+  is_approved?: boolean;
+  requested_role?: string | null;
+  created_at: string;
+}
 
 function normalizeRole(backendRole: string): Role { return backendRole?.toLowerCase() === "admin" ? "ADMIN" : "USER"; }
 function parseApiError(data: any, defaultMsg: string): string {
@@ -15,15 +26,31 @@ function parseApiError(data: any, defaultMsg: string): string {
   if (data.message) return data.message;
   return defaultMsg;
 }
-function createSession(userAuth: BackendUserAuthInfo, accessToken = ""): Session {
+function createSession(userAuth: BackendUserAuthInfo, accessToken = "", activePermissions?: string[]): Session {
   const role = normalizeRole(userAuth.role);
-  const user: AuthUser = { id: userAuth.id, name: userAuth.full_name || userAuth.email.split("@")[0] || "User", email: userAuth.email, role, department: userAuth.department || "General", roleLabel: roleLabelFor(role, userAuth.department || "General") };
-  return { user, permissions: permissionsForRole(role), accessToken, expiresAt: null };
+  const user: AuthUser = {
+    id: userAuth.id,
+    name: userAuth.full_name || userAuth.email.split("@")[0] || "User",
+    email: userAuth.email,
+    role,
+    department: userAuth.department || "General",
+    roleLabel: roleLabelFor(role, userAuth.department || "General"),
+    avatarUrl: userAuth.avatar_url ?? null,
+  };
+  const fallback = permissionsForRole(role);
+  const perms = (activePermissions && activePermissions.length > 0)
+    ? (activePermissions as any[])
+    : fallback;
+  return { user, permissions: perms, accessToken, expiresAt: null };
 }
+
 function getStoredToken(): string | null { if (typeof window === "undefined") return null; try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; } }
 function persistSession(session: Session, token?: string) { try { if (token) sessionStorage.setItem(TOKEN_KEY, token); sessionStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch { return; } }
 function clearSession() { try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(SESSION_KEY); } catch { return; } }
-function getApiBaseUrl(): string { return String(import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/$/, ""); }
+function getApiBaseUrl(): string {
+  const envUrl = (import.meta.env as Record<string, any>)["VITE_API_URL"] || (import.meta.env as Record<string, any>)["VITE_API_BASE_URL"] || "";
+  return String(envUrl).trim().replace(/\/$/, "");
+}
 function apiUrl(path: string): string { const base = getApiBaseUrl(); return `${base}${path.startsWith("/") ? path : `/${path}`}`; }
 
 async function responseData(response: Response): Promise<any> {
@@ -53,7 +80,36 @@ async function fetchCurrentUser(token?: string): Promise<Session> {
     if (response.status === 403) throw new Error(parseApiError(data, "Your account is not allowed to access the workspace."));
     throw new Error(parseApiError(data, `Backend authentication failed (HTTP ${response.status}).`));
   }
-  return createSession(data as BackendUserAuthInfo, token);
+
+  let activePermissions: string[] = [];
+  try {
+    const rolesRes = await fetch(apiUrl("/api/v1/roles/"), {
+      method: "GET",
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (rolesRes.ok) {
+      const rolesList = await rolesRes.json();
+      const userRoleName = (data.role || "user").toLowerCase();
+      const departmentName = (data.department || "").toLowerCase();
+
+     
+      const matchedRoleByDept = rolesList.find((r: any) => r.name.toLowerCase() === departmentName);
+      const matchedRoleByRole = rolesList.find((r: any) => r.name.toLowerCase() === userRoleName);
+
+      const targetRole = (matchedRoleByDept && Array.isArray(matchedRoleByDept.permissions))
+        ? matchedRoleByDept
+        : matchedRoleByRole;
+
+      if (targetRole && Array.isArray(targetRole.permissions)) {
+        activePermissions = targetRole.permissions;
+      }
+    }
+  } catch {
+    /* fallback to default role permissions */
+  }
+
+  return createSession(data as BackendUserAuthInfo, token, activePermissions);
 }
 
 export const jwtAuthAdapter: AuthProviderAdapter = {

@@ -1,16 +1,31 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
+  BarChart3,
+  Calculator,
   Cpu,
+  Database,
+  FileCode,
+  FileSearch,
+  FileText,
   Globe,
   ImagePlus,
-  Loader2,
+  ListTodo,
   Paperclip,
+  Quote,
   SendHorizontal,
   Settings2,
+  ShieldCheck,
+  Sparkles,
+  Square,
+  Terminal,
   X,
 } from "lucide-react";
 import type { AssistantAttachment, AssistantToolOption } from "@/api/types";
-import { acceptedDocumentTypes, acceptedImageTypes } from "@/rag/mock/assistant-tools";
+import {
+  acceptedDocumentTypes,
+  acceptedImageTypes,
+  defaultToolIds,
+} from "@/rag/mock/assistant-tools";
 
 export interface ComposerSubmission {
   question: string;
@@ -25,23 +40,41 @@ function sizeLabel(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const controlBase =
-  "grid size-8 place-items-center rounded-lg border border-hairline transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-45";
+function getToolIcon(toolId: string) {
+  switch (toolId) {
+    case "web-search":
+      return <Globe className="size-4 text-sky-400" />;
+    case "citations":
+      return <Quote className="size-4 text-purple-400" />;
+    case "chart-generator":
+      return <BarChart3 className="size-4 text-emerald-400" />;
+    case "executive-summary":
+      return <FileText className="size-4 text-amber-400" />;
+    case "compliance-checker":
+      return <ShieldCheck className="size-4 text-rose-400" />;
+    case "action-planner":
+      return <ListTodo className="size-4 text-indigo-400" />;
+    case "calculator":
+      return <Calculator className="size-4 text-yellow-400" />;
+    case "sql-generator":
+      return <Terminal className="size-4 text-cyan-400" />;
+    case "file-analysis":
+      return <FileCode className="size-4 text-teal-400" />;
+    default:
+      return <Sparkles className="size-4 text-primary" />;
+  }
+}
 
-/**
- * Controlled assistant composer. Attachments, web-search state and tool
- * selection are real frontend state, submitted upward so the page keeps the
- * single service-layer call (`askAssistant`). Nothing is uploaded or executed
- * here — no backend exists — so tools stay labelled as prototype.
- */
 export function AssistantComposer({
   onSubmit,
+  onStop,
   pending,
   suggestions,
   activeModelLabel,
   tools,
 }: {
   onSubmit: (submission: ComposerSubmission) => void;
+  onStop?: () => void;
   pending: boolean;
   suggestions: string[];
   /** Label of the currently selected reasoning model, shown for transparency. */
@@ -52,7 +85,7 @@ export function AssistantComposer({
   const [question, setQuestion] = useState("");
   const [files, setFiles] = useState<{ file: File; meta: AssistantAttachment }[]>([]);
   const [webSearch, setWebSearch] = useState(false);
-  const [toolIds, setToolIds] = useState<string[]>([]);
+  const [toolIds, setToolIds] = useState<string[]>(() => defaultToolIds);
   const [toolsOpen, setToolsOpen] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -102,10 +135,32 @@ export function AssistantComposer({
   };
 
   const toggleTool = (tool: AssistantToolOption) => {
+    const isCurrentlyActive =
+      tool.id === "web-search" ? webSearch : toolIds.includes(tool.id);
+    const nextState = !isCurrentlyActive;
+
+    if (tool.id === "web-search") {
+      setWebSearch(nextState);
+    }
+
+    setToolIds((current) => {
+      if (nextState) {
+        return current.includes(tool.id) ? current : [...current, tool.id];
+      }
+      return current.filter((id) => id !== tool.id);
+    });
+  };
+
+  const handleToggleGlobe = () => {
+    const next = !webSearch;
+    setWebSearch(next);
     setToolIds((current) =>
-      current.includes(tool.id) ? current.filter((id) => id !== tool.id) : [...current, tool.id],
+      next
+        ? current.includes("web-search")
+          ? current
+          : [...current, "web-search"]
+        : current.filter((id) => id !== "web-search"),
     );
-    if (tool.id === "web-search") setWebSearch((current) => !current);
   };
 
   const send = (value: string) => {
@@ -134,10 +189,10 @@ export function AssistantComposer({
   );
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3.5">
       <form
         onSubmit={handleSubmit}
-        className="rounded-2xl border border-hairline bg-card/70 p-3.5 shadow-menu backdrop-blur-xl"
+        className="rounded-3xl border border-hairline/80 bg-background/60 p-4.5 shadow-inner backdrop-blur-2xl focus-within:border-primary/60 focus-within:ring-4 focus-within:ring-primary/15 transition-all duration-300"
       >
         <label htmlFor="assistant-composer" className="sr-only">
           Ask NeroxaAI
@@ -155,30 +210,30 @@ export function AssistantComposer({
           }}
           rows={2}
           placeholder="Ask NeroxaAI about your organization's knowledge…"
-          className="w-full resize-none bg-transparent px-1 text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
+          className="w-full resize-none bg-transparent px-1.5 text-[14.5px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/75"
         />
 
         {files.length ? (
-          <ul className="mt-1 flex flex-wrap gap-1.5">
+          <ul className="mt-2.5 flex flex-wrap gap-2">
             {files.map((entry) => (
               <li
                 key={entry.meta.id}
-                className="flex items-center gap-1.5 rounded-lg border border-hairline bg-secondary/40 py-1 pr-1 pl-2 text-[10.5px] text-foreground/85"
+                className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/15 py-1.5 pr-2 pl-3 text-[11.5px] font-semibold text-primary shadow-xs"
               >
                 {entry.meta.kind === "image" ? (
-                  <ImagePlus className="size-3 text-muted-foreground" />
+                  <ImagePlus className="size-4 text-primary" />
                 ) : (
-                  <Paperclip className="size-3 text-muted-foreground" />
+                  <Paperclip className="size-4 text-primary" />
                 )}
-                <span className="max-w-[160px] truncate">{entry.meta.name}</span>
-                <span className="text-muted-foreground">{entry.meta.sizeLabel}</span>
+                <span className="max-w-[170px] truncate">{entry.meta.name}</span>
+                <span className="text-[10px] text-muted-foreground">{entry.meta.sizeLabel}</span>
                 <button
                   type="button"
                   onClick={() => removeFile(entry.meta.id)}
                   aria-label={`Remove ${entry.meta.name}`}
-                  className="grid size-4 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="grid size-4.5 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive"
                 >
-                  <X className="size-3" />
+                  <X className="size-3.5" />
                 </button>
               </li>
             ))}
@@ -202,23 +257,23 @@ export function AssistantComposer({
           onChange={(event) => addFiles(event.target.files, "image")}
         />
 
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5">
+        <div className="mt-4 flex items-center justify-between gap-3 pt-3 border-t border-hairline/60">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               aria-label="Attach document"
-              title="Attach a document — stays local, no upload service is connected"
+              title="Attach a document"
               onClick={() => docInputRef.current?.click()}
-              className={`${controlBase} text-foreground/75 hover:bg-accent/60 hover:text-foreground active:bg-accent`}
+              className="grid size-9 place-items-center rounded-2xl border border-hairline/80 bg-secondary/35 text-foreground/80 hover:border-primary/40 hover:bg-card hover:text-primary transition-all shadow-xs active:scale-95"
             >
               <Paperclip className="size-4" />
             </button>
             <button
               type="button"
               aria-label="Attach image"
-              title="Attach an image — stays local, no upload service is connected"
+              title="Attach an image"
               onClick={() => imageInputRef.current?.click()}
-              className={`${controlBase} text-foreground/75 hover:bg-accent/60 hover:text-foreground active:bg-accent`}
+              className="grid size-9 place-items-center rounded-2xl border border-hairline/80 bg-secondary/35 text-foreground/80 hover:border-primary/40 hover:bg-card hover:text-primary transition-all shadow-xs active:scale-95"
             >
               <ImagePlus className="size-4" />
             </button>
@@ -226,16 +281,12 @@ export function AssistantComposer({
               type="button"
               aria-label={webSearch ? "Disable web search" : "Enable web search"}
               aria-pressed={webSearch}
-              title={
+              title={webSearch ? "Web search: enabled (forces live search)" : "Web search: disabled"}
+              onClick={handleToggleGlobe}
+              className={`grid size-9 place-items-center rounded-2xl border transition-all shadow-xs active:scale-95 ${
                 webSearch
-                  ? "Web search: on (prototype — no search provider connected)"
-                  : "Web search: off"
-              }
-              onClick={() => setWebSearch((current) => !current)}
-              className={`${controlBase} ${
-                webSearch
-                  ? "bg-secondary text-foreground"
-                  : "text-foreground/75 hover:bg-accent/60 hover:text-foreground"
+                  ? "border-sky-400/60 bg-sky-500/20 text-sky-300 ring-2 ring-sky-400/30 shadow-md shadow-sky-500/20"
+                  : "border-hairline/80 bg-secondary/35 text-foreground/80 hover:border-primary/40 hover:bg-card hover:text-primary"
               }`}
             >
               <Globe className="size-4" />
@@ -246,18 +297,18 @@ export function AssistantComposer({
                 type="button"
                 aria-haspopup="dialog"
                 aria-expanded={toolsOpen}
-                title="Select assistant tools (prototype)"
+                title="Configure assistant search & AI tools"
                 onClick={() => setToolsOpen((current) => !current)}
-                className={`flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-[11.5px] transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+                className={`flex h-9 items-center gap-2 rounded-2xl border px-3.5 text-[12px] font-semibold transition-all shadow-xs active:scale-95 ${
                   toolsOpen || enabledToolCount
-                    ? "bg-secondary text-foreground"
-                    : "text-foreground/75 hover:bg-accent/60 hover:text-foreground"
+                    ? "border-primary/50 bg-primary/20 text-primary ring-1 ring-primary/30"
+                    : "border-hairline/80 bg-secondary/35 text-foreground/80 hover:border-primary/40 hover:bg-card hover:text-primary"
                 }`}
               >
                 <Settings2 className="size-3.5" />
                 Search Tools
                 {enabledToolCount ? (
-                  <span className="rounded bg-card/80 px-1 text-[10px] text-foreground/80">
+                  <span className="rounded-full bg-primary/30 border border-primary/40 px-1.5 py-0.2 text-[10px] font-bold text-primary">
                     {enabledToolCount}
                   </span>
                 ) : null}
@@ -267,15 +318,26 @@ export function AssistantComposer({
                 <div
                   role="dialog"
                   aria-label="Assistant tools"
-                  className="absolute bottom-[calc(100%+8px)] left-0 z-50 w-[262px] rounded-xl border border-hairline bg-card/95 p-2 shadow-menu backdrop-blur-xl"
+                  className="absolute bottom-[calc(100%+12px)] left-0 z-50 w-[300px] rounded-3xl border border-hairline/90 bg-card/95 p-3.5 shadow-2xl backdrop-blur-2xl ring-1 ring-primary/20"
                 >
-                  <p className="px-1 pb-1.5 text-[9.5px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
-                    Tools · Prototype
-                  </p>
-                  <ul className="space-y-0.5">
+                  <div className="flex items-center justify-between px-1.5 pb-2.5 border-b border-hairline/60">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="size-3 text-primary animate-pulse" />
+                      <p className="font-display text-[10.5px] font-bold uppercase tracking-wider text-foreground">
+                        Search &amp; AI Tools
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-medium text-muted-foreground">
+                      {enabledToolCount} active
+                    </span>
+                  </div>
+
+                  <ul className="mt-2 max-h-[340px] space-y-1.5 overflow-y-auto pr-1">
                     {tools.map((tool) => {
                       const active =
-                        tool.id === "web-search" ? webSearch : toolIds.includes(tool.id);
+                        tool.id === "web-search"
+                          ? webSearch
+                          : toolIds.includes(tool.id);
                       return (
                         <li key={tool.id}>
                           <button
@@ -283,19 +345,41 @@ export function AssistantComposer({
                             role="switch"
                             aria-checked={active}
                             onClick={() => toggleTool(tool)}
-                            className="flex w-full items-start justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            className={`flex w-full items-center justify-between gap-2.5 rounded-2xl p-2.5 text-left transition-all duration-200 ${
+                              active
+                                ? "border border-primary/40 bg-primary/15 shadow-xs"
+                                : "border border-hairline/50 bg-secondary/20 hover:border-primary/30 hover:bg-secondary/40"
+                            }`}
                           >
-                            <span className="min-w-0">
-                              <span className="block truncate text-[12px] text-foreground">
-                                {tool.label}
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span
+                                className={`grid size-7 shrink-0 place-items-center rounded-xl transition-all ${
+                                  active
+                                    ? "bg-primary/25 border border-primary/40"
+                                    : "bg-secondary/40 border border-hairline/60"
+                                }`}
+                              >
+                                {getToolIcon(tool.id)}
                               </span>
-                              <span className="block truncate text-[10.5px] text-muted-foreground">
-                                {tool.detail}
-                              </span>
-                            </span>
+                              <div className="min-w-0">
+                                <span
+                                  className={`block truncate font-display text-[12px] font-bold ${
+                                    active ? "text-primary" : "text-foreground"
+                                  }`}
+                                >
+                                  {tool.label}
+                                </span>
+                                <span className="block truncate text-[10px] text-muted-foreground">
+                                  {tool.detail}
+                                </span>
+                              </div>
+                            </div>
+
                             <span
-                              className={`mt-0.5 shrink-0 rounded-md border border-hairline px-1.5 py-0.5 text-[9.5px] ${
-                                active ? "bg-secondary text-foreground" : "text-muted-foreground"
+                              className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider transition-all ${
+                                active
+                                  ? "border-primary/50 bg-primary text-primary-foreground shadow-xs"
+                                  : "border-hairline bg-secondary/60 text-muted-foreground"
                               }`}
                             >
                               {active ? "On" : "Off"}
@@ -305,59 +389,58 @@ export function AssistantComposer({
                       );
                     })}
                   </ul>
-                  <p className="mt-1.5 border-t border-hairline px-1 pt-1.5 text-[9.5px] leading-relaxed text-muted-foreground">
-                    Selections are sent with your question but cannot run yet — no backend tool
-                    service is connected.
-                  </p>
                 </div>
               ) : null}
             </div>
 
             {activeModelLabel ? (
-              <span className="hidden items-center gap-1.5 rounded-lg border border-hairline bg-secondary/40 px-2.5 py-1.5 text-[11.5px] text-foreground/75 sm:flex">
-                <Cpu className="size-3.5 text-allowed" />
+              <span className="hidden items-center gap-1.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11.5px] font-semibold text-emerald-400 sm:flex shadow-xs">
+                <Cpu className="size-3.5" />
                 Model: {activeModelLabel}
               </span>
             ) : null}
           </div>
 
-          <button
-            type="submit"
-            aria-label="Send question"
-            disabled={pending || !question.trim()}
-            className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-45"
-          >
-            {pending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <SendHorizontal className="size-4" />
-            )}
-          </button>
+          {pending ? (
+            <button
+              type="button"
+              onClick={onStop}
+              aria-label="Stop generating"
+              title="Stop generating answer"
+              className="grid size-11 place-items-center rounded-2xl bg-destructive text-destructive-foreground transition-all hover:scale-105 shadow-md shadow-destructive/25 active:scale-95"
+            >
+              <Square className="size-4.5 fill-current" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              aria-label="Send question"
+              disabled={!question.trim()}
+              className="grid size-11 place-items-center rounded-2xl bg-gradient-to-r from-primary via-purple-500 to-primary bg-[length:200%_auto] text-primary-foreground shadow-lg shadow-primary/30 transition-all duration-300 hover:scale-105 hover:bg-[position:right_center] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+            >
+              <SendHorizontal className="size-4.5" />
+            </button>
+          )}
         </div>
-
-        {files.length || webSearch || toolIds.length ? (
-          <p className="mt-2 text-[10px] text-muted-foreground">
-            Prototype mode — attachments, web search and tool selections are kept in this session
-            and passed with your question, but no backend is connected to process them.
-          </p>
-        ) : null}
       </form>
 
+      <p className="text-center text-[11px] text-muted-foreground/80">
+        NeroxaAI answers are grounded in organizational knowledge and scoped to your account privileges.
+      </p>
+
       {suggestions.length ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[10.5px] text-muted-foreground">
-            Example questions (illustrative only)
-          </span>
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+          <span className="text-[11px] font-semibold text-muted-foreground">Try asking:</span>
           {suggestions.map((suggestion) => (
             <button
               key={suggestion}
               type="button"
-              title="Example prompt — inserts the text into the composer"
+              title="Click to insert prompt"
               onClick={() => {
                 setQuestion(suggestion);
                 inputRef.current?.focus();
               }}
-              className="rounded-md border border-dashed border-hairline bg-secondary/30 px-2 py-1 text-[10.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="rounded-2xl border border-hairline/80 bg-card/60 px-3.5 py-1.5 text-[11.5px] font-medium text-foreground/90 transition-all hover:border-primary/50 hover:bg-primary/10 hover:text-primary hover:scale-[1.02] shadow-xs active:scale-95"
             >
               {suggestion}
             </button>

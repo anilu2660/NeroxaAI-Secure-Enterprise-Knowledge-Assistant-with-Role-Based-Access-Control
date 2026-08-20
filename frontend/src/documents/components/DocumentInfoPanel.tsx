@@ -24,42 +24,44 @@ export function DocumentInfoPanel({
   citedPageAvailable,
 }: {
   doc: DocumentRecord;
-  /** Real retrieval citation, or null when none exists. */
   citation: Citation | null;
-  /** Retrieval/citation service state, set only when opened from the assistant. */
   citationStatus: CitationServiceStatus | null;
   citedPageAvailable: boolean;
 }) {
   return (
-    <aside className="space-y-3">
-      <div className="rounded-2xl border border-hairline bg-card/60 p-4 backdrop-blur-xl">
-        <div className="flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-hairline bg-secondary/60">
-            <FileText className="size-4 text-foreground/75" />
+    <aside className="space-y-4">
+      {/* Hero Header Card */}
+      <div className="rounded-3xl border border-hairline bg-card/60 p-5 shadow-lg backdrop-blur-2xl transition-all hover:border-primary/30">
+        <div className="flex items-start gap-3.5">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-purple-600 text-primary-foreground shadow-md shadow-primary/25">
+            <FileText className="size-5.5" />
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate font-display text-[16px] font-medium tracking-tight text-foreground">
+              <h1 className="truncate font-display text-[16.5px] font-bold tracking-tight text-foreground">
                 {doc.title}
               </h1>
-              <span className="shrink-0 rounded-full border border-allowed/30 bg-allowed/10 px-2 py-[1px] text-[10.5px] text-allowed">
+              <span className="shrink-0 rounded-full border border-emerald-500/35 bg-emerald-500/15 px-2.5 py-0.5 text-[10.5px] font-semibold text-emerald-400 shadow-xs">
                 {doc.documentType}
               </span>
             </div>
-            <p className="mt-1 text-[11.5px] text-muted-foreground">
+            <p className="mt-1 text-[12px] font-medium text-muted-foreground">
               {doc.version ? `Version ${doc.version} · ` : ""}
               {doc.kind} Document
             </p>
-            <p className="mt-0.5 text-[11.5px] text-muted-foreground/85">
+            <p className="mt-0.5 text-[11px] text-muted-foreground/80">
               Access via NeroxaAI · Controlled Document
             </p>
           </div>
         </div>
       </div>
 
-      <section className="rounded-2xl border border-hairline bg-card/60 px-4 py-3 backdrop-blur-xl">
-        <h2 className="text-[12.5px] font-medium text-foreground">Document Information</h2>
-        <div className="mt-1.5 divide-y divide-hairline">
+      {/* Metadata Table Card */}
+      <section className="rounded-3xl border border-hairline bg-card/60 p-5 shadow-lg backdrop-blur-2xl transition-all hover:border-primary/30">
+        <h2 className="font-display text-sm font-semibold text-foreground pb-2.5 border-b border-hairline">
+          Document Information
+        </h2>
+        <div className="mt-3 space-y-2">
           <Row label="Department" value={doc.department} />
           <Row label="Access Scope" value={doc.accessScope} />
           <Row label="Document Type" value={doc.documentType} />
@@ -69,22 +71,28 @@ export function DocumentInfoPanel({
         </div>
       </section>
 
+      {/* About Section Card */}
       {doc.about ? (
-        <section className="rounded-2xl border border-hairline bg-card/60 px-4 py-3 backdrop-blur-xl">
-          <h2 className="text-[12.5px] font-medium text-foreground">About this Document</h2>
-          <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted-foreground">{doc.about}</p>
+        <section className="rounded-3xl border border-hairline bg-card/60 p-5 shadow-lg backdrop-blur-2xl transition-all hover:border-primary/30">
+          <h2 className="font-display text-sm font-semibold text-foreground pb-2.5 border-b border-hairline">
+            About this Document
+          </h2>
+          <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">{doc.about}</p>
         </section>
       ) : null}
 
+      {/* AI Citation Context Card */}
       {citation ? (
-        <section className="rounded-2xl border border-hairline bg-card/60 px-4 py-3 backdrop-blur-xl">
-          <h2 className="text-[12.5px] font-medium text-foreground">AI Citation Context</h2>
-          <div className="mt-2 rounded-xl border border-hairline bg-secondary/30 px-3 py-2.5">
-            <div className="flex gap-2">
-              <Quote className="mt-[3px] size-3 shrink-0 text-allowed" />
-              <p className="text-[11.5px] leading-relaxed text-foreground/85">
+        <section className="rounded-3xl border border-hairline bg-card/60 p-5 shadow-lg backdrop-blur-2xl transition-all hover:border-primary/30">
+          <h2 className="font-display text-sm font-semibold text-foreground pb-2.5 border-b border-hairline">
+            AI Citation Context
+          </h2>
+          <div className="mt-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5">
+            <div className="flex gap-2.5">
+              <Quote className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+              <p className="text-[12px] leading-relaxed text-foreground/90">
                 As stated in{" "}
-                <span className="font-medium text-foreground">{citation.documentTitle}</span>
+                <span className="font-semibold text-foreground">{citation.documentTitle}</span>
                 {citation.page ? `, Page ${citation.page}` : ""}
                 {citation.snippet ? `, ${citation.snippet}` : "."}
               </p>
@@ -97,22 +105,22 @@ export function DocumentInfoPanel({
               params={{ documentId: doc.id }}
               search={{ page: citation.page, from: "assistant" as const }}
               aria-disabled={!citedPageAvailable}
-              className="mt-2.5 flex items-center justify-between gap-3 rounded-xl border border-hairline bg-secondary/40 px-3 py-2.5 text-[12.5px] text-foreground/90 transition-colors hover:bg-accent/60 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary"
+              className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-hairline bg-secondary/35 px-4 py-2.5 text-[12.5px] font-medium text-foreground transition-all hover:border-primary/40 hover:bg-secondary/60"
             >
               Open Cited Page {citation.page}
-              <SquareArrowOutUpRight className="size-3.5" />
+              <SquareArrowOutUpRight className="size-4 text-primary" />
             </Link>
           ) : null}
         </section>
       ) : citationStatus ? (
-        <section className="rounded-2xl border border-hairline bg-card/60 px-4 py-3 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-[12.5px] font-medium text-foreground">AI Citation Context</h2>
-            <span className="shrink-0 rounded-md border border-hairline px-1.5 py-0.5 text-[9.5px] text-muted-foreground">
+        <section className="rounded-3xl border border-hairline bg-card/60 p-5 shadow-lg backdrop-blur-2xl transition-all hover:border-primary/30">
+          <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-hairline">
+            <h2 className="font-display text-sm font-semibold text-foreground">AI Citation Context</h2>
+            <span className="shrink-0 rounded-full border border-hairline bg-secondary/50 px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
               {citationStatus.label}
             </span>
           </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-3 text-[11.5px] leading-relaxed text-muted-foreground">
             {citationStatus.detail}
           </p>
         </section>

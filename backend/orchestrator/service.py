@@ -34,10 +34,14 @@ class QueryOrchestrator:
         department_filter: str | None = None,
         top_k: int = 5,
         temperature: float = 0.7,
+        web_search: bool = False,
+        tool_ids: list[str] | None = None,
     ) -> dict:
         query = query.strip()
         if not query or len(query) > 500:
             raise ValueError("Query must contain between 1 and 500 characters.")
+
+        active_tools = set(tool_ids or [])
 
         from backend.llm.prompts import detect_prompt_injection
         is_injection, signature = detect_prompt_injection(query)
@@ -61,18 +65,54 @@ class QueryOrchestrator:
                 "agent_steps": [],
             }
 
-        decision = await self.router.route(query)
+        if web_search or "web-search" in active_tools:
+            decision = QueryRoutingDecision(
+                route=QueryRoute.WEB,
+                confidence=1.0,
+                requires_rag=False,
+                requires_web=True,
+                reason="Explicit web search toggled by user.",
+            )
+        elif "calculator" in active_tools and any(ch.isdigit() for ch in query) and any(op in query for op in ["+", "-", "*", "/", "%", "calculate", "sum", "total"]):
+            decision = QueryRoutingDecision(
+                route=QueryRoute.TOOL,
+                confidence=1.0,
+                requires_rag=False,
+                requires_web=False,
+                reason="Calculator tool selected for mathematical computation.",
+            )
+        else:
+            decision = await self.router.route(query)
+
+        # Inject tool-specific instructions into the execution query
+        tool_directives = []
+        if "chart-generator" in active_tools:
+            tool_directives.append("If the response involves numerical data or comparisons, format the numbers as an interactive ```chart JSON block or a Markdown data table.")
+        if "executive-summary" in active_tools:
+            tool_directives.append("Format strictly as a concise Executive Summary with '### 📌 Executive Summary' and 3-4 bulleted takeaways.")
+        if "compliance-checker" in active_tools:
+            tool_directives.append("Perform a Policy Compliance audit. Output Compliance Status (✅ Compliant / ⚠️ Requires Approval / ❌ Non-Compliant), conditions, and approval gates.")
+        if "action-planner" in active_tools:
+            tool_directives.append("Format as an actionable checklist with `- [ ]` tasks, assigned roles/departments, and deadlines.")
+        if "sql-generator" in active_tools:
+            tool_directives.append("Generate schema-valid SQL or code in a fenced code block with explanation.")
+
+        exec_query = query
+        if tool_directives:
+            exec_query = f"{query}\n\n[Active Tool Instructions:\n" + "\n".join(f"- {d}" for d in tool_directives) + "]"
 
         logger.info(
-            "Query routed | route=%s | confidence=%.2f | user_id=%s",
+            "Query routed | route=%s | confidence=%.2f | user_id=%s | explicit_web=%s | tools=%s",
             decision.route.value,
             decision.confidence,
             user_id,
+            web_search,
+            list(active_tools),
         )
 
         if decision.route == QueryRoute.AGENT:
             result = await self.agent.execute(
-                query=query,
+                query=exec_query,
                 user_id=user_id,
                 user_role=user_role,
                 user_department=user_department,
@@ -103,7 +143,7 @@ class QueryOrchestrator:
 
         if decision.route == QueryRoute.CASUAL:
             response = await self.llm.agenerate_conversational_response(
-                query=query,
+                query=exec_query,
                 temperature=temperature,
             )
             return self._response(query, decision, response["answer"], response["model"], [])
@@ -117,8 +157,11 @@ class QueryOrchestrator:
 
         rag_result = None
         if decision.requires_rag:
+            rag_query = enterprise_query
+            if tool_directives:
+                rag_query = f"{enterprise_query}\n\n[Active Tool Instructions:\n" + "\n".join(f"- {d}" for d in tool_directives) + "]"
             rag_result = await self.rag.query(
-                query=enterprise_query,
+                query=rag_query,
                 user_id=user_id,
                 user_role=user_role,
                 user_department=user_department,
@@ -145,16 +188,24 @@ class QueryOrchestrator:
             )
 
         if decision.route == QueryRoute.WEB:
-            return await self._answer_web_query(query, decision, web_results, temperature)
-
-        if decision.route == QueryRoute.HYBRID:
-            return await self._answer_hybrid_query(
-                query,
+            return self._attach_route_metadata(
+                await self._answer_web_query(exec_query, decision, web_results, temperature),
                 decision,
                 enterprise_query,
-                rag_result,
-                web_results,
-                temperature,
+            )
+
+        if decision.route == QueryRoute.HYBRID:
+            return self._attach_route_metadata(
+                await self._answer_hybrid_query(
+                    exec_query,
+                    decision,
+                    enterprise_query,
+                    rag_result,
+                    web_results,
+                    temperature,
+                ),
+                decision,
+                enterprise_query,
             )
 
         return self._response(
@@ -304,6 +355,21 @@ Return only the final answer.
         result["route"] = decision.route.value
         result["route_confidence"] = decision.confidence
         result["rewritten_query"] = rewritten_query
+
+        ans = str(result.get("answer", "")).lower()
+        if (
+            "cannot find sufficient information" in ans
+            or "could not find sufficient information" in ans
+            or "no authorized enterprise information" in ans
+            or "not authorized to access" in ans
+            or "no relevant documents" in ans
+            or "cannot answer this question based on the provided context" in ans
+            or "security alert" in ans
+            or "access denied" in ans
+        ):
+            result["sources"] = []
+            result["chunks_retrieved"] = 0
+
         return result
 
 

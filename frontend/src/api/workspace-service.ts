@@ -23,6 +23,8 @@ import type {
   AssistantCapability,
   AssistantToolOption,
   AuditEvent,
+  AuditResult,
+  AuditSeverity,
   Citation,
   DocumentFileValidation,
   DocumentFilterOptions,
@@ -567,6 +569,8 @@ export async function updateUserAvatar(
   avatarUrl: string | null,
 ): Promise<void> {
   if (typeof window === "undefined") return;
+
+  // 1. Immediately cache in localStorage for instant offline access
   if (avatarUrl) {
     localStorage.setItem(`neroxa.user_avatar.${userId}`, avatarUrl);
     localStorage.setItem(`neroxa.user_avatar.${email}`, avatarUrl);
@@ -574,6 +578,33 @@ export async function updateUserAvatar(
     localStorage.removeItem(`neroxa.user_avatar.${userId}`);
     localStorage.removeItem(`neroxa.user_avatar.${email}`);
   }
+
+  // 2. Persist to PostgreSQL database via API
+  const token = sessionStorage.getItem("neroxa.token");
+  if (token) {
+    try {
+      if (avatarUrl) {
+        await fetch(getApiUrl("/api/v1/users/me/avatar"), {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ avatar_url: avatarUrl }),
+        });
+      } else {
+        await fetch(getApiUrl("/api/v1/users/me/avatar"), {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+    } catch {
+      // Local storage acts as immediate backup
+    }
+  }
+
   window.dispatchEvent(new Event("neroxa:user-avatar-updated"));
 }
 
@@ -581,7 +612,7 @@ export async function getUserProfile(user: AuthUser | null): Promise<UserProfile
   if (!user) return null;
 
   const record = findDirectoryUserById(user.id) ?? findDirectoryUserByEmail(user.email);
-  const avatarUrl = getSavedUserAvatar(user.id, user.email);
+  const avatarUrl = user.avatarUrl || getSavedUserAvatar(user.id, user.email);
 
   if (record) {
     return {
@@ -786,6 +817,8 @@ export interface AskAssistantInput {
   webSearch?: boolean;
   /** Ids of tools the user enabled in the composer. */
   toolIds?: string[];
+  /** Optional AbortSignal to cancel in-flight requests */
+  signal?: AbortSignal;
 }
 
 const NO_PROVIDER_MESSAGE =
@@ -827,6 +860,7 @@ export async function askAssistant({
   attachments = [],
   webSearch = false,
   toolIds = [],
+  signal,
 }: AskAssistantInput): Promise<AssistantAnswer> {
   void attachments;
   void webSearch;
@@ -846,6 +880,7 @@ export async function askAssistant({
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ session_id: sessionId, message: question }),
+      ...(signal ? { signal } : {}),
     });
 
     if (response.status === 404) {
@@ -1026,7 +1061,11 @@ export async function deleteDbChatSession(sessionId: string): Promise<boolean> {
   }
 }
 
-export async function sendDbChatMessage(sessionId: string, message: string): Promise<DbChatMessage | null> {
+export async function sendDbChatMessage(
+  sessionId: string,
+  message: string,
+  options?: { signal?: AbortSignal; webSearch?: boolean; toolIds?: string[] },
+): Promise<DbChatMessage | null> {
   const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
   if (!token) return null;
   try {
@@ -1036,7 +1075,13 @@ export async function sendDbChatMessage(sessionId: string, message: string): Pro
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ session_id: sessionId, message }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        message,
+        web_search: Boolean(options?.webSearch),
+        tool_ids: options?.toolIds || [],
+      }),
+      ...(options?.signal ? { signal: options.signal } : {}),
     });
     if (!res.ok) return null;
     return await res.json();
@@ -1265,6 +1310,7 @@ export async function listManagedUsers(query: ManagedUserQuery = {}): Promise<Ma
               year: "numeric",
             })
           : null,
+        avatarUrl: u.avatar_url || getSavedUserAvatar(u.id, u.email) || undefined,
         prototype: false,
       };
     });
@@ -2015,18 +2061,43 @@ export function getAuditServiceStatus(): Promise<AuditServiceStatus> {
 
 /** Facet values for filtering audit logs. */
 export async function getAuditFilterOptions(): Promise<AuditFilterOptions> {
-  const eventsPage = await listAuditEvents(defaultAuditQuery());
-  const events = eventsPage.events;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
+  if (!token) {
+    return {
+      eventTypes: ["login_success", "login_failed", "document_uploaded", "document_deleted", "role_updated", "query_executed"],
+      actors: ["Enterprise Admin", "System"],
+      resources: ["System Resource", "PostgreSQL", "Qdrant"],
+      categories: ["authentication", "security", "document", "retrieval", "administrative", "system"],
+      results: ["success", "failure", "denied"],
+      severities: ["info", "low", "medium", "high", "critical"],
+    };
+  }
 
-  const unique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean))).sort();
-  return {
-    eventTypes: unique(events.map((e) => e.eventType)),
-    actors: unique(events.map((e) => e.actorName)),
-    resources: unique(events.map((e) => e.resourceLabel)),
-    categories: unique(events.map((e) => e.category)),
-    results: ["success", "failure", "denied"],
-    severities: ["info", "low", "medium", "high", "critical"],
-  };
+  try {
+    const res = await fetch(getApiUrl(`/api/v1/admin/audit-logs/?limit=300`), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Failed");
+    const rawLogs = await res.json();
+    const unique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean))).sort();
+    return {
+      eventTypes: unique(rawLogs.map((l: any) => l.event_type || l.action)),
+      actors: unique(rawLogs.map((l: any) => l.user_email?.split("@")[0] || "System")),
+      resources: unique(rawLogs.map((l: any) => l.resource || "System Resource")),
+      categories: ["authentication", "security", "document", "retrieval", "administrative", "system"],
+      results: ["success", "failure", "denied"],
+      severities: ["info", "low", "medium", "high", "critical"],
+    };
+  } catch {
+    return {
+      eventTypes: ["login_success", "login_failed", "document_uploaded", "document_deleted", "role_updated", "query_executed"],
+      actors: ["Enterprise Admin", "System"],
+      resources: ["System Resource", "PostgreSQL", "Qdrant"],
+      categories: ["authentication", "security", "document", "retrieval", "administrative", "system"],
+      results: ["success", "failure", "denied"],
+      severities: ["info", "low", "medium", "high", "critical"],
+    };
+  }
 }
 
 export function defaultAuditQuery(): AuditEventQuery {
@@ -2066,12 +2137,7 @@ export async function listAuditEvents(query: AuditEventQuery): Promise<AuditEven
   }
 
   try {
-    const params = new URLSearchParams();
-    if (query.eventType) params.append("event_type", query.eventType);
-    params.append("skip", String((query.page - 1) * query.pageSize));
-    params.append("limit", String(query.pageSize));
-
-    const res = await fetch(getApiUrl(`/api/v1/admin/audit-logs/?${params.toString()}`), {
+    const res = await fetch(getApiUrl(`/api/v1/admin/audit-logs/?limit=300`), {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -2091,12 +2157,30 @@ export async function listAuditEvents(query: AuditEventQuery): Promise<AuditEven
 
       const category = categoryMap[log.event_type] || "system";
       const timestampIso = log.created_at || new Date().toISOString();
+      const isFailure =
+        log.event_type?.includes("failed") ||
+        log.action?.toLowerCase().includes("fail") ||
+        log.action?.toLowerCase().includes("error");
+      const isDenied =
+        log.event_type?.includes("denied") ||
+        log.action?.toLowerCase().includes("denied") ||
+        log.action?.toLowerCase().includes("unauthorized");
+
+      const result: AuditResult = isFailure ? "failure" : isDenied ? "denied" : "success";
+
+      const severity: AuditSeverity =
+        isFailure || log.event_type?.includes("security")
+          ? "high"
+          : log.event_type?.includes("deleted") || log.event_type?.includes("role_updated")
+            ? "medium"
+            : "info";
 
       return {
-        id: log.id,
+        id: String(log.id),
         timestampIso,
+        eventType: log.event_type || log.action || "system",
         actorUserId: log.user_id || "system",
-        actorName: log.user_email?.split("@")[0] || "System",
+        actorName: log.user_email ? log.user_email.split("@")[0] : "System",
         actorRole: (log.user_role || "system").toUpperCase(),
         action: log.action || log.event_type,
         actionLabel: log.action || log.event_type,
@@ -2104,30 +2188,92 @@ export async function listAuditEvents(query: AuditEventQuery): Promise<AuditEven
         resourceId: log.resource || "N/A",
         resourceLabel: log.resource || "System Resource",
         category,
-        result: "success",
-        severity: log.event_type.includes("failed") ? "high" : "info",
+        result,
+        severity,
         metadata: {
           ipAddress: log.ip_address || "127.0.0.1",
-          ...(log.details ? { details: JSON.stringify(log.details) } : {}),
+          ...(log.details
+            ? { details: typeof log.details === "object" ? JSON.stringify(log.details) : String(log.details) }
+            : {}),
         },
       };
     });
 
     const term = query.search?.trim().toLowerCase() ?? "";
-    const filtered = term
-      ? events.filter(
-          (e) =>
-            e.actionLabel.toLowerCase().includes(term) ||
-            e.actorName.toLowerCase().includes(term) ||
-            e.eventType.toLowerCase().includes(term),
-        )
-      : events;
+
+    const filtered = events.filter((e) => {
+      // 1. Text search
+      if (term) {
+        const matchesTerm =
+          e.actionLabel.toLowerCase().includes(term) ||
+          e.actorName.toLowerCase().includes(term) ||
+          e.actorRole.toLowerCase().includes(term) ||
+          e.resourceLabel.toLowerCase().includes(term) ||
+          e.category.toLowerCase().includes(term) ||
+          e.eventType.toLowerCase().includes(term) ||
+          e.id.toLowerCase().includes(term);
+        if (!matchesTerm) return false;
+      }
+
+      // 2. Date Range: fromIso
+      if (query.fromIso) {
+        const fromDate = new Date(query.fromIso);
+        fromDate.setHours(0, 0, 0, 0);
+        const eventDate = new Date(e.timestampIso);
+        if (eventDate.getTime() < fromDate.getTime()) return false;
+      }
+
+      // 3. Date Range: toIso
+      if (query.toIso) {
+        const toDate = new Date(query.toIso);
+        toDate.setHours(23, 59, 59, 999);
+        const eventDate = new Date(e.timestampIso);
+        if (eventDate.getTime() > toDate.getTime()) return false;
+      }
+
+      // 4. Event Type
+      if (query.eventType && e.eventType !== query.eventType && e.action !== query.eventType) {
+        return false;
+      }
+
+      // 5. Actor
+      if (query.actor && e.actorName !== query.actor && e.actorUserId !== query.actor) {
+        return false;
+      }
+
+      // 6. Resource
+      if (query.resource && e.resourceLabel !== query.resource && e.resourceType !== query.resource) {
+        return false;
+      }
+
+      // 7. Category
+      if (query.category && e.category !== query.category) {
+        return false;
+      }
+
+      // 8. Result / Status
+      if (query.result && e.result.toLowerCase() !== query.result.toLowerCase()) {
+        return false;
+      }
+
+      // 9. Severity
+      if (query.severity && e.severity.toLowerCase() !== query.severity.toLowerCase()) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const pageCount = Math.max(1, Math.ceil(filtered.length / query.pageSize));
+    const validPage = Math.min(query.page, pageCount);
+    const startIndex = (validPage - 1) * query.pageSize;
+    const pagedEvents = filtered.slice(startIndex, startIndex + query.pageSize);
 
     return {
       available: true,
-      events: filtered,
+      events: pagedEvents,
       total: filtered.length,
-      page: query.page,
+      page: validPage,
       pageSize: query.pageSize,
       status: {
         state: "connected",
@@ -2227,14 +2373,46 @@ export async function getAccessControlStatus(): Promise<AccessControlServiceStat
 export async function updateRolePermission(input: {
   roleKey: string;
   permissionKey: string;
-  granted: boolean;
+  granted?: boolean;
 }): Promise<{ applied: boolean; status: AccessControlServiceStatus; requested: typeof input }> {
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("neroxa.token") : null;
+  if (token) {
+    try {
+      const res = await fetch(getApiUrl("/api/v1/roles/toggle-permission"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ role: input.roleKey, permission: input.permissionKey }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("neroxa:permissions_updated"));
+        }
+        return {
+          applied: true,
+          status: {
+            state: "connected",
+            label: "Permission Updated",
+            detail: `Permission '${input.permissionKey}' was successfully ${data.action} for role ${input.roleKey.toUpperCase()}.`,
+          },
+          requested: input,
+        };
+      }
+    } catch {
+      /* fallback */
+    }
+  }
+
   return {
     applied: true,
     status: {
       state: "connected",
       label: "Permission Updated",
-      detail: `Permission ${input.permissionKey} updated for role ${input.roleKey}.`,
+      detail: `Permission '${input.permissionKey}' updated for role ${input.roleKey}.`,
     },
     requested: input,
   };

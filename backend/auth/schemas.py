@@ -115,6 +115,7 @@ class UserAuthInfo(BaseModel):
     role: str
     department: str
     phone_number: str | None = None
+    avatar_url: str | None = None
     is_active: bool
     is_approved: bool = True
     requested_role: str | None = None

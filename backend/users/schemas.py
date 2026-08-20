@@ -16,6 +16,7 @@ class UserResponse(BaseModel):
     full_name: str
     department: str
     role_id: str
+    avatar_url: str | None = None
     requested_role_id: str | None = None
     is_approved: bool = True
     is_active: bool
@@ -31,6 +32,7 @@ class UserUpdate(BaseModel):
     full_name: str | None = None
     department: str | None = None
     role_id: str | None = None
+    avatar_url: str | None = None
     requested_role_id: str | None = None
     is_approved: bool | None = None
     is_active: bool | None = None

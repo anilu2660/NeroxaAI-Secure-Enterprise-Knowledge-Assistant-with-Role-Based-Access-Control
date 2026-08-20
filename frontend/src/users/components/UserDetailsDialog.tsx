@@ -21,11 +21,11 @@ export function UserDetailsDialog({
 }: {
   user: ManagedUser | null;
   onClose: () => void;
-  onEdit: (user: ManagedUser) => void;
+  onEdit?: (user: ManagedUser) => void;
 }) {
   if (!user) return null;
 
-  const avatarUrl = getSavedUserAvatar(user.id, user.email);
+  const avatarUrl = user.avatarUrl || getSavedUserAvatar(user.id, user.email);
 
   return (
     <ModalShell
@@ -34,66 +34,66 @@ export function UserDetailsDialog({
       onClose={onClose}
       width="max-w-[480px]"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3.5 p-3 rounded-2xl border border-hairline bg-secondary/25">
         {avatarUrl ? (
           <img
             src={avatarUrl}
             alt={user.name}
-            className="size-10 shrink-0 rounded-full border border-primary/40 object-cover shadow-xs"
+            className="size-11 shrink-0 rounded-2xl border border-primary/40 object-cover shadow-sm ring-2 ring-primary/20"
           />
         ) : (
-          <span className="grid size-10 place-items-center rounded-full bg-secondary text-[13px] font-medium text-foreground/85">
+          <span className="grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-secondary to-primary/10 border border-hairline text-[14px] font-bold text-foreground ring-1 ring-primary/15">
             {userInitials(user.name)}
           </span>
         )}
         <div className="min-w-0">
-          <p className="truncate text-[13.5px] text-foreground">{user.name}</p>
-          <p className="truncate text-[11.5px] text-muted-foreground">{user.email}</p>
+          <p className="truncate font-display text-[14px] font-semibold text-foreground">{user.name}</p>
+          <p className="truncate text-[12px] text-muted-foreground">{user.email}</p>
         </div>
       </div>
 
-      <div className="mt-3.5">
+      <div className="mt-4 space-y-1 rounded-2xl border border-hairline bg-secondary/15 p-3.5">
         <Row label="Role" value={<RoleBadge role={user.role} />} />
-        <Row label="Department" value={user.department} />
-        <Row label="Organization" value={user.organization} />
+        <Row label="Department" value={user.department || "General"} />
+        <Row label="Organization" value={user.organization || "NeroxaAI"} />
         <Row label="Status" value={<StatusBadge status={user.status} />} />
         <Row label="Last sign-in" value={user.lastSignInLabel ?? "Unavailable"} />
         <Row
           label="Access scope"
           value={
-            <span className="block">
-              {user.accessScope.map((scope) => (
-                <span key={scope} className="block">
-                  {scope}
-                </span>
-              ))}
+            <span className="block text-right">
+              {user.accessScope && user.accessScope.length > 0 ? (
+                user.accessScope.map((scope) => (
+                  <span key={scope} className="inline-block rounded-md bg-secondary/50 px-2 py-0.5 text-[11px] font-medium text-foreground/90 border border-hairline/60 ml-1 mb-1">
+                    {scope}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[11px] text-muted-foreground">Default</span>
+              )}
             </span>
           }
         />
-        <Row label="Account id" value={<span className="font-mono text-[11px]">{user.id}</span>} />
+        <Row label="Account ID" value={<span className="font-mono text-[11px] text-primary">{user.id}</span>} />
       </div>
 
-      <p className="mt-3.5 flex items-start gap-2 rounded-xl border border-hairline bg-secondary/25 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-        <Info className="mt-0.5 size-3.5 shrink-0" />
-        Prototype record. Sign-in history, document-level authorization, and permission propagation
-        are unavailable because no identity or retrieval backend is connected.
-      </p>
-
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-5 flex justify-end gap-2.5">
         <button
           type="button"
           onClick={onClose}
-          className="h-9 rounded-xl border border-hairline bg-secondary/40 px-3.5 text-[12.5px] text-foreground/85 transition-colors hover:bg-accent/60"
+          className="h-10 rounded-2xl border border-hairline bg-secondary/40 px-4 text-[12px] font-medium text-foreground transition-all hover:bg-secondary/70"
         >
           Close
         </button>
-        <button
-          type="button"
-          onClick={() => onEdit(user)}
-          className="h-9 rounded-xl bg-primary px-4 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          Edit user
-        </button>
+        {onEdit ? (
+          <button
+            type="button"
+            onClick={() => onEdit(user)}
+            className="h-10 rounded-2xl bg-gradient-to-r from-primary via-purple-500 to-primary px-5 text-[12px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all hover:brightness-110"
+          >
+            Edit user
+          </button>
+        ) : null}
       </div>
     </ModalShell>
   );

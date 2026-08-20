@@ -74,7 +74,7 @@ class WebSearchService:
                 params["location"] = self.location
 
             with httpx.Client(timeout=self.timeout_seconds) as client:
-                res = client.get("https://serpapi.com/search.json", params=params)
+                res = client.get(settings.SERPAPI_BASE_URL, params=params)
                 if res.status_code == 200:
                     raw_results = res.json().get("organic_results", [])
                 else:

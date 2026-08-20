@@ -59,6 +59,8 @@ class ChatService:
         user: User,
         user_message: str,
         department_filter: str | None = None,
+        web_search: bool = False,
+        tool_ids: list[str] | None = None,
     ) -> ChatMessage:
         session = (
             db.query(ChatSession)
@@ -92,6 +94,8 @@ class ChatService:
             user_department=user.department,
             conversation_history=history_str,
             department_filter=department_filter,
+            web_search=web_search,
+            tool_ids=tool_ids,
         )
 
         # Persist only structured metadata that is safe/useful for rendering.

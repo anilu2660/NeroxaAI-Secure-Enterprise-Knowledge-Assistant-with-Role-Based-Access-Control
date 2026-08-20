@@ -6,6 +6,7 @@ using Sentence Transformers (BAAI/bge-small-en-v1.5).
 """
 
 import logging
+import torch
 from sentence_transformers import SentenceTransformer
 from backend.config import settings
 
@@ -25,19 +26,23 @@ class EmbeddingService:
         self.model_name = settings.EMBEDDING_MODEL
         self.dimension = settings.EMBEDDING_DIMENSION
         self._model = None
+        # Auto-detect GPU; fall back to CPU if CUDA is unavailable.
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info("Embedding service will use device: %s", self.device)
 
     @property
     def model(self) -> SentenceTransformer:
         """Lazy-load the embedding model on first use."""
         if self._model is None:
-            logger.info("Loading embedding model: %s", self.model_name)
-            self._model = SentenceTransformer(self.model_name)
-            logger.info("Embedding model loaded successfully")
+            logger.info("Loading embedding model: %s on device: %s", self.model_name, self.device)
+            self._model = SentenceTransformer(self.model_name, device=self.device)
+            logger.info("Embedding model loaded successfully on %s", self.device)
         return self._model
 
     def embed_query(self, query: str) -> list[float]:
         """
         Generate an embedding vector for a single query string.
+        Applies BGE query instruction prefix when using BGE embedding models.
 
         Args:
             query: The text to embed.
@@ -46,7 +51,11 @@ class EmbeddingService:
             List of floats representing the embedding vector.
         """
         try:
-            embedding = self.model.encode(query, normalize_embeddings=True)
+            text_to_embed = query
+            if "bge" in self.model_name.lower() and not query.startswith("Represent this sentence"):
+                text_to_embed = f"Represent this sentence for searching relevant passages: {query}"
+
+            embedding = self.model.encode(text_to_embed, normalize_embeddings=True)
             return embedding.tolist()
         except Exception as e:
             logger.error("Failed to embed query: %s", str(e))

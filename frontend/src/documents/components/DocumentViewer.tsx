@@ -178,163 +178,188 @@ export function DocumentViewer({
   const rawPath = doc.rawUrl || `/api/v1/documents/${doc.id}/raw`;
   const baseUrl = getApiUrl(rawPath);
   const rawUrl = token ? (baseUrl.includes("?") ? `${baseUrl}&token=${token}` : `${baseUrl}?token=${token}`) : baseUrl;
+  const downloadUrl = token
+    ? (baseUrl.includes("?") ? `${baseUrl}&download=true&token=${token}` : `${baseUrl}?download=true&token=${token}`)
+    : (baseUrl.includes("?") ? `${baseUrl}&download=true` : `${baseUrl}?download=true`);
 
   return (
     <div
       ref={shellRef}
-      className="flex h-full min-h-[420px] min-h-0 flex-col overflow-hidden rounded-2xl border border-hairline bg-card/60 backdrop-blur-xl"
+      className="flex h-full min-h-[460px] min-h-0 flex-col overflow-hidden rounded-3xl border border-hairline bg-card/60 shadow-xl backdrop-blur-2xl transition-all"
     >
-      <div className="flex flex-wrap items-center gap-2 border-b border-hairline px-3 py-2.5">
-        <button
-          type="button"
-          onClick={() => setShowThumbs((v) => !v)}
-          aria-pressed={showThumbs}
-          title="Toggle page thumbnails"
-          className={cn(toolButton, showThumbs && "border-primary/45 bg-primary/12 text-primary")}
-        >
-          <PanelsTopLeft className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setSearchOpen((v) => !v)}
-          aria-pressed={searchOpen}
-          title="Search in document preview"
-          className={cn(toolButton, searchOpen && "border-primary/45 bg-primary/12 text-primary")}
-        >
-          <Search className="size-3.5" />
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-hairline/80 px-4 py-3 bg-secondary/30 shrink-0">
+        {/* Left Controls: Mode switch + Search/Thumbs */}
+        <div className="flex items-center gap-2">
+          {isPdf ? (
+            <div className="flex items-center rounded-2xl border border-hairline bg-secondary/40 p-1 text-[11.5px] font-medium shadow-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode("adobe")}
+                className={cn(
+                  "rounded-xl px-3 py-1 font-semibold transition-all",
+                  viewMode === "adobe"
+                    ? "bg-gradient-to-br from-primary via-primary/90 to-purple-600 text-primary-foreground shadow-md shadow-primary/20"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                PDF View
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("text")}
+                className={cn(
+                  "rounded-xl px-3 py-1 font-semibold transition-all",
+                  viewMode === "text"
+                    ? "bg-gradient-to-br from-primary via-primary/90 to-purple-600 text-primary-foreground shadow-md shadow-primary/20"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Extracted Text
+              </button>
+            </div>
+          ) : null}
 
-        {isPdf ? (
-          <div className="flex items-center rounded-lg border border-hairline bg-secondary/30 p-0.5 text-[11px]">
-            <button
-              type="button"
-              onClick={() => setViewMode("adobe")}
-              className={cn(
-                "rounded-md px-2 py-1 font-medium transition-colors",
-                viewMode === "adobe"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Adobe PDF View
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("text")}
-              className={cn(
-                "rounded-md px-2 py-1 font-medium transition-colors",
-                viewMode === "text"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Extracted Text
-            </button>
+          {viewMode === "text" || !isPdf ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowThumbs((v) => !v)}
+                aria-pressed={showThumbs}
+                title="Toggle page thumbnails"
+                className={cn(toolButton, showThumbs && "border-primary/45 bg-primary/12 text-primary")}
+              >
+                <PanelsTopLeft className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSearchOpen((v) => !v)}
+                aria-pressed={searchOpen}
+                title="Search in text preview"
+                className={cn(toolButton, searchOpen && "border-primary/45 bg-primary/12 text-primary")}
+              >
+                <Search className="size-3.5" />
+              </button>
+            </>
+          ) : null}
+        </div>
+
+        {/* Middle Controls: Page Navigation & Zoom (Active in Extracted Text / Non-PDF mode) */}
+        {viewMode === "text" || !isPdf ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onPageChange(1)}
+                disabled={page <= 1}
+                title="First page"
+                className={toolButton}
+              >
+                <ChevronsLeft className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onPageChange(page - 1)}
+                disabled={page <= 1}
+                title="Previous page"
+                className={toolButton}
+              >
+                <ChevronLeft className="size-3.5" />
+              </button>
+              <label className="flex items-center gap-1 px-1">
+                <span className="sr-only">Page number</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={total}
+                  value={page}
+                  onChange={(event) => {
+                    const next = Number.parseInt(event.target.value, 10);
+                    if (Number.isFinite(next)) onPageChange(next);
+                  }}
+                  className="h-7 w-11 rounded-md border border-hairline bg-secondary/40 text-center font-mono text-[12px] font-medium text-foreground outline-none focus:border-primary/60"
+                />
+              </label>
+              <span className="mr-1 text-[11.5px] text-muted-foreground">/ {total}</span>
+              <button
+                type="button"
+                onClick={() => onPageChange(page + 1)}
+                disabled={page >= total}
+                title="Next page"
+                className={toolButton}
+              >
+                <ChevronRight className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onPageChange(total)}
+                disabled={page >= total}
+                title="Last page"
+                className={toolButton}
+              >
+                <ChevronsRight className="size-3.5" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.max(50, z - 10))}
+                disabled={zoom <= 50}
+                title="Zoom out"
+                className={toolButton}
+              >
+                <Minus className="size-3.5" />
+              </button>
+              <span className="min-w-[36px] text-center font-mono text-[11px] text-muted-foreground">
+                {zoom}%
+              </span>
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.min(200, z + 10))}
+                disabled={zoom >= 200}
+                title="Zoom in"
+                className={toolButton}
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </div>
           </div>
         ) : null}
 
-        <div className="mx-auto flex items-center gap-1.5">
+        {/* Right Controls: Actions (Fullscreen, New Tab, Download) */}
+        <div className="ml-auto flex items-center gap-1.5 rounded-2xl border border-hairline bg-secondary/35 p-1 backdrop-blur-md shadow-xs">
           <button
             type="button"
-            onClick={() => onPageChange(1)}
-            disabled={page <= 1}
-            title="First page"
-            className={toolButton}
+            onClick={toggleFullscreen}
+            title="Fullscreen"
+            className="grid size-8.5 place-items-center rounded-xl text-muted-foreground transition-all hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary active:scale-95"
           >
-            <ChevronsLeft className="size-3.5" />
+            <Maximize2 className="size-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-            title="Previous page"
-            className={toolButton}
-          >
-            <ChevronLeft className="size-3.5" />
-          </button>
-          <label className="flex items-center gap-1.5">
-            <span className="sr-only">Page number</span>
-            <input
-              type="number"
-              min={1}
-              max={total}
-              value={page}
-              onChange={(event) => {
-                const next = Number.parseInt(event.target.value, 10);
-                if (Number.isFinite(next)) onPageChange(next);
-              }}
-              className="h-8 w-12 rounded-lg border border-hairline bg-secondary/40 text-center font-mono text-[12.5px] font-medium text-foreground outline-none focus:border-primary/60"
-            />
-          </label>
-          <span className="text-[11.5px] text-muted-foreground">/ {total}</span>
-          <button
-            type="button"
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= total}
-            title="Next page"
-            className={toolButton}
-          >
-            <ChevronRight className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onPageChange(total)}
-            disabled={page >= total}
-            title="Last page"
-            className={toolButton}
-          >
-            <ChevronsRight className="size-3.5" />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.max(50, z - 10))}
-            disabled={zoom <= 50}
-            title="Zoom out"
-            className={toolButton}
-          >
-            <Minus className="size-3.5" />
-          </button>
-          <span className="min-w-[44px] text-center font-mono text-[11.5px] text-muted-foreground">
-            {zoom}%
-          </span>
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.min(200, z + 10))}
-            disabled={zoom >= 200}
-            title="Zoom in"
-            className={toolButton}
-          >
-            <Plus className="size-3.5" />
-          </button>
-        </div>
-
-        <button type="button" onClick={toggleFullscreen} title="Fullscreen" className={toolButton}>
-          <Maximize2 className="size-3.5" />
-        </button>
-        {isPdf ? (
+          {isPdf ? (
+            <a
+              href={`${rawUrl}#page=${page}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open PDF in new tab"
+              className="grid size-8.5 place-items-center rounded-xl text-muted-foreground transition-all hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary active:scale-95"
+            >
+              <SquareArrowOutUpRight className="size-4" />
+            </a>
+          ) : null}
+          <div className="mx-0.5 h-4 w-px bg-hairline/60" />
           <a
-            href={`${rawUrl}#page=${page}`}
+            href={downloadUrl}
+            download={doc.title}
             target="_blank"
             rel="noopener noreferrer"
-            title="Open in Adobe Acrobat / New Tab"
-            className={cn(toolButton, "inline-flex")}
+            title="Download original document file"
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-purple-600 px-3 py-1.5 text-[12px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all hover:scale-105 active:scale-95 focus-visible:outline-none"
           >
-            <SquareArrowOutUpRight className="size-3.5" />
+            <Download className="size-4" />
+            <span className="hidden sm:inline">Download</span>
           </a>
-        ) : null}
-        <a
-          href={rawUrl}
-          download={doc.title}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Download original document file"
-          className={cn(toolButton, "inline-flex")}
-        >
-          <Download className="size-3.5" />
-        </a>
+        </div>
       </div>
 
       {searchOpen ? (
@@ -389,13 +414,19 @@ export function DocumentViewer({
 
         <div className="min-h-0 flex-1 overflow-auto bg-neutral-900/40 p-2">
           {isPdf && viewMode === "adobe" ? (
-            /* Adobe Native PDF Viewer */
-            <div className="h-full w-full min-h-[580px]">
-              <iframe
-                src={`${rawUrl}#page=${page}`}
-                className="h-full w-full rounded-xl border border-hairline bg-neutral-950 shadow-2xl"
-                title={doc.title}
-              />
+            /* Native Browser PDF Viewer */
+            <div className="h-full w-full min-h-[620px]">
+              <object
+                data={`${rawUrl}#page=${page}`}
+                type="application/pdf"
+                className="h-full w-full min-h-[620px] rounded-xl border border-hairline bg-neutral-950 shadow-2xl"
+              >
+                <iframe
+                  src={`${rawUrl}#page=${page}`}
+                  className="h-full w-full min-h-[620px] rounded-xl border border-hairline bg-neutral-950 shadow-2xl"
+                  title={doc.title}
+                />
+              </object>
             </div>
           ) : loading ? (
             <div className="grid h-full min-h-[320px] place-items-center text-[12.5px] text-muted-foreground">

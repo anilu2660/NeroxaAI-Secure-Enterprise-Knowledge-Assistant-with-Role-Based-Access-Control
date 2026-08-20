@@ -28,3 +28,11 @@ class PermissionCheckResponse(BaseModel):
     role: str
     permission: str
     allowed: bool
+
+
+class TogglePermissionRequest(BaseModel):
+    """Schema for toggling a permission on a role."""
+
+    role: str = Field(..., description="Role name (admin, hr, finance, engineering, sales, user).")
+    permission: str = Field(..., description="Permission key (workspace:access, assistant:query, documents:read, etc.).")
+

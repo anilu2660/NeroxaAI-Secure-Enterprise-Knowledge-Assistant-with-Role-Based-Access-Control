@@ -33,8 +33,10 @@ export function roleLabelFor(role: Role, department: string): string {
 
 /** Human-readable capability names used on the Account page. */
 export const PERMISSION_LABELS: Record<Permission, string> = {
+  "workspace:access": "Access authenticated workspace",
   "documents:read": "Browse and open permitted documents",
   "documents:upload": "Upload documents to the knowledge base",
+  "documents:manage": "Manage document metadata and lifecycle",
   "assistant:query": "Ask the AI knowledge assistant",
   "users:manage": "Manage organizational users and roles",
   "audit:read": "Review audit and security events",

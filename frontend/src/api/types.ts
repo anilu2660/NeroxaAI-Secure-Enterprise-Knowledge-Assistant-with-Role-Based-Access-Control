@@ -28,7 +28,7 @@ export interface AdminActivityEntry { id:string; label:string; actor:string; tim
 export interface AdminDocumentOverview { totalDocuments:number|null; indexedDocuments:number|null; pendingReview:number|null; status:string; }
 export interface AdminSecurityContext { title:string; roleStateLabel:string; enforcementLabel:string; auditingLabel:string; }
 export type ManagedUserStatus = "active"|"inactive"|"disabled"|"pending_approval";
-export interface ManagedUser { id:string; name:string; email:string; role:Role; department:string; organization:string; accessScope:string[]; status:ManagedUserStatus; lastSignInLabel:string|null; prototype:boolean; requestedRole?:string|null; isApproved?:boolean; }
+export interface ManagedUser { id:string; name:string; email:string; role:Role; department:string; organization:string; accessScope:string[]; status:ManagedUserStatus; lastSignInLabel:string|null; prototype:boolean; avatarUrl?:string|null; requestedRole?:string|null; isApproved?:boolean; }
 export interface ManagedUserQuery { search?:string; role?:Role|""; department?:string; status?:ManagedUserStatus|""; accessScope?:string; }
 export interface ManagedUserFilterOptions { roles:Role[]; departments:string[]; statuses:ManagedUserStatus[]; accessScopes:string[]; }
 export interface ManagedUserDraft { name:string; email:string; role:Role; department:string; organization:string; status:ManagedUserStatus; accessScope:string[]; requestedRole?:string|null; isApproved?:boolean; }

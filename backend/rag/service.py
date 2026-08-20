@@ -50,38 +50,56 @@ class RAGService:
         self.reranker = reranker_service
         self.cache = semantic_cache
 
+    def _clean_intent(self, query: str) -> str:
+        """Strip conversational filler to extract core search concepts."""
+        cleaned = re.sub(
+            r"^(can you (please\s+)?(assist|help|guide)( me(\s+(with|in|on))?)?|tell me (about|all about)|what (is|are|about)( the| our)?|give me (an overview|a summary|details) of|explain|describe|show me( the)?|help with)\s+",
+            "",
+            query.strip(),
+            flags=re.IGNORECASE,
+        ).strip("?. ")
+        return cleaned if len(cleaned) >= 3 else query
+
     def _expand_query(self, query: str) -> str:
         q_lower = query.lower()
         expansions: list[str] = []
 
+        # Finance & accounting policy domains
+        if any(term in q_lower for term in ("finance", "financial", "finance policy", "financial policy")):
+            expansions.append("finance financial policy guidelines procedures accounting expenditure budget rules")
         if any(term in q_lower for term in ("certifying officer", "invoice", "payment", "bill", "voucher")):
             expansions.append("verifying passing scrutiny bills vouchers sanctioning authority payment")
-
-        # Petty cash policy uses the term "imprest" and discusses the float,
-        # Head of Accounting Services, and written consent. Add these exact
-        # policy concepts even when the user uses only "petty cash" language.
         if any(term in q_lower for term in ("petty cash", "petty-cash", "cash float", "cash limit", "imprest")):
             expansions.append(
                 "imprest petty cash float maximum limit Head Accounting Services written consent increase"
             )
-
-        # Delegation questions use policy language that may differ from the
-        # user's wording. Expand toward the exact concepts in the delegation
-        # section without inventing an authority or responsibility.
         if any(term in q_lower for term in ("delegated financial", "financial management responsibilities", "delegate financial", "delegation of financial")):
             expansions.append(
                 "delegate financial management responsibilities Finance Officer Board of Management Board of Governors Chairman Chancellor assigned"
             )
-
         if any(term in q_lower for term in ("new source", "new source of income", "source of income", "revenue source")):
             expansions.append("establish source of revenue funds approval authorization financial implications proposal")
         if any(term in q_lower for term in ("financial implication", "financial implications", "cost implication")):
             expansions.append("financial impact cost budget expenditure funding")
+        if any(term in q_lower for term in ("travel", "reimbursement", "per diem", "allowance", "expense")):
+            expansions.append("travel policy expense reimbursement claims submission per diem lodging transport")
+
+        # HR & People Operations domains
+        if any(term in q_lower for term in ("hr", "leave", "vacation", "holiday", "sick leave", "maternity", "paternity", "absence", "attendance")):
+            expansions.append("human resources HR leave policy vacation absence attendance benefits entitlements")
+
+        # Security & IT domains
+        if any(term in q_lower for term in ("security", "cyber", "confidential", "data protection", "access control", "password", "authentication")):
+            expansions.append("information security cyber access control credentials data protection compliance")
 
         return f"{query} {' '.join(expansions)}" if expansions else query
 
     def _decompose_query(self, query: str) -> list[str]:
         sub_queries = [query]
+        cleaned = self._clean_intent(query)
+        if cleaned.lower() != query.lower() and len(cleaned) >= 3:
+            sub_queries.append(cleaned)
+
         if len(query) > 60 and re.search(r"\b(and|as well as|versus|while|plus)\b", query, re.IGNORECASE):
             parts = re.split(r"\b(and|as well as|versus|while|plus)\b", query, flags=re.IGNORECASE)
             valid_parts = [
@@ -235,26 +253,43 @@ class RAGService:
             }
 
         llm_response = await self.llm.agenerate_response(query=query, context_chunks=context_chunks, temperature=temperature)
+        ans_text = llm_response.get("answer", "")
+        lowered_ans = ans_text.lower()
+        is_insufficient = (
+            "cannot find sufficient information" in lowered_ans
+            or "could not find sufficient information" in lowered_ans
+            or "no authorized enterprise information" in lowered_ans
+            or "not authorized to access" in lowered_ans
+            or "no relevant documents" in lowered_ans
+            or "cannot answer this question based on the provided context" in lowered_ans
+            or "security alert" in lowered_ans
+            or "access denied" in lowered_ans
+        )
+
+        sources = [] if is_insufficient else llm_response.get("sources", [])
+        chunks_retrieved = 0 if is_insufficient else len(context_chunks)
+
         result = {
             "query": query,
-            "answer": llm_response["answer"],
-            "sources": llm_response["sources"],
+            "answer": ans_text,
+            "sources": sources,
             "model": llm_response["model"],
-            "chunks_retrieved": len(context_chunks),
+            "chunks_retrieved": chunks_retrieved,
             "cached": False,
         }
 
-        await self.cache.set(
-            query=query,
-            answer=result["answer"],
-            sources=result["sources"],
-            model=result["model"],
-            chunks_retrieved=result["chunks_retrieved"],
-            user_id=user_id,
-            user_role=user_role,
-            user_department=user_department,
-            department_filter=department_filter,
-        )
+        if not is_insufficient:
+            await self.cache.set(
+                query=query,
+                answer=result["answer"],
+                sources=result["sources"],
+                model=result["model"],
+                chunks_retrieved=result["chunks_retrieved"],
+                user_id=user_id,
+                user_role=user_role,
+                user_department=user_department,
+                department_filter=department_filter,
+            )
         return result
 
     async def stream_query(

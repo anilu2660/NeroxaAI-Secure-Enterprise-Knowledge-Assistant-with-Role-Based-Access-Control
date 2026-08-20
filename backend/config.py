@@ -71,6 +71,7 @@ class Settings:
     MICROSOFT_TENANT_ID: str = os.getenv("MICROSOFT_TENANT_ID", "common")
 
     SERPAPI_KEY: str = os.getenv("SERPAPI_KEY", "")
+    SERPAPI_BASE_URL: str = os.getenv("SERPAPI_BASE_URL", "https://serpapi.com/search.json")
     WEB_SEARCH_MAX_RESULTS: int = int(os.getenv("WEB_SEARCH_MAX_RESULTS", "5"))
     WEB_SEARCH_TIMEOUT_SECONDS: float = float(os.getenv("WEB_SEARCH_TIMEOUT_SECONDS", "10"))
     WEB_SEARCH_LOCATION: str = os.getenv("WEB_SEARCH_LOCATION", "Mumbai, Maharashtra, India")

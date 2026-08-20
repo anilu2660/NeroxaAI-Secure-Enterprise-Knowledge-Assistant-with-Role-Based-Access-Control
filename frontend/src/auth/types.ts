@@ -6,8 +6,10 @@
 export type Role = "USER" | "ADMIN";
 
 export type Permission =
+  | "workspace:access"
   | "documents:read"
   | "documents:upload"
+  | "documents:manage"
   | "assistant:query"
   | "users:manage"
   | "audit:read"
@@ -21,7 +23,7 @@ export interface AuthUser {
   department: string;
   /** Display label shown under the user's name, e.g. "Engineering · Employee". */
   roleLabel: string;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
 }
 
 export interface Session {

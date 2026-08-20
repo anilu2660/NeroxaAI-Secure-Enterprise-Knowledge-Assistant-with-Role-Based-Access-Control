@@ -7,7 +7,7 @@ department, and role associations.
 
 import uuid
 from typing import TYPE_CHECKING
-from sqlalchemy import String, Boolean, ForeignKey
+from sqlalchemy import String, Boolean, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.database.base import Base, TimestampMixin
 
@@ -34,6 +34,7 @@ class User(Base, TimestampMixin):
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     department: Mapped[str] = mapped_column(String(100), nullable=False, default="General", index=True)
     phone_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     role_id: Mapped[str] = mapped_column(String(50), ForeignKey("roles.id"), nullable=False, default="employee")
     requested_role_id: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)
     is_approved: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

@@ -269,6 +269,7 @@ def get_document_preview(
 @router.get("/{document_id}/raw", summary="Serve raw document binary")
 def get_raw_document(
     document_id: str,
+    download: bool = False,
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ):
@@ -278,6 +279,8 @@ def get_raw_document(
 
     if current_user:
         authorization_service.require_document_access(current_user, document)
+
+    disposition = "attachment" if download else "inline"
 
     filename = document.filename
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
@@ -294,6 +297,7 @@ def get_raw_document(
                 path=path,
                 media_type=document.mime_type or "application/pdf",
                 filename=filename,
+                content_disposition_type=disposition,
             )
 
     # If physical binary file is not on disk (e.g. cloud ephemeral container restart),
@@ -312,7 +316,7 @@ def get_raw_document(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'inline; filename="{clean_filename}"',
+            "Content-Disposition": f'{disposition}; filename="{clean_filename}"',
             "Content-Type": "application/pdf",
         },
     )

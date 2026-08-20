@@ -20,31 +20,39 @@ export function AssistantContextPanel({
 }: {
   capabilities: AssistantCapability[];
   user: AuthUser | null;
-  /** Derived from the session; label stays "Access scope" to avoid over-claiming. */
   accessScope: string;
 }) {
   return (
-    <aside className="w-full shrink-0 space-y-2.5 xl:w-[248px]">
-      <div className="rounded-2xl border border-hairline bg-card/45 p-3 backdrop-blur-xl">
-        <p className="pb-2 text-[9.5px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+    <aside className="w-full shrink-0 space-y-3 xl:w-[260px]">
+      <div className="rounded-3xl border border-hairline bg-card/60 p-4 shadow-lg backdrop-blur-2xl transition-all hover:border-primary/30">
+        <p className="pb-2.5 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase border-b border-hairline">
           Capabilities
         </p>
-        <ul className="space-y-1.5">
+        <ul className="mt-3 space-y-2">
           {capabilities.map((capability) => {
             const Icon = icons[capability.id];
+            const isPositive = ["active", "connected", "enabled", "online"].includes(
+              capability.status.toLowerCase(),
+            );
             return (
               <li
                 key={capability.id}
-                className="flex items-center justify-between gap-2"
+                className="flex items-center justify-between gap-2 rounded-2xl border border-hairline bg-secondary/25 p-2.5 transition-all hover:bg-secondary/40 shadow-xs"
                 title={capability.description}
               >
                 <span className="flex min-w-0 items-center gap-2">
-                  <Icon className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-[12px] text-foreground/85">
+                  <Icon className="size-4 shrink-0 text-primary" />
+                  <span className="truncate text-[12px] font-medium text-foreground">
                     {capability.title}
                   </span>
                 </span>
-                <span className="shrink-0 rounded-md border border-hairline px-1.5 py-0.5 text-[9.5px] text-muted-foreground">
+                <span
+                  className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tracking-wide ${
+                    isPositive
+                      ? "border-emerald-500/35 bg-emerald-500/15 text-emerald-400"
+                      : "border-rose-500/35 bg-rose-500/15 text-rose-400"
+                  }`}
+                >
                   {capability.status}
                 </span>
               </li>
@@ -53,36 +61,45 @@ export function AssistantContextPanel({
         </ul>
       </div>
 
-      <div className="rounded-2xl border border-hairline bg-card/45 p-3 backdrop-blur-xl">
-        <div className="flex items-center gap-2">
-          <span className="grid size-6 place-items-center rounded-full border border-hairline bg-secondary/50">
-            <User className="size-3 text-foreground/85" />
+      <div className="rounded-3xl border border-hairline bg-card/60 p-4 shadow-lg backdrop-blur-2xl transition-all hover:border-primary/30">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-hairline">
+          <span className="grid size-8 place-items-center rounded-2xl border border-primary/30 bg-primary/15 text-primary shadow-xs">
+            <User className="size-4" />
           </span>
-          <p className="font-display text-[13px] font-medium text-foreground">Your Context</p>
+          <div>
+            <h3 className="font-display text-[13px] font-semibold text-foreground">Your Context</h3>
+            <p className="text-[10.5px] text-muted-foreground">Active session parameters</p>
+          </div>
         </div>
 
-        <dl className="mt-2.5 space-y-2">
-          <div>
-            <dt className="text-[10.5px] text-muted-foreground">Signed in as</dt>
-            <dd className="truncate text-[12px] text-foreground">{user?.name ?? "—"}</dd>
+        <dl className="mt-3 space-y-2.5">
+          <div className="rounded-2xl border border-hairline bg-secondary/25 p-2.5">
+            <dt className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Signed in as
+            </dt>
+            <dd className="truncate text-[12.5px] font-semibold text-foreground">
+              {user?.name ?? "—"}
+            </dd>
             <dd className="truncate text-[10.5px] text-muted-foreground">{user?.email ?? ""}</dd>
           </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <dt className="text-[10.5px] text-muted-foreground">Department</dt>
-            <dd className="truncate text-[12px] text-foreground">{user?.department ?? "—"}</dd>
+
+          <div className="flex items-center justify-between gap-2 text-[12px]">
+            <dt className="text-muted-foreground">Department</dt>
+            <dd className="font-semibold text-foreground">{user?.department ?? "—"}</dd>
           </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <dt className="text-[10.5px] text-muted-foreground">Role</dt>
-            <dd className="truncate text-[12px] text-foreground">{user?.roleLabel ?? "—"}</dd>
+
+          <div className="flex items-center justify-between gap-2 text-[12px]">
+            <dt className="text-muted-foreground">Role</dt>
+            <dd className="font-semibold text-foreground">{user?.roleLabel ?? "—"}</dd>
           </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <dt className="text-[10.5px] text-muted-foreground">Access scope</dt>
-            <dd className="truncate text-[12px] text-foreground">{accessScope}</dd>
+
+          <div className="flex flex-col gap-1 text-[12px]">
+            <dt className="text-muted-foreground">Access scope</dt>
+            <dd className="truncate rounded-xl border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+              {accessScope}
+            </dd>
           </div>
         </dl>
-        <p className="mt-2 border-t border-hairline pt-1.5 text-[9.5px] leading-relaxed text-muted-foreground">
-          From your current prototype session — no backend has authorized these values.
-        </p>
       </div>
     </aside>
   );

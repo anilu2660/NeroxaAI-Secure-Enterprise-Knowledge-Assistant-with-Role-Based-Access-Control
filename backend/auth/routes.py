@@ -244,6 +244,7 @@ def get_me(current_user: User = Depends(get_current_user)):
         full_name=current_user.full_name,
         role=current_user.role_id,
         department=current_user.department,
+        avatar_url=current_user.avatar_url,
         is_active=current_user.is_active,
         is_approved=current_user.is_approved,
         requested_role=current_user.requested_role_id,

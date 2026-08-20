@@ -26,7 +26,27 @@ function DocumentDetailsPage() {
   const inScope = doc ? isDocumentInUserScope(doc, profile ? { role: profile.role, accessScope: profile.accessScope } : null) : false;
   const goToPage = (next: number) => navigate({ to: "/documents/$documentId", params: { documentId }, search: { page: next, ...(fromAssistant ? { from: "assistant" } : {}) }, replace: true });
   return <div className="space-y-5">
-    <nav className="flex flex-wrap items-center gap-2 text-[11px]"><Link to="/documents" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" />Documents</Link>{fromAssistant ? <><span className="h-3.5 w-px bg-hairline" /><Link to="/assistant" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground"><ChevronLeft className="size-3.5" />Assistant</Link></> : null}</nav>
+    <nav className="flex flex-wrap items-center gap-2">
+      <Link
+        to="/documents"
+        className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-secondary/35 px-3.5 py-1.5 text-[12px] font-medium text-foreground transition-all hover:bg-secondary/70 hover:border-primary/40 shadow-xs"
+      >
+        <ArrowLeft className="size-3.5 text-primary" />
+        Documents
+      </Link>
+      {fromAssistant ? (
+        <>
+          <span className="h-3.5 w-px bg-hairline" />
+          <Link
+            to="/assistant"
+            className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-secondary/35 px-3.5 py-1.5 text-[12px] font-medium text-foreground transition-all hover:bg-secondary/70 hover:border-primary/40 shadow-xs"
+          >
+            <ChevronLeft className="size-3.5 text-primary" />
+            Assistant
+          </Link>
+        </>
+      ) : null}
+    </nav>
     {document.isLoading ? <Shell><p className="text-[12px] text-muted-foreground">Loading secure document…</p></Shell> : !doc ? <Shell><FileText className="mx-auto size-5 text-muted-foreground" /><p className="mt-3 text-[13px] text-foreground">Document not found</p><p className="mt-1 text-[11px] text-muted-foreground">This document is not available in the current workspace.</p></Shell> : !inScope ? <Shell><Lock className="mx-auto size-5 text-muted-foreground" /><p className="mt-3 text-[13px] text-foreground">Restricted in this session</p><p className="mx-auto mt-1 max-w-lg text-[11.5px] leading-relaxed text-muted-foreground">This document requires the “{doc.accessScope}” access scope. The workspace UI has hidden the document content from this session.</p></Shell> : <>
       <PageHeader eyebrow="Knowledge source" title={doc.title} description="Inspect document metadata, page previews, and the citation context used by NeroxaAI." actions={<StatusPill tone="success" icon={<ShieldCheck className="size-3" />}>{fromAssistant ? "Citation context" : "Authorized"}</StatusPill>} />
       {requestedPage !== page ? <p className="rounded-xl border border-hairline bg-secondary/30 px-3 py-2 text-[11px] text-muted-foreground">Page {requestedPage} is outside the available range (1–{total}); showing page {page}.</p> : null}

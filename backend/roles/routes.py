@@ -8,7 +8,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.database.session import get_db
-from backend.roles.schemas import RoleInfo, AssignRoleRequest, PermissionCheckResponse
+from backend.roles.schemas import RoleInfo, AssignRoleRequest, PermissionCheckResponse, TogglePermissionRequest
 from backend.roles.service import role_service
 from backend.roles.middleware import require_admin
 from backend.users.service import user_service
@@ -28,12 +28,29 @@ router = APIRouter(prefix="/api/v1/roles", tags=["Roles & RBAC"])
 )
 async def list_roles(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Get a list of all system roles and their assigned permissions.
     SECURITY: Requires a valid JWT token — prevents unauthenticated recon.
     """
-    return role_service.list_all_roles()
+    return role_service.list_all_roles(db)
+
+
+@router.post(
+    "/toggle-permission",
+    summary="Toggle permission on or off for a role (Admin only)",
+)
+async def toggle_permission(
+    request: TogglePermissionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Toggle a permission for a role in the system RBAC policy and persist to PostgreSQL DB.
+    """
+    return role_service.toggle_permission(request.role, request.permission, db)
+
 
 
 @router.post(

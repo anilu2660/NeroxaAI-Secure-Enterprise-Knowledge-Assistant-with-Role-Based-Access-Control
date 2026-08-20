@@ -56,6 +56,50 @@ def get_user(
     return user_service.get_by_id(db, user_id)
 
 
+from pydantic import BaseModel
+
+
+class AvatarUpdateRequest(BaseModel):
+    avatar_url: str | None = None
+
+
+@router.put(
+    "/me/avatar",
+    response_model=UserResponse,
+    summary="Update current user's profile picture in DB",
+)
+def update_my_avatar(
+    request: AvatarUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Save or update the authenticated user's profile picture in PostgreSQL database.
+    """
+    current_user.avatar_url = request.avatar_url
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.delete(
+    "/me/avatar",
+    response_model=UserResponse,
+    summary="Remove current user's profile picture from DB",
+)
+def remove_my_avatar(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Remove the authenticated user's profile picture from PostgreSQL database.
+    """
+    current_user.avatar_url = None
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
 @router.put(
     "/{user_id}",
     response_model=UserResponse,

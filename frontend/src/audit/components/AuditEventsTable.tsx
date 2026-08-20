@@ -13,18 +13,18 @@ const columns = [
 ];
 
 const severityClass: Record<AuditEvent["severity"], string> = {
-  info: "border-hairline bg-secondary/45 text-muted-foreground",
-  low: "border-sky-400/25 bg-sky-400/10 text-sky-300/90",
-  medium: "border-amber-400/25 bg-amber-400/10 text-amber-300/90",
-  high: "border-orange-400/25 bg-orange-400/10 text-orange-300/90",
-  critical: "border-destructive/35 bg-destructive/12 text-destructive",
+  info: "border-primary/30 bg-primary/10 text-primary font-bold shadow-xs",
+  low: "border-sky-500/30 bg-sky-500/10 text-sky-400 font-semibold shadow-xs",
+  medium: "border-amber-500/30 bg-amber-500/10 text-amber-400 font-semibold shadow-xs",
+  high: "border-orange-500/30 bg-orange-500/10 text-orange-400 font-semibold shadow-xs",
+  critical: "border-rose-500/35 bg-rose-500/12 text-rose-400 font-bold shadow-xs",
 };
 
 const resultClass: Record<AuditEvent["result"], string> = {
-  success: "text-emerald-300/90",
-  failure: "text-destructive",
-  denied: "text-amber-300/90",
-  pending: "text-muted-foreground",
+  success: "border-emerald-500/35 bg-emerald-500/12 text-emerald-400 font-medium",
+  failure: "border-rose-500/35 bg-rose-500/12 text-rose-400 font-medium",
+  denied: "border-amber-500/35 bg-amber-500/12 text-amber-400 font-medium",
+  pending: "border-hairline bg-secondary/40 text-muted-foreground font-medium",
 };
 
 function formatTimestamp(iso: string) {
@@ -47,34 +47,32 @@ interface Props {
 }
 
 /**
- * Renders whatever the audit service returned. With no connected service the
- * unavailable/empty state is the correct and only state — rows are never
- * fabricated to make the table look populated.
+ * Renders audit records with a smooth sliding viewport and sticky header.
  */
 export function AuditEventsTable({ page, loading, onInspect }: Props) {
   const events = page.events;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-hairline bg-card/60 backdrop-blur-xl">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-hairline bg-secondary/25">
+    <div className="overflow-hidden rounded-3xl border border-hairline bg-card/60 shadow-xl backdrop-blur-2xl transition-all">
+      <div className="max-h-[520px] overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-secondary/20">
+        <table className="w-full min-w-[1020px] border-collapse text-left">
+          <thead className="sticky top-0 z-20 border-b border-hairline/80 bg-card/95 backdrop-blur-2xl">
+            <tr>
               {columns.map((column) => (
                 <th
                   key={column}
                   scope="col"
-                  className="px-3.5 py-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                  className="px-4 py-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground"
                 >
                   {column}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-hairline/60">
             {events.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-12">
+                <td colSpan={columns.length} className="px-4 py-16">
                   <EmptyOrUnavailable page={page} loading={loading} />
                 </td>
               </tr>
@@ -82,44 +80,57 @@ export function AuditEventsTable({ page, loading, onInspect }: Props) {
               events.map((event) => (
                 <tr
                   key={event.id}
-                  className="border-b border-hairline/70 text-[12.5px] transition-colors last:border-0 hover:bg-accent/25"
+                  className="text-[12.5px] transition-all duration-200 hover:bg-primary/[0.03]"
                 >
-                  <td className="whitespace-nowrap px-3.5 py-2.5 text-muted-foreground">
+                  <td className="whitespace-nowrap px-4 py-3.5 font-mono text-[11.5px] text-muted-foreground">
                     {formatTimestamp(event.timestampIso)}
                   </td>
-                  <td className="px-3.5 py-2.5">
-                    <span className="block truncate text-foreground">{event.actorName}</span>
-                    <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <td className="px-4 py-3.5">
+                    <span className="block truncate font-display font-semibold text-foreground">
+                      {event.actorName}
+                    </span>
+                    <span className="inline-block rounded-full bg-secondary/60 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground border border-hairline/60 mt-0.5">
                       {event.actorRole}
                     </span>
                   </td>
-                  <td className="px-3.5 py-2.5 text-foreground/90">{event.actionLabel}</td>
-                  <td className="px-3.5 py-2.5 text-muted-foreground">
-                    <span className="block truncate text-foreground/85">{event.resourceLabel}</span>
+                  <td className="px-4 py-3.5 font-medium text-foreground/90 max-w-[280px]">
+                    <span className="line-clamp-2">{event.actionLabel}</span>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <span className="block truncate font-semibold text-foreground/90">
+                      {event.resourceLabel}
+                    </span>
                     <span className="block text-[11px] text-muted-foreground">
                       {event.resourceType}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-3.5 py-2.5 text-muted-foreground">
-                    {event.category}
+                  <td className="whitespace-nowrap px-4 py-3.5">
+                    <span className="rounded-md bg-secondary/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80 border border-hairline/60">
+                      {event.category}
+                    </span>
                   </td>
-                  <td
-                    className={`whitespace-nowrap px-3.5 py-2.5 capitalize ${resultClass[event.result]}`}
-                  >
-                    {event.result}
-                  </td>
-                  <td className="px-3.5 py-2.5">
+                  <td className="whitespace-nowrap px-4 py-3.5">
                     <span
-                      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] uppercase tracking-wide ${severityClass[event.severity]}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] ${resultClass[event.result]}`}
+                    >
+                      {event.result === "success" ? (
+                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      ) : null}
+                      <span className="capitalize">{event.result}</span>
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] tracking-wider uppercase ${severityClass[event.severity]}`}
                     >
                       {event.severity}
                     </span>
                   </td>
-                  <td className="px-3.5 py-2.5">
+                  <td className="px-4 py-3.5">
                     <button
                       type="button"
                       onClick={() => onInspect(event)}
-                      className="rounded-lg border border-hairline bg-secondary/40 px-2.5 py-1 text-[11.5px] text-foreground/85 transition-colors hover:bg-accent/60"
+                      className="rounded-xl border border-hairline bg-secondary/35 px-3 py-1.5 text-[11.5px] font-medium text-foreground transition-all hover:bg-card hover:border-primary/40 hover:text-primary shadow-xs active:scale-95"
                     >
                       View
                     </button>
@@ -137,36 +148,32 @@ export function AuditEventsTable({ page, loading, onInspect }: Props) {
 function EmptyOrUnavailable({ page, loading }: { page: AuditEventPage; loading: boolean }) {
   if (loading) {
     return (
-      <p className="text-center text-[12.5px] text-muted-foreground">Querying audit service…</p>
+      <div className="py-8 text-center">
+        <p className="font-display text-sm font-semibold text-foreground">Querying audit service…</p>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Fetching verified audit logs from PostgreSQL.</p>
+      </div>
     );
   }
 
   const unavailable = !page.available;
 
   return (
-    <div className="mx-auto max-w-[420px] text-center">
-      <span className="mx-auto grid size-[86px] place-items-center rounded-full border border-primary/25 bg-primary/[0.07]">
+    <div className="mx-auto max-w-[440px] text-center">
+      <span className="mx-auto grid size-14 place-items-center rounded-3xl border border-primary/30 bg-primary/15 text-primary shadow-md shadow-primary/20">
         {unavailable ? (
-          <ShieldAlert className="size-9 text-primary/80" />
+          <ShieldAlert className="size-7" />
         ) : (
-          <ClipboardList className="size-9 text-primary/80" />
+          <ClipboardList className="size-7" />
         )}
       </span>
-      <h2 className="mt-3.5 font-display text-[20px] font-medium tracking-tight text-foreground">
+      <h2 className="mt-4 font-display text-lg font-bold tracking-tight text-foreground">
         No audit events available
       </h2>
       <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
         {unavailable
-          ? "Audit events will appear here once the audit service is connected and administrative or system activity is recorded."
-          : "The audit service returned no events for the current filters."}
+          ? "Audit events will appear here once administrative or system activity is recorded in the PostgreSQL database."
+          : "The audit service returned no events matching the current search filters."}
       </p>
-      <a
-        href="#"
-        className="mt-3.5 inline-flex h-9 items-center gap-2 rounded-xl border border-hairline bg-secondary/40 px-3.5 text-[12px] text-foreground/85 transition-colors hover:bg-accent/60"
-      >
-        How Audit Logs Work
-        <ExternalLink className="size-3.5" />
-      </a>
     </div>
   );
 }

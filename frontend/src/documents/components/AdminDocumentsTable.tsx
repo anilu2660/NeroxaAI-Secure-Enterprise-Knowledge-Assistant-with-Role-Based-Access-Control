@@ -176,8 +176,7 @@ function MoreActionsMenu({
 }
 
 /**
- * Presentation-only repository table. No component mutates data — actions are
- * raised to the page, which calls the service boundary.
+ * Presentation-only repository table with sliding viewport and sticky header.
  */
 export function AdminDocumentsTable({
   documents,
@@ -203,106 +202,126 @@ export function AdminDocumentsTable({
   reindexingId?: string | null;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-hairline bg-card/60 backdrop-blur-xl">
-      <div
-        className={`hidden gap-3 border-b border-hairline px-4 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground lg:grid ${gridCols}`}
-      >
-        <span>Document Name</span>
-        <span>Department</span>
-        <span>Type</span>
-        <span>Access Scope</span>
-        <span>Status</span>
-        <span>Last Updated</span>
-        <span className="text-right">Actions</span>
-      </div>
-
-      <div className="divide-y divide-hairline">
-        {documents.map((doc) => (
+    <div className="overflow-hidden rounded-3xl border border-hairline bg-card/60 shadow-xl backdrop-blur-2xl transition-all">
+      {/* Scrollable / Sliding Viewport */}
+      <div className="max-h-[500px] overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-primary/40 hover:scrollbar-thumb-primary/60 scrollbar-track-secondary/20">
+        <div className="min-w-[920px]">
+          {/* Sticky Table Header */}
           <div
-            key={doc.id}
-            className={`grid grid-cols-1 gap-2 px-4 py-2.5 transition-colors hover:bg-accent/25 lg:items-center lg:gap-3 ${gridCols}`}
+            className={`sticky top-0 z-20 grid gap-3 border-b border-hairline/80 bg-card/95 px-5 py-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground backdrop-blur-2xl ${gridCols}`}
           >
-            <div className="flex min-w-0 items-start gap-2.5">
-              <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-destructive/25 bg-destructive/10">
-                <FileText className="size-4 text-destructive" />
-                <span className="sr-only">{doc.fileKind}</span>
-              </span>
-              <span className="min-w-0">
-                <button
-                  type="button"
-                  onClick={() => onView(doc)}
-                  className="block max-w-full truncate text-left text-[12.5px] text-foreground outline-none transition-colors hover:text-primary focus-visible:text-primary"
-                >
-                  {doc.name}
-                </button>
-                <span className="block text-[11px] leading-[1.35] text-muted-foreground">
-                  {doc.description}
-                </span>
-              </span>
-            </div>
-
-            <span className="truncate text-[12px] text-foreground/85">{doc.department}</span>
-
-            <span>
-              <DocumentTypeBadge type={doc.documentType} />
-            </span>
-
-            <span>
-              <AccessScopeBadge kind={doc.accessScopeKind} label={doc.accessScopeLabel} />
-            </span>
-
-            <span>
-              <DocumentStatusBadge status={doc.status} />
-            </span>
-
-            <span className="text-[11.5px] leading-[1.35] text-muted-foreground">
-              {doc.updatedDateLabel ? (
-                <>
-                  <span className="block text-foreground/80">{doc.updatedDateLabel}</span>
-                  {doc.updatedTimeLabel ? (
-                    <span className="block">{doc.updatedTimeLabel}</span>
-                  ) : null}
-                </>
-              ) : (
-                "Unavailable"
-              )}
-            </span>
-
-            <span className="flex items-center gap-1.5 lg:justify-end">
-              {onReindex ? (
-                <IconButton
-                  label={`Re-index ${doc.name}`}
-                  onClick={() => onReindex(doc)}
-                  disabled={reindexingId === doc.id}
-                >
-                  {reindexingId === doc.id ? (
-                    <Loader2 className="size-3.5 animate-spin text-primary" />
-                  ) : (
-                    <RefreshCw className="size-3.5 text-primary/90" />
-                  )}
-                </IconButton>
-              ) : null}
-              <IconButton label={`View ${doc.name}`} onClick={() => onView(doc)}>
-                <Eye className="size-3.5" />
-              </IconButton>
-              <IconButton label={`Details for ${doc.name}`} onClick={() => onDetails(doc)}>
-                <FileText className="size-3.5" />
-              </IconButton>
-              <IconButton label={`Delete ${doc.name}`} onClick={() => onDelete(doc)}>
-                <Trash2 className="size-3.5 text-destructive" />
-              </IconButton>
-              <MoreActionsMenu
-                document={doc}
-                onReindex={onReindex ? () => onReindex(doc) : undefined}
-                onEditMetadata={() => onEditMetadata(doc)}
-                onChangeScope={() => onChangeScope(doc)}
-                onToggleArchive={() => onToggleArchive(doc)}
-                onDelete={() => onDelete(doc)}
-                onAudit={() => onAudit(doc)}
-              />
-            </span>
+            <span>Document Name</span>
+            <span>Department</span>
+            <span>Type</span>
+            <span>Access Scope</span>
+            <span>Status</span>
+            <span>Last Updated</span>
+            <span className="text-right">Actions</span>
           </div>
-        ))}
+
+          {/* Table Rows */}
+          <div className="divide-y divide-hairline/60">
+            {documents.map((doc) => (
+              <div
+                key={doc.id}
+                className={`grid grid-cols-1 gap-2.5 px-5 py-3.5 transition-all duration-200 hover:bg-primary/[0.03] lg:items-center lg:gap-3 ${gridCols}`}
+              >
+                {/* Document Name & Desc */}
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-2xl border border-rose-500/35 bg-rose-500/10 text-rose-400 shadow-xs">
+                    <FileText className="size-4.5" />
+                    <span className="sr-only">{doc.fileKind}</span>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <button
+                      type="button"
+                      onClick={() => onView(doc)}
+                      className="block max-w-full truncate text-left font-display text-[13px] font-semibold text-foreground outline-none transition-colors hover:text-primary focus-visible:text-primary"
+                    >
+                      {doc.name}
+                    </button>
+                    <span className="block truncate text-[11px] leading-relaxed text-muted-foreground">
+                      {doc.description}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Department */}
+                <div className="truncate text-[12px] font-medium text-foreground/90">
+                  {doc.department}
+                </div>
+
+                {/* Type */}
+                <div>
+                  <DocumentTypeBadge type={doc.documentType} />
+                </div>
+
+                {/* Scope */}
+                <div>
+                  <AccessScopeBadge kind={doc.accessScopeKind} label={doc.accessScopeLabel} />
+                </div>
+
+                {/* Status */}
+                <div>
+                  <DocumentStatusBadge status={doc.status} />
+                </div>
+
+                {/* Last Updated */}
+                <div className="text-[11.5px] leading-tight text-muted-foreground">
+                  {doc.updatedDateLabel ? (
+                    <>
+                      <span className="block font-medium text-foreground/80">
+                        {doc.updatedDateLabel}
+                      </span>
+                      {doc.updatedTimeLabel ? (
+                        <span className="block text-[10.5px] text-muted-foreground/80">
+                          {doc.updatedTimeLabel}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    "Unavailable"
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1.5 lg:justify-end">
+                  {onReindex ? (
+                    <IconButton
+                      label={`Re-index ${doc.name}`}
+                      onClick={() => onReindex(doc)}
+                      disabled={reindexingId === doc.id}
+                    >
+                      {reindexingId === doc.id ? (
+                        <Loader2 className="size-4 animate-spin text-primary" />
+                      ) : (
+                        <RefreshCw className="size-4 text-primary" />
+                      )}
+                    </IconButton>
+                  ) : null}
+                  <IconButton label={`View ${doc.name}`} onClick={() => onView(doc)}>
+                    <Eye className="size-4" />
+                  </IconButton>
+                  <IconButton label={`Details for ${doc.name}`} onClick={() => onDetails(doc)}>
+                    <FileText className="size-4" />
+                  </IconButton>
+                  <IconButton label={`Delete ${doc.name}`} onClick={() => onDelete(doc)}>
+                    <Trash2 className="size-4 text-destructive" />
+                  </IconButton>
+                  <MoreActionsMenu
+                    document={doc}
+                    onReindex={onReindex ? () => onReindex(doc) : undefined}
+                    onEditMetadata={() => onEditMetadata(doc)}
+                    onChangeScope={() => onChangeScope(doc)}
+                    onToggleArchive={() => onToggleArchive(doc)}
+                    onDelete={() => onDelete(doc)}
+                    onAudit={() => onAudit(doc)}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

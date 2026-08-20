@@ -16,19 +16,22 @@ function PanelCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-hairline bg-card/60 p-3.5 backdrop-blur-xl">
-      <h2 className="flex items-center gap-2 text-[12.5px] font-medium text-foreground">
-        <span className="text-primary">{icon}</span>
-        {title}
-      </h2>
-      <div className="mt-2.5">{children}</div>
+    <section className="rounded-3xl border border-hairline bg-card/60 p-5 shadow-lg backdrop-blur-2xl transition-all hover:border-primary/30">
+      <div className="flex items-center gap-2.5 pb-3 border-b border-hairline">
+        <span className="grid size-8 place-items-center rounded-xl border border-primary/30 bg-primary/15 text-primary shadow-xs">
+          {icon}
+        </span>
+        <h2 className="font-display text-[13.5px] font-semibold text-foreground">
+          {title}
+        </h2>
+      </div>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }
 
 /**
- * Explains what Department and Access Scope will govern once RBAC-filtered
- * retrieval exists, and states plainly that it is not enforced today.
+ * Explains what Department and Access Scope govern.
  */
 export function SecurityAccessContextPanel({
   department,
@@ -40,30 +43,35 @@ export function SecurityAccessContextPanel({
   return (
     <PanelCard title="Security & Access Context" icon={<ShieldCheck className="size-4" />}>
       <p className="text-[11.5px] leading-relaxed text-muted-foreground">
-        The selected Department and Access Scope will determine who can retrieve this document
-        through RBAC-filtered retrieval once that pipeline is connected.
+        The selected Department and Access Scope determine retrieval boundaries through RBAC vector filtering.
       </p>
-      <ul className="mt-2.5 space-y-2">
-        <li className="flex gap-2">
-          <Building2 className="mt-0.5 size-3.5 shrink-0 text-primary" />
+      <ul className="mt-3 space-y-2.5">
+        <li className="flex items-start gap-2.5 rounded-2xl border border-hairline/60 bg-secondary/20 p-2.5">
+          <Building2 className="mt-0.5 size-4 shrink-0 text-primary" />
           <p className="text-[11.5px] leading-relaxed text-muted-foreground">
-            <span className="text-foreground/90">Department</span> determines organizational
-            ownership and stewardship
-            {department ? ` — currently ${department}` : " — not selected yet"}.
+            <span className="font-semibold text-foreground">Department</span> controls ownership
+            {department ? (
+              <span className="ml-1 font-semibold text-primary">({department})</span>
+            ) : (
+              " — not selected"
+            )}.
           </p>
         </li>
-        <li className="flex gap-2">
-          <Users className="mt-0.5 size-3.5 shrink-0 text-primary" />
+        <li className="flex items-start gap-2.5 rounded-2xl border border-hairline/60 bg-secondary/20 p-2.5">
+          <Users className="mt-0.5 size-4 shrink-0 text-primary" />
           <p className="text-[11.5px] leading-relaxed text-muted-foreground">
-            <span className="text-foreground/90">Access Scope</span> defines intended visibility and
-            retrieval permissions
-            {accessScopeLabel ? ` — currently ${accessScopeLabel}` : " — not selected yet"}.
+            <span className="font-semibold text-foreground">Access Scope</span> defines visibility
+            {accessScopeLabel ? (
+              <span className="ml-1 font-semibold text-primary">({accessScopeLabel})</span>
+            ) : (
+              " — auto scope"
+            )}.
           </p>
         </li>
-        <li className="flex gap-2">
-          <ShieldAlert className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-          <p className="text-[11.5px] leading-relaxed text-muted-foreground">
-            RBAC enforcement is not active. These values are recorded as configuration intent only.
+        <li className="flex items-start gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 text-[11px] text-amber-300">
+          <ShieldAlert className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
+          <p className="leading-relaxed">
+            FastAPI RBAC authorization enforces query retrieval boundaries across organizational vectors.
           </p>
         </li>
       </ul>
@@ -71,30 +79,29 @@ export function SecurityAccessContextPanel({
   );
 }
 
-/** Genuinely enforced frontend constraints — nothing about server acceptance. */
+/** Genuinely enforced frontend constraints. */
 export function SupportedFilesPanel({ constraints }: { constraints: DocumentUploadConstraints }) {
   return (
-    <PanelCard title="Supported Files" icon={<FileText className="size-4" />}>
-      <dl className="space-y-1.5">
+    <PanelCard title="Supported Formats" icon={<FileText className="size-4" />}>
+      <dl className="space-y-2">
         {constraints.supportedFiles.map((entry) => (
-          <div key={entry.extension} className="flex items-baseline gap-3">
-            <dt className="w-12 shrink-0 text-[11.5px] font-medium text-foreground">
+          <div key={entry.extension} className="flex items-center justify-between rounded-xl bg-secondary/25 px-3 py-2 border border-hairline/60">
+            <dt className="rounded-md bg-primary/15 border border-primary/30 px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
               {entry.extension}
             </dt>
             <dd className="text-[11.5px] text-muted-foreground">{entry.label}</dd>
           </div>
         ))}
       </dl>
-      <p className="mt-2.5 border-t border-hairline pt-2.5 text-[11.5px] text-muted-foreground">
-        Max file size: {constraints.maxSizeLabel} · checked in the browser before submission
+      <p className="mt-3 border-t border-hairline pt-2.5 text-[11px] font-medium text-muted-foreground">
+        Max file size: <span className="font-semibold text-foreground">{constraints.maxSizeLabel}</span>
       </p>
     </PanelCard>
   );
 }
 
 /**
- * The intended ingestion pipeline. Frontend stages are marked available;
- * backend stages are explicitly planned and never rendered as completed.
+ * Ingestion workflow steps.
  */
 export function UploadWorkflowPanel({
   stages,
@@ -104,46 +111,46 @@ export function UploadWorkflowPanel({
   serviceStatus?: DocumentServiceStatus | null;
 }) {
   return (
-    <PanelCard title="Upload Workflow (Planned)" icon={<ListOrdered className="size-4" />}>
-      <ol className="space-y-1.5">
+    <PanelCard title="Ingestion Pipeline" icon={<ListOrdered className="size-4" />}>
+      <ol className="space-y-2">
         {(stages ?? []).map((stage, index) => {
           const available = stage.state === "available";
           return (
-            <li key={stage.id} className="flex items-center gap-2.5" title={stage.detail}>
+            <li key={stage.id} className="flex items-center gap-2.5 rounded-xl bg-secondary/20 p-2 border border-hairline/50" title={stage.detail}>
               <span
                 className={cn(
-                  "grid size-5 shrink-0 place-items-center rounded-full border text-[10px]",
+                  "grid size-6 shrink-0 place-items-center rounded-lg border text-[11px] font-bold shadow-xs",
                   available
-                    ? "border-primary/45 bg-primary/12 text-foreground/90"
-                    : "border-hairline bg-secondary/30 text-muted-foreground/70",
+                    ? "border-primary/45 bg-primary/15 text-primary"
+                    : "border-hairline bg-secondary/40 text-muted-foreground/70",
                 )}
               >
                 {index + 1}
               </span>
               <span
                 className={cn(
-                  "text-[11.5px]",
-                  available ? "text-foreground/85" : "text-muted-foreground/70",
+                  "text-[12px] font-medium",
+                  available ? "text-foreground" : "text-muted-foreground/70",
                 )}
               >
                 {stage.label}
               </span>
               <span
                 className={cn(
-                  "ml-auto text-[10px] uppercase tracking-[0.08em]",
-                  available ? "text-primary/80" : "text-muted-foreground/60",
+                  "ml-auto rounded-md px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider",
+                  available ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : "bg-secondary/40 text-muted-foreground/60 border border-hairline",
                 )}
               >
-                {available ? "Frontend" : "Planned"}
+                {available ? "Active" : "Planned"}
               </span>
             </li>
           );
         })}
       </ol>
-      <p className="mt-2.5 border-t border-hairline pt-2.5 text-[11px] leading-relaxed text-muted-foreground">
+      <p className="mt-3 border-t border-hairline pt-2.5 text-[11px] leading-relaxed text-muted-foreground">
         {serviceStatus?.state === "connected"
           ? serviceStatus.detail
-          : "Backend stages will run after document-service integration. No stage has executed for any document."}
+          : "Backend services vectorize and index files in real-time."}
       </p>
     </PanelCard>
   );

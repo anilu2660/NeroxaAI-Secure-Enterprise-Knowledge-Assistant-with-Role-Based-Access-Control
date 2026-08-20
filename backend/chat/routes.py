@@ -97,4 +97,6 @@ async def send_message(
         user=current_user,
         user_message=request.message,
         department_filter=request.department_filter,
+        web_search=request.web_search,
+        tool_ids=request.tool_ids,
     )

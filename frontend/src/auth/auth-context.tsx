@@ -36,13 +36,24 @@ export function AuthProvider({
 
   useEffect(() => {
     let active = true;
-    adapter.restore().then((restored) => {
-      if (!active) return;
-      setSession(restored);
-      setStatus(restored ? "authenticated" : "unauthenticated");
-    });
+    const loadSession = () => {
+      adapter.restore().then((restored) => {
+        if (!active) return;
+        setSession(restored);
+        setStatus(restored ? "authenticated" : "unauthenticated");
+      });
+    };
+
+    loadSession();
+
+    const handlePermissionsUpdated = () => {
+      loadSession();
+    };
+
+    window.addEventListener("neroxa:permissions_updated", handlePermissionsUpdated);
     return () => {
       active = false;
+      window.removeEventListener("neroxa:permissions_updated", handlePermissionsUpdated);
     };
   }, [adapter]);
 

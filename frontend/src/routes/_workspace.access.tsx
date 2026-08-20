@@ -52,62 +52,107 @@ function AccessControlPage() {
   const data = model.data;
 
   const attemptChange = async (roleKey: string, permissionKey: string) => {
-    const result = await updateRolePermission({ roleKey, permissionKey, granted: true });
-    if (!result.applied) setNotice(result.status.detail);
+    const result = await updateRolePermission({ roleKey, permissionKey });
+    setNotice(result.status.detail);
+    await model.refetch();
   };
 
   return (
-    <section className="space-y-3.5 pt-1">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="mt-1 grid size-11 shrink-0 place-items-center rounded-xl border border-primary/30 bg-primary/12">
-            <KeyRound className="size-5 text-primary" />
+    <section className="space-y-6 pb-6 pt-1">
+      {/* Header */}
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3.5">
+          <span className="mt-1 grid size-12 shrink-0 place-items-center rounded-2xl border border-primary/35 bg-primary/15 text-primary shadow-md shadow-primary/20 ring-2 ring-primary/20">
+            <KeyRound className="size-6 text-primary" />
           </span>
           <div className="min-w-0">
-            <nav className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-              <Link to="/admin" className="transition-colors hover:text-foreground">Admin Dashboard</Link>
+            <nav className="flex items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground">
+              <Link to="/admin" className="transition-colors hover:text-primary">
+                Admin Dashboard
+              </Link>
               <ChevronRight className="size-3" />
-              <span className="text-foreground/80">Access Control</span>
+              <span className="text-foreground/90 font-semibold">Access Control</span>
             </nav>
-            <h1 className="mt-1 font-display text-[27px] font-medium tracking-tight text-foreground">Access Control</h1>
-            <p className="mt-0.5 max-w-[680px] text-[12.5px] leading-relaxed text-muted-foreground">
-              Define who can access knowledge, administrative capabilities, and protected resources{admin ? ` · reviewed as ${admin.name}, ${admin.department}` : ""}.
+            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Access Control &amp; RBAC
+            </h1>
+            <p className="mt-1 max-w-[680px] text-[12.5px] leading-relaxed text-muted-foreground">
+              Define who can access enterprise knowledge, administrative capabilities, and protected resources
+              {admin ? ` · reviewed as ${admin.name}, ${admin.department}` : ""}.
             </p>
           </div>
         </div>
-        <span className="flex h-10 items-center gap-2 rounded-xl border border-hairline bg-secondary/40 px-3.5 text-[12.5px] text-muted-foreground">
-          <ShieldCheck className="size-4 text-primary/80" /> RBAC Policy Surface
+        <span className="flex h-10 items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 text-[12px] font-semibold text-emerald-400 shadow-xs">
+          <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+          RBAC Policy Engine Active
         </span>
       </header>
 
-      <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-        <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/[0.06] p-3.5 backdrop-blur-xl">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-primary/25 bg-primary/[0.08]"><Info className="size-4 text-primary" /></span>
+      {/* Top Banner Grid */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <div className="flex items-start gap-3.5 rounded-3xl border border-primary/20 bg-gradient-to-br from-card/85 via-card/50 to-primary/[0.04] p-5 shadow-lg backdrop-blur-2xl">
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-primary/15 text-primary shadow-xs">
+            <Info className="size-5" />
+          </span>
           <div>
-            <p className="text-[12.5px] text-foreground">Policy resolution is evaluated before knowledge retrieval.</p>
-            <p className="mt-0.5 text-[11.5px] leading-relaxed text-muted-foreground">Role → department → access scope → resource permission. Deny by default when a required policy decision is unavailable.</p>
+            <p className="font-display text-[13.5px] font-semibold text-foreground">
+              Policy resolution is evaluated before knowledge retrieval.
+            </p>
+            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+              Role &rarr; department &rarr; access scope &rarr; resource permission. Deny by default when a required policy decision is unavailable.
+            </p>
           </div>
         </div>
-        <div className="rounded-2xl border border-hairline bg-card/55 p-3.5 backdrop-blur-xl">
-          <div className="flex items-center gap-2"><ShieldCheck className="size-4 text-primary" /><span className="text-[12px] font-medium text-foreground">Current policy state</span></div>
-          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{data?.status?.detail ?? "Loading the current role and permission model…"}</p>
+
+        <div className="flex items-start gap-3.5 rounded-3xl border border-hairline bg-card/60 p-5 shadow-lg backdrop-blur-2xl">
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-emerald-500/30 bg-emerald-500/15 text-emerald-400 shadow-xs">
+            <ShieldCheck className="size-5" />
+          </span>
+          <div>
+            <p className="font-display text-[13.5px] font-semibold text-foreground">
+              Current Policy State
+            </p>
+            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+              {data?.status?.detail ?? "FastAPI RBAC middleware actively enforces role & department query boundaries."}
+            </p>
+          </div>
         </div>
       </div>
 
-      {notice ? <p role="status" className="rounded-xl border border-hairline bg-card/55 px-3.5 py-2.5 text-[12px] text-muted-foreground">{notice}</p> : null}
+      {notice ? (
+        <div className="flex items-center gap-2.5 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-[12px] font-medium text-primary backdrop-blur-md">
+          <Info className="size-4 shrink-0" />
+          <span>{notice}</span>
+        </div>
+      ) : null}
 
+      {/* Resolution Chain */}
       <AccessResolutionChain steps={data?.resolutionChain ?? []} />
+
+      {/* Role Overview */}
       <RoleOverviewCards roles={data?.roles ?? []} loading={loading} />
 
-      <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-[13px] text-foreground">Permission matrix</h2>
-            <span className="rounded-full border border-hairline bg-secondary/35 px-2.5 py-1 text-[10px] text-muted-foreground">Least privilege</span>
+      {/* Permission Matrix & Side Panels */}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+            <div>
+              <h2 className="font-display text-sm font-semibold text-foreground">Permission Matrix</h2>
+              <p className="text-[11px] text-muted-foreground">Toggle workspace &amp; administrative capabilities per role</p>
+            </div>
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10.5px] font-bold text-primary">
+              Principle of Least Privilege
+            </span>
           </div>
-          <PermissionMatrix roles={data?.roles ?? []} permissions={data?.permissions ?? []} loading={loading} onAttemptChange={attemptChange} />
+          <PermissionMatrix
+            roles={data?.roles ?? []}
+            permissions={data?.permissions ?? []}
+            loading={loading}
+            onAttemptChange={attemptChange}
+          />
         </div>
-        <div className="space-y-3.5">
+
+        <div className="space-y-4">
           <AccessScopePanel scopes={data?.accessScopes ?? []} loading={loading} />
           <DepartmentPanel departments={data?.departments ?? []} loading={loading} />
           <RelatedSurfacesPanel />

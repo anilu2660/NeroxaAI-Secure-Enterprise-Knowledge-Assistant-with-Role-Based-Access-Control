@@ -40,31 +40,35 @@ const controls = [
 
 export function AdminControlsPanel() {
   return (
-    <section className="rounded-2xl border border-hairline bg-card/60 p-4 backdrop-blur-xl">
-      <h2 className="font-display text-[15px] font-medium tracking-tight text-foreground">
-        Administrative Controls
-      </h2>
-      <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-        Core administrative functions and governance
-      </p>
+    <section className="rounded-3xl border border-hairline bg-card/60 p-5 shadow-lg backdrop-blur-2xl transition-all hover:border-primary/30">
+      <div className="pb-3 border-b border-hairline">
+        <h2 className="font-display text-sm font-semibold tracking-tight text-foreground">
+          Administrative Controls
+        </h2>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          Core administrative functions &amp; workspace governance
+        </p>
+      </div>
 
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-3.5 space-y-2.5">
         {controls.map((control) => (
           <li key={control.to}>
             <Link
               to={control.to}
-              className="group flex items-start gap-3 rounded-xl border border-hairline bg-secondary/25 px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              className="group flex items-center gap-3.5 rounded-2xl border border-hairline bg-secondary/25 p-3 transition-all duration-200 hover:border-primary/40 hover:bg-secondary/50 shadow-xs"
             >
-              <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-hairline bg-card/70 text-primary">
-                <control.icon className="size-4" />
+              <span className="grid size-9.5 shrink-0 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary transition-transform group-hover:scale-105">
+                <control.icon className="size-4.5" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[12.5px] text-foreground">{control.label}</span>
-                <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">
+                <span className="block truncate font-display text-[13px] font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {control.label}
+                </span>
+                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                   {control.description}
                 </span>
               </span>
-              <ChevronRight className="mt-1.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
             </Link>
           </li>
         ))}

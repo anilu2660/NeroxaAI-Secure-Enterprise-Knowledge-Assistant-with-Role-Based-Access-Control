@@ -55,3 +55,5 @@ class SendChatMessageRequest(BaseModel):
     session_id: str = Field(..., description="Target chat session ID.")
     message: str = Field(..., description="User message/query.")
     department_filter: str | None = Field(default=None, description="Optional department filter.")
+    web_search: bool = Field(default=False, description="Explicitly route query to live web search.")
+    tool_ids: list[str] = Field(default_factory=list, description="Enabled assistant tool IDs.")

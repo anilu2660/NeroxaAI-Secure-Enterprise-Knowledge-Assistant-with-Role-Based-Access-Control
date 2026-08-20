@@ -135,6 +135,19 @@ def _ensure_user_approval_columns() -> None:
         logger.error("Failed to upgrade users schema: %s", str(e))
 
 
+def _ensure_user_avatar_column() -> None:
+    """Idempotently add avatar_url column to users table."""
+    try:
+        inspector = inspect(engine)
+        columns = {column["name"] for column in inspector.get_columns("users")}
+        if "avatar_url" not in columns:
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_url TEXT;"))
+                logger.info("Added users.avatar_url column.")
+    except Exception as e:
+        logger.error("Failed to upgrade users.avatar_url schema: %s", str(e))
+
+
 def init_db() -> None:
     """Create tables, apply small compatibility upgrades, and seed initial data."""
     try:
@@ -143,6 +156,7 @@ def init_db() -> None:
         Base.metadata.create_all(bind=engine)
         _ensure_chat_message_metadata_column()
         _ensure_user_approval_columns()
+        _ensure_user_avatar_column()
         logger.info("Database tables initialized successfully.")
 
         db = SessionLocal()

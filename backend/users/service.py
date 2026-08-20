@@ -52,6 +52,8 @@ class UserService:
             user.is_approved = update_data.is_approved
             if update_data.is_approved and user.requested_role_id:
                 user.role_id = user.requested_role_id
+        if update_data.avatar_url is not None:
+            user.avatar_url = update_data.avatar_url or None
         if update_data.is_active is not None:
             user.is_active = update_data.is_active
 

@@ -22,9 +22,9 @@ export function PermissionMatrix({
 }) {
   if (loading) {
     return (
-      <div className="space-y-2 rounded-2xl border border-hairline bg-card/55 p-3.5">
+      <div className="space-y-2 rounded-3xl border border-hairline bg-card/55 p-4">
         {[0, 1, 2, 3, 4].map((row) => (
-          <div key={row} className="h-9 animate-pulse rounded-xl bg-secondary/40" />
+          <div key={row} className="h-10 animate-pulse rounded-2xl bg-secondary/40" />
         ))}
       </div>
     );
@@ -32,9 +32,9 @@ export function PermissionMatrix({
 
   if (roles.length === 0 || permissions.length === 0) {
     return (
-      <div className="grid place-items-center rounded-2xl border border-hairline bg-card/55 px-6 py-14 text-center">
-        <ShieldCheck className="size-6 text-muted-foreground" />
-        <p className="mt-2 text-[13px] text-foreground">No role definitions available</p>
+      <div className="grid place-items-center rounded-3xl border border-hairline bg-card/55 px-6 py-14 text-center">
+        <ShieldCheck className="size-8 text-muted-foreground" />
+        <p className="mt-3 font-display text-sm font-semibold text-foreground">No role definitions available</p>
         <p className="mt-1 max-w-[420px] text-[12px] leading-relaxed text-muted-foreground">
           Roles and permissions will be listed here once the access control service returns the
           organization&apos;s definitions.
@@ -44,24 +44,24 @@ export function PermissionMatrix({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-hairline bg-card/55 backdrop-blur-xl">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-hairline">
-              <th className="px-3.5 py-2.5 text-[10.5px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                Capability
+    <div className="overflow-hidden rounded-3xl border border-hairline bg-card/60 shadow-xl backdrop-blur-2xl transition-all">
+      <div className="overflow-x-auto max-h-[560px] scrollbar-thin scrollbar-thumb-primary/40 scrollbar-track-secondary/20">
+        <table className="w-full min-w-[680px] border-collapse text-left">
+          <thead className="sticky top-0 z-20 border-b border-hairline/80 bg-card/95 backdrop-blur-2xl">
+            <tr>
+              <th className="px-4 py-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
+                Capability &amp; Scope
               </th>
               {roles.map((role) => (
                 <th
                   key={role.key}
-                  className="w-[132px] px-3.5 py-2.5 text-[10.5px] font-medium uppercase tracking-[0.1em] text-muted-foreground"
+                  className="w-[145px] px-4 py-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground"
                 >
-                  <span className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-1.5 font-display font-semibold text-foreground">
                     {role.key === "ADMIN" ? (
-                      <ShieldCheck className="size-3.5 text-primary" />
+                      <ShieldCheck className="size-4 text-primary" />
                     ) : (
-                      <User className="size-3.5" />
+                      <User className="size-4 text-sky-400" />
                     )}
                     {role.label}
                   </span>
@@ -69,68 +69,69 @@ export function PermissionMatrix({
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-hairline/60">
             {groupOrder.map((group) => {
-              const rows = permissions.filter((permission) => permission.group === group);
+              const rows = permissions.filter(
+                (permission) =>
+                  permission.group === group &&
+                  permission.key !== "access:manage" &&
+                  permission.label !== "Access Control",
+              );
               if (rows.length === 0) return null;
               return (
                 <Fragment key={group}>
-                  <tr className="border-b border-hairline bg-secondary/25">
+                  <tr className="border-b border-hairline bg-secondary/35">
                     <td
                       colSpan={roles.length + 1}
-                      className="px-3.5 py-1.5 text-[10.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
+                      className="px-4 py-2 text-[10.5px] font-bold uppercase tracking-wider text-primary"
                     >
-                      {group}
+                      {group} Capabilities
                     </td>
                   </tr>
                   {rows.map((permission) => (
                     <tr
                       key={permission.key}
-                      className="border-b border-hairline/70 last:border-b-0"
+                      className="transition-all duration-150 hover:bg-primary/[0.03]"
                     >
-                      <td className="px-3.5 py-2.5">
-                        <p className="flex items-center gap-1.5 text-[12.5px] text-foreground">
+                      <td className="px-4 py-3">
+                        <p className="flex items-center gap-2 font-display text-[13px] font-semibold text-foreground">
                           {permission.label}
                           {permission.adminOnly ? (
-                            <Lock
-                              className="size-3 text-primary/80"
-                              aria-label="Administrative capability"
-                            />
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 border border-primary/30 px-2 py-0.2 text-[9.5px] font-bold text-primary">
+                              <Lock className="size-3" />
+                              Admin only
+                            </span>
                           ) : null}
                         </p>
-                        <p className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground">
+                        <p className="mt-0.5 text-[11.5px] leading-relaxed text-muted-foreground">
                           {permission.description}
                         </p>
                       </td>
                       {roles.map((role) => {
                         const granted = role.permissions.includes(permission.key);
-                        const blocked = permission.adminOnly && role.key !== "ADMIN";
                         return (
-                          <td key={role.key} className="px-3.5 py-2.5 align-middle">
+                          <td key={role.key} className="px-4 py-3 align-middle">
                             <button
                               type="button"
-                              disabled={blocked}
                               onClick={() => onAttemptChange(role.key, permission.key)}
                               title={
-                                blocked
-                                  ? "Administrative capability — never granted to standard users"
-                                  : "Changes will be available when the authorization service is configured"
+                                granted
+                                  ? `Click to toggle '${permission.label}' for ${role.label}`
+                                  : `Click to grant '${permission.label}' for ${role.label}`
                               }
                               aria-label={`${permission.label} for ${role.label}`}
-                              className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11.5px] transition-colors ${
-                                blocked
-                                  ? "cursor-not-allowed border-hairline bg-secondary/25 text-muted-foreground/70"
-                                  : granted
-                                    ? "border-primary/30 bg-primary/[0.12] text-foreground hover:bg-primary/20"
-                                    : "border-hairline bg-secondary/35 text-muted-foreground hover:bg-accent/50"
+                              className={`flex items-center gap-1.5 rounded-2xl border px-3 py-1.5 text-[11.5px] font-semibold transition-all duration-200 active:scale-95 shadow-xs ${
+                                granted
+                                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 ring-1 ring-emerald-500/20"
+                                  : "border-hairline bg-secondary/35 text-muted-foreground/80 hover:border-hairline/80 hover:bg-secondary/60 hover:text-foreground"
                               }`}
                             >
                               {granted ? (
-                                <Check className="size-3.5 text-primary" />
+                                <Check className="size-3.5 text-emerald-400 stroke-[2.5]" />
                               ) : (
                                 <Minus className="size-3.5" />
                               )}
-                              {granted ? "Allowed" : blocked ? "Not applicable" : "Not allowed"}
+                              {granted ? "Allowed" : "Not allowed"}
                             </button>
                           </td>
                         );

@@ -1,43 +1,66 @@
 import type { AssistantToolOption } from "@/api/types";
 
 /**
- * Assistant tool catalog — product configuration for FUTURE backend tools.
- *
- * Nothing here executes: there is no retrieval service, no web-search
- * provider, and no OCR pipeline in this codebase. Every entry is therefore
- * marked `available: false` so the UI can show "Prototype" honestly. The
- * user's selection is still real controlled state and is passed through
- * `askAssistant()` so a future backend can consume it unchanged.
+ * Assistant tool catalog — configurable search & AI capabilities.
  */
 export const assistantTools: AssistantToolOption[] = [
   {
     id: "web-search",
     label: "Web search",
-    detail: "Search public web sources",
-    available: false,
-  },
-  {
-    id: "document-retrieval",
-    label: "Document retrieval",
-    detail: "Authorized knowledge-base lookup",
-    available: false,
+    detail: "Live SerpAPI Google search engine",
+    available: true,
   },
   {
     id: "citations",
     label: "Source citations",
-    detail: "Attach grounded source references",
-    available: false,
+    detail: "Attach grounded source references & snippets",
+    available: true,
+  },
+  {
+    id: "chart-generator",
+    label: "Charts & Tables",
+    detail: "Interactive visual charts & data visualizer",
+    available: true,
+  },
+  {
+    id: "executive-summary",
+    label: "Executive Summary",
+    detail: "TL;DR concise key takeaways & decisions",
+    available: true,
+  },
+  {
+    id: "compliance-checker",
+    label: "Policy Compliance",
+    detail: "Audit scenarios against internal rules & gates",
+    available: true,
+  },
+  {
+    id: "action-planner",
+    label: "Action Planner",
+    detail: "Extract structured checklists, deadlines & tasks",
+    available: true,
+  },
+  {
+    id: "calculator",
+    label: "Math & Calculator",
+    detail: "Deterministic computational solver",
+    available: true,
+  },
+  {
+    id: "sql-generator",
+    label: "SQL & Code Generator",
+    detail: "Generate schema-valid queries & technical scripts",
+    available: true,
   },
   {
     id: "file-analysis",
     label: "Attachment analysis",
     detail: "Read attached documents and images",
-    available: false,
+    available: true,
   },
 ];
 
-/** Tool ids enabled by default — none, because no tool is connected. */
-export const defaultToolIds: string[] = [];
+export const defaultToolIds: string[] = ["citations"];
 
 /** File types the composer accepts for attachments. */
 export const acceptedDocumentTypes = ".pdf,.doc,.docx,.txt,.md,.csv,.xlsx,.pptx";

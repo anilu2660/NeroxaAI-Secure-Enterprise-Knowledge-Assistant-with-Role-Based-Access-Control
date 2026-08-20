@@ -26,7 +26,7 @@ export const workspaceNavigation: WorkspaceNavItem[] = [
   { to: "/access", label: "Access Control", icon: KeyRound, permission: "access:manage", section: "workspace" },
   { to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard, permission: "users:manage", section: "administration" },
   { to: "/users", label: "User Management", icon: Users, permission: "users:manage", section: "administration" },
-  { to: "/admin/documents", label: "Document Management", icon: FolderCog, permission: "documents:upload", section: "administration" },
+  { to: "/admin/documents", label: "Document Management", icon: FolderCog, permission: "documents:manage", section: "administration" },
   { to: "/upload", label: "Upload Document", icon: UploadCloud, permission: "documents:upload", section: "administration" },
   { to: "/audit", label: "Audit Logs", icon: ScrollText, permission: "audit:read", section: "administration" },
 ];

@@ -10,16 +10,27 @@ export function AdminSecurityCard({ context }: { context: AdminSecurityContext |
   if (!context) return null;
 
   return (
-    <section className="flex items-start gap-3 rounded-2xl border border-hairline bg-card/60 p-3.5 backdrop-blur-xl">
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-hairline bg-secondary/40 text-primary">
-        <ShieldCheck className="size-4" />
+    <section className="flex items-start gap-3.5 rounded-3xl border border-hairline bg-card/60 p-4 shadow-lg backdrop-blur-2xl transition-all hover:border-primary/30">
+      <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-primary/15 text-primary shadow-xs">
+        <ShieldCheck className="size-5" />
       </span>
-      <div className="min-w-0">
-        <p className="truncate text-[12.5px] text-foreground">{context.title}</p>
-        <ul className="mt-1 space-y-0.5 text-[11px] leading-relaxed text-muted-foreground">
-          <li>{context.roleStateLabel}</li>
-          <li>{context.enforcementLabel}</li>
-          <li>{context.auditingLabel}</li>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-display text-[13.5px] font-semibold text-foreground">
+          {context.title}
+        </p>
+        <ul className="mt-1.5 space-y-1 text-[11px] leading-relaxed text-muted-foreground">
+          <li className="flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-emerald-400" />
+            {context.roleStateLabel}
+          </li>
+          <li className="flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-emerald-400" />
+            {context.enforcementLabel}
+          </li>
+          <li className="flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-emerald-400" />
+            {context.auditingLabel}
+          </li>
         </ul>
       </div>
     </section>

@@ -3,22 +3,22 @@ import type { Role } from "@/auth/types";
 import { cn } from "@/shared/utils/utils";
 
 const roleTone: Record<Role, string> = {
-  ADMIN: "border-primary/40 bg-primary/12 text-primary",
-  USER: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+  ADMIN: "border-primary/40 bg-primary/15 text-primary font-bold shadow-xs",
+  USER: "border-sky-500/35 bg-sky-500/12 text-sky-400 font-semibold shadow-xs",
 };
 
 const statusTone: Record<ManagedUserStatus, string> = {
-  active: "border-allowed/30 bg-allowed/10 text-allowed",
-  inactive: "border-amber-400/30 bg-amber-400/10 text-amber-300",
-  disabled: "border-destructive/35 bg-destructive/10 text-destructive",
-  pending_approval: "border-purple-400/30 bg-purple-400/10 text-purple-300",
+  active: "border-emerald-500/35 bg-emerald-500/12 text-emerald-400 font-medium shadow-xs",
+  inactive: "border-amber-500/35 bg-amber-500/12 text-amber-400 font-medium shadow-xs",
+  disabled: "border-rose-500/35 bg-rose-500/12 text-rose-400 font-medium shadow-xs",
+  pending_approval: "border-purple-500/35 bg-purple-500/12 text-purple-400 font-medium shadow-xs",
 };
 
 const statusDot: Record<ManagedUserStatus, string> = {
-  active: "bg-allowed",
+  active: "bg-emerald-400 animate-pulse",
   inactive: "bg-amber-400",
-  disabled: "bg-destructive",
-  pending_approval: "bg-purple-400",
+  disabled: "bg-rose-400",
+  pending_approval: "bg-purple-400 animate-pulse",
 };
 
 export const statusLabel: Record<ManagedUserStatus, string> = {
@@ -32,7 +32,7 @@ export function RoleBadge({ role }: { role: Role }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-md border px-2 py-0.5 text-[10.5px] font-medium tracking-wide",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] tracking-wider uppercase",
         roleTone[role],
       )}
     >
@@ -45,7 +45,7 @@ export function StatusBadge({ status }: { status: ManagedUserStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px]",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px]",
         statusTone[status],
       )}
     >

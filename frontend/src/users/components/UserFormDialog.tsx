@@ -6,7 +6,7 @@ import { statusLabel } from "./UserBadges";
 import { cn } from "@/shared/utils/utils";
 
 const fieldClass =
-  "h-10 w-full rounded-xl border border-hairline bg-secondary/35 px-3 text-[12.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/80 focus-visible:border-primary/60";
+  "h-10.5 w-full rounded-2xl border border-hairline bg-secondary/30 px-3.5 text-[12.5px] text-foreground outline-none transition-all placeholder:text-muted-foreground/70 hover:border-primary/40 focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring shadow-xs";
 
 const emptyDraft: ManagedUserDraft = {
   name: "",
@@ -19,9 +19,7 @@ const emptyDraft: ManagedUserDraft = {
 };
 
 /**
- * Create/edit form. It only builds a draft and hands it to the page, which
- * calls the service boundary — the future POST/PATCH endpoint replaces that
- * call with no change here.
+ * Create/edit form.
  */
 export function UserFormDialog({
   open,
@@ -90,14 +88,16 @@ export function UserFormDialog({
       title={mode === "create" ? "Add User" : "Edit User"}
       description={
         mode === "create"
-          ? "Define the account identity, role, department, and knowledge access scope."
+          ? "Define account identity, role, department, and knowledge access scope."
           : "Update identity, role, department, status, and knowledge access scope."
       }
       onClose={onClose}
     >
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3.5 sm:grid-cols-2">
         <label className="space-y-1.5">
-          <span className="block text-[11.5px] text-muted-foreground">Full name</span>
+          <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Full name
+          </span>
           <input
             className={fieldClass}
             value={draft.name}
@@ -106,7 +106,9 @@ export function UserFormDialog({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="block text-[11.5px] text-muted-foreground">Work email</span>
+          <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Work email
+          </span>
           <input
             className={fieldClass}
             value={draft.email}
@@ -115,7 +117,9 @@ export function UserFormDialog({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="block text-[11.5px] text-muted-foreground">Role</span>
+          <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Role
+          </span>
           <select
             className={fieldClass}
             value={draft.role}
@@ -126,7 +130,9 @@ export function UserFormDialog({
           </select>
         </label>
         <label className="space-y-1.5">
-          <span className="block text-[11.5px] text-muted-foreground">Department</span>
+          <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Department
+          </span>
           <select
             className={fieldClass}
             value={draft.department}
@@ -141,7 +147,9 @@ export function UserFormDialog({
           </select>
         </label>
         <label className="space-y-1.5">
-          <span className="block text-[11.5px] text-muted-foreground">Organization</span>
+          <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Organization
+          </span>
           <input
             className={fieldClass}
             value={draft.organization}
@@ -150,7 +158,9 @@ export function UserFormDialog({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="block text-[11.5px] text-muted-foreground">Status</span>
+          <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Status
+          </span>
           <select
             className={fieldClass}
             value={draft.status}
@@ -167,9 +177,11 @@ export function UserFormDialog({
         </label>
       </div>
 
-      <div className="mt-3.5">
-        <span className="block text-[11.5px] text-muted-foreground">Knowledge access scope</span>
-        <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="mt-4">
+        <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Knowledge access scope
+        </span>
+        <div className="mt-2 flex flex-wrap gap-2">
           {accessScopes.map((scope) => {
             const selected = draft.accessScope.includes(scope);
             return (
@@ -178,10 +190,10 @@ export function UserFormDialog({
                 type="button"
                 onClick={() => toggleScope(scope)}
                 className={cn(
-                  "rounded-lg border px-2.5 py-1 text-[11.5px] transition-colors",
+                  "rounded-xl border px-3 py-1.5 text-[11.5px] font-medium transition-all duration-200 shadow-xs",
                   selected
-                    ? "border-primary/45 bg-primary/12 text-primary"
-                    : "border-hairline bg-secondary/35 text-foreground/75 hover:bg-accent/50",
+                    ? "border-primary/50 bg-primary/15 text-primary shadow-sm shadow-primary/20"
+                    : "border-hairline bg-secondary/35 text-foreground/75 hover:bg-secondary/60 hover:border-primary/40",
                 )}
               >
                 {scope}
@@ -191,19 +203,18 @@ export function UserFormDialog({
         </div>
       </div>
 
-      <p className="mt-3.5 flex items-start gap-2 rounded-xl border border-hairline bg-secondary/25 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-        <Info className="mt-0.5 size-3.5 shrink-0" />
-        No identity backend is connected. Submitting records this account in the current browser
-        session only — nothing is saved to a database and no permissions are enforced server-side.
+      <p className="mt-4 flex items-start gap-2.5 rounded-2xl border border-hairline bg-secondary/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
+        <Info className="mt-0.5 size-4 shrink-0 text-primary" />
+        Role assignment and department membership determine the automated retrieval boundaries across organizational vectors.
       </p>
 
-      {error ? <p className="mt-2 text-[11.5px] text-destructive">{error}</p> : null}
+      {error ? <p className="mt-2.5 text-[12px] font-medium text-destructive">{error}</p> : null}
 
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-5 flex justify-end gap-2.5">
         <button
           type="button"
           onClick={onClose}
-          className="h-9 rounded-xl border border-hairline bg-secondary/40 px-3.5 text-[12.5px] text-foreground/85 transition-colors hover:bg-accent/60"
+          className="h-10 rounded-2xl border border-hairline bg-secondary/40 px-4 text-[12px] font-medium text-foreground transition-all hover:bg-secondary/70"
         >
           Cancel
         </button>
@@ -211,7 +222,7 @@ export function UserFormDialog({
           type="button"
           onClick={submit}
           disabled={submitting}
-          className="h-9 rounded-xl bg-primary px-4 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="h-10 rounded-2xl bg-gradient-to-r from-primary via-purple-500 to-primary px-5 text-[12px] font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all hover:brightness-110 disabled:opacity-50"
         >
           {mode === "create" ? "Add user" : "Save changes"}
         </button>
@@ -225,7 +236,7 @@ export function ModalShell({
   description,
   onClose,
   children,
-  width = "max-w-[560px]",
+  width = "max-w-[580px]",
 }: {
   title: string;
   description?: string;
@@ -247,20 +258,20 @@ export function ModalShell({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity"
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "relative max-h-[88svh] w-full overflow-y-auto rounded-2xl border border-hairline bg-card/95 p-5 shadow-menu backdrop-blur-xl",
+          "relative max-h-[88svh] w-full overflow-y-auto rounded-3xl border border-hairline/80 bg-card/95 p-6 shadow-2xl backdrop-blur-2xl transition-all",
           width,
         )}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 pb-3 border-b border-hairline/60">
           <div>
-            <h2 className="font-display text-[16px] font-medium tracking-tight text-foreground">
+            <h2 className="font-display text-base font-bold tracking-tight text-foreground">
               {title}
             </h2>
             {description ? (
@@ -271,9 +282,9 @@ export function ModalShell({
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="grid size-7 shrink-0 place-items-center rounded-lg border border-hairline bg-secondary/40 text-foreground/75 transition-colors hover:bg-accent/70"
+            className="grid size-8 shrink-0 place-items-center rounded-xl border border-hairline/70 bg-secondary/35 text-muted-foreground transition-all hover:border-primary/40 hover:bg-card hover:text-foreground"
           >
-            <X className="size-3.5" />
+            <X className="size-4" />
           </button>
         </div>
         <div className="mt-4">{children}</div>
