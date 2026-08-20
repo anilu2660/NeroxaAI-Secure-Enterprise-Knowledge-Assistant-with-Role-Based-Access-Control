@@ -85,8 +85,8 @@ class RAGService:
             expansions.append("travel policy expense reimbursement claims submission per diem lodging transport")
 
         # HR & People Operations domains
-        if any(term in q_lower for term in ("hr", "leave", "vacation", "holiday", "sick leave", "maternity", "paternity", "absence", "attendance")):
-            expansions.append("human resources HR leave policy vacation absence attendance benefits entitlements")
+        if any(term in q_lower for term in ("hr", "human resource", "leave", "vacation", "holiday", "sick leave", "maternity", "paternity", "absence", "attendance", "labor", "labour", "law", "laws", "policy", "policies", "employment")):
+            expansions.append("human resources HR leave policy policies vacation absence attendance benefits entitlements labor laws employment regulations compliance guidelines")
 
         # Security & IT domains
         if any(term in q_lower for term in ("security", "cyber", "confidential", "data protection", "access control", "password", "authentication")):
@@ -275,6 +275,7 @@ class RAGService:
             "sources": sources,
             "model": llm_response["model"],
             "chunks_retrieved": chunks_retrieved,
+            "context_chunks": context_chunks if not is_insufficient else [],
             "cached": False,
         }
 

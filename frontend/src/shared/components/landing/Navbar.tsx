@@ -24,6 +24,7 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { Button } from "@/shared/components/ui/button";
 import { ShimmerButton } from "@/shared/components/magicui/shimmer-button";
+import { ThemeToggle } from "@/shared/components/ui/ThemeToggle";
 
 export function Navbar() {
   const { session, signOut } = useAuth();
@@ -185,6 +186,8 @@ export function Navbar() {
               </ShimmerButton>
             </>
           )}
+
+          <ThemeToggle />
 
           <Button variant="ghost" asChild className="hidden sm:inline-flex text-[13.5px]">
             <a href="#contact">Contact</a>

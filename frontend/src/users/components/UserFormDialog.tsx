@@ -15,7 +15,7 @@ const emptyDraft: ManagedUserDraft = {
   department: "",
   organization: "NeroxaAI",
   status: "active",
-  accessScope: ["General Knowledge"],
+  accessScope: [],
 };
 
 /**
@@ -46,6 +46,8 @@ export function UserFormDialog({
   useEffect(() => {
     if (!open) return;
     setError(null);
+    const defaultDept = departments[0] ?? "";
+    const initialScope = defaultDept ? [`${defaultDept} Knowledge`] : [];
     setDraft(
       user
         ? {
@@ -55,9 +57,9 @@ export function UserFormDialog({
             department: user.department,
             organization: user.organization,
             status: user.status,
-            accessScope: [...user.accessScope],
+            accessScope: Array.from(new Set(user.accessScope)),
           }
-        : { ...emptyDraft, department: departments[0] ?? "" },
+        : { ...emptyDraft, department: defaultDept, accessScope: initialScope },
     );
   }, [open, user, departments]);
 
@@ -136,7 +138,18 @@ export function UserFormDialog({
           <select
             className={fieldClass}
             value={draft.department}
-            onChange={(event) => setDraft({ ...draft, department: event.target.value })}
+            onChange={(event) => {
+              const newDept = event.target.value;
+              setDraft((prev) => {
+                const prevDeptScope = prev.department ? `${prev.department} Knowledge` : "";
+                const retainedScopes = prev.accessScope.filter((s) => s !== prevDeptScope);
+                const newDeptScope = newDept ? `${newDept} Knowledge` : "";
+                const updatedScopes = newDeptScope
+                  ? Array.from(new Set([newDeptScope, ...retainedScopes]))
+                  : retainedScopes;
+                return { ...prev, department: newDept, accessScope: updatedScopes };
+              });
+            }}
           >
             <option value="">Select department</option>
             {departments.map((value) => (

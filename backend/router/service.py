@@ -211,8 +211,21 @@ User query:
             decision = QueryRoutingDecision.model_validate(json.loads(match.group(0)))
 
             if decision.category == QueryCategory.CURRENT_INFORMATION or decision.route == QueryRoute.WEB:
-                decision.requires_web = True
-                decision.requires_rag = False
+                enterprise_terms = {
+                    "company", "enterprise", "internal", "employee", "policy", "policies",
+                    "procedure", "finance", "hr", "payroll", "leave", "department",
+                    "invoice", "budget", "compliance", "audit", "document", "handbook",
+                    "guideline", "approval", "benefit", "reimbursement", "travel",
+                    "organization", "portal", "salary", "onboarding", "our",
+                }
+                words = set(re.findall(r"[a-z0-9']+", query.lower()))
+                if bool(words & enterprise_terms):
+                    decision.route = QueryRoute.HYBRID
+                    decision.requires_web = True
+                    decision.requires_rag = True
+                else:
+                    decision.requires_web = True
+                    decision.requires_rag = False
             elif decision.category == QueryCategory.INTERNAL_KNOWLEDGE or decision.route == QueryRoute.ENTERPRISE:
                 decision.requires_rag = True
                 decision.requires_web = False

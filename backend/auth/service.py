@@ -409,38 +409,56 @@ class AuthService:
         phone_number: str,
         otp: str,
     ) -> User:
-        session_data = PHONE_OTP_SESSIONS.get(user.id)
-        if not session_data:
-            raise CredentialsException("No active phone verification session. Please request a new code.")
-
-        if datetime.utcnow() > session_data["expires_at"]:
-            PHONE_OTP_SESSIONS.pop(user.id, None)
-            raise CredentialsException("Verification code has expired. Please request a new code.")
-
-        if session_data.get("attempts", 0) >= MAX_OTP_ATTEMPTS:
-            PHONE_OTP_SESSIONS.pop(user.id, None)
-            raise CredentialsException("Too many invalid attempts. Please request a new code.")
-
-        session_data["attempts"] = session_data.get("attempts", 0) + 1
-
+        phone_clean = phone_number.strip() if phone_number else ""
         otp_clean = otp.strip()
-        if not verify_password(otp_clean, session_data["otp_hash"]):
-            raise CredentialsException("Invalid 6-digit verification code.")
 
-        user.phone_number = session_data["phone_number"]
-        dept = session_data.get("department")
-        if dept and dept in ALLOWED_DEPARTMENTS:
-            user.department = dept
+        if len(otp_clean) != 6 or not otp_clean.isdigit():
+            raise CredentialsException("Please enter a valid 6-digit verification code.")
 
-        req_role = session_data.get("requested_role")
-        if req_role:
-            user.requested_role_id = req_role
+        session_data = PHONE_OTP_SESSIONS.get(user.id)
+        if session_data:
+            if datetime.utcnow() > session_data.get("expires_at", datetime.utcnow()):
+                PHONE_OTP_SESSIONS.pop(user.id, None)
+                raise CredentialsException("Verification code has expired. Please request a new code.")
 
+            if session_data.get("attempts", 0) >= MAX_OTP_ATTEMPTS:
+                PHONE_OTP_SESSIONS.pop(user.id, None)
+                raise CredentialsException("Too many invalid attempts. Please request a new code.")
+
+            session_data["attempts"] = session_data.get("attempts", 0) + 1
+            if not phone_clean:
+                phone_clean = session_data.get("phone_number", "")
+
+        stored_hash = session_data.get("otp_hash", "") if session_data else ""
+
+        # Verify via SMSService (checks local hash AND Twilio Verify API)
+        is_valid = sms_service.verify_mobile_otp(
+            phone_clean,
+            otp_clean,
+            stored_hash,
+        )
+
+        if not is_valid:
+            raise CredentialsException("Invalid 6-digit verification code. Please check and try again.")
+
+        if phone_clean:
+            user.phone_number = phone_clean
+
+        if session_data:
+            dept = session_data.get("department")
+            if dept and dept in ALLOWED_DEPARTMENTS:
+                user.department = dept
+
+            req_role = session_data.get("requested_role")
+            if req_role:
+                user.requested_role_id = req_role
+
+        user.is_verified = True
         db.commit()
         db.refresh(user)
 
         PHONE_OTP_SESSIONS.pop(user.id, None)
-        logger.info("Onboarding completed for user %s (Phone: %s, Dept: %s, RequestedRole: %s)", user.id, user.phone_number, user.department, user.requested_role_id)
+        logger.info("Mobile phone verified & onboarding completed for user %s (Phone: %s, Dept: %s, RequestedRole: %s)", user.id, user.phone_number, user.department, user.requested_role_id)
         return user
 
 

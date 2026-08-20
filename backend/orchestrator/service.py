@@ -67,11 +67,11 @@ class QueryOrchestrator:
 
         if web_search or "web-search" in active_tools:
             decision = QueryRoutingDecision(
-                route=QueryRoute.WEB,
+                route=QueryRoute.HYBRID,
                 confidence=1.0,
-                requires_rag=False,
+                requires_rag=True,
                 requires_web=True,
-                reason="Explicit web search toggled by user.",
+                reason="Explicit hybrid web search toggled by user.",
             )
         elif "calculator" in active_tools and any(ch.isdigit() for ch in query) and any(op in query for op in ["+", "-", "*", "/", "%", "calculate", "sum", "total"]):
             decision = QueryRoutingDecision(
@@ -281,25 +281,52 @@ Tool result: {tool_result['result']}
     async def _answer_hybrid_query(self, query, decision, enterprise_query, rag_result, web_results, temperature):
         if not rag_result and not web_results:
             return self._response(query, decision, "I could not find authorized enterprise information or reliable web results.", self.llm.model, [])
-        rag_answer = rag_result.get("answer", "") if rag_result else "No internal enterprise documents found on this topic."
+
+        rag_answer = rag_result.get("answer", "") if rag_result else ""
         rag_sources = rag_result.get("sources", []) if rag_result else []
+        rag_chunks = rag_result.get("context_chunks", []) if rag_result else []
+
+        chunk_snippets = []
+        for ch in rag_chunks:
+            if isinstance(ch, dict):
+                text = ch.get("content") or ch.get("raw_text") or ""
+                doc_title = ch.get("document_title") or ch.get("title") or "Document"
+                page = ch.get("page_number") or ch.get("page")
+                header = f"--- Document: {doc_title}" + (f" (Page {page})" if page else "") + " ---"
+                if text.strip():
+                    chunk_snippets.append(f"{header}\n{text.strip()}")
+
+        if chunk_snippets:
+            internal_context = "\n\n".join(chunk_snippets)
+            if rag_answer and not rag_answer.lower().startswith("i could not find"):
+                internal_context = f"{rag_answer}\n\nRetrieved Chunks:\n{internal_context}"
+        elif rag_answer:
+            internal_context = rag_answer
+        else:
+            internal_context = "No specific internal enterprise documents were retrieved for this query."
+
         prompt = f"""
-You are an AI assistant providing a clear, professional response to the user.
-Integrate both internal enterprise knowledge (if available) and external web search information naturally into a single cohesive response.
-Do not use technical system metadata terms like "untrusted data" or "unverified web results" in your response.
-Present web findings as public search information or news when relevant.
+You are an AI assistant providing a clear, comprehensive, and professional enterprise response.
+Synthesize both internal enterprise knowledge and external web search information into a single cohesive response.
 
-User question: {query}
+Instructions:
+1. If internal document details are present, explicitly summarize what internal policies state.
+2. If external web search results are present, explain the external public standards or legal regulations.
+3. Compare the internal policy against external regulations directly and point out matches, gaps, or areas needing legal review.
+4. Reference internal document names when discussing company policies.
+5. Do not use system metadata jargon like "untrusted data".
 
-Internal Enterprise Knowledge:
-{rag_answer}
+User Question: {query}
+
+Internal Enterprise Knowledge Context:
+{internal_context}
 
 Public Web Search Results:
 {self._build_web_context(web_results)}
 
 Answer the user directly and concisely:
 """.strip()
-        answer = await self.llm.generate_text(prompt=prompt, temperature=temperature, max_tokens=800)
+        answer = await self.llm.generate_text(prompt=prompt, temperature=temperature, max_tokens=900)
         return {
             "query": query,
             "answer": answer.strip(),

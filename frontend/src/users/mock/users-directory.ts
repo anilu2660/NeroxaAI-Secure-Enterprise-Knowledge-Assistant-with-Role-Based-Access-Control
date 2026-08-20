@@ -59,8 +59,11 @@ export function findDirectoryUserByEmail(email: string): ManagedUser | null {
 /** Default knowledge scope for a newly seen account, based on its department. */
 export function defaultAccessScope(role: Role, department: string): string[] {
   if (role === "ADMIN") return ["All Knowledge"];
-  const label = `${department} Knowledge`;
-  return department ? [label, "General Knowledge"] : ["General Knowledge"];
+  const dept = (department || "").trim();
+  if (!dept || dept.toLowerCase() === "general") {
+    return ["General Knowledge"];
+  }
+  return [`${dept} Knowledge`];
 }
 
 /**

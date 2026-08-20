@@ -35,33 +35,33 @@ export function HeroProductWindow({ feature }: { feature: FeatureId }) {
       </div>
 
       {/* metallic outer frame */}
-      <div className="relative m-3 rounded-[15px] bg-[linear-gradient(145deg,oklch(1_0_0/0.22),oklch(1_0_0/0.04)_38%,oklch(1_0_0/0.02)_62%,oklch(1_0_0/0.14))] p-px shadow-window">
+      <div className="relative m-3 rounded-[18px] bg-gradient-to-br from-white/20 via-white/5 to-white/10 p-px shadow-2xl">
         {/* product window — identical in every state */}
-        <div className="relative overflow-hidden rounded-[14px] border border-hairline bg-surface-strong backdrop-blur-2xl">
+        <div className="relative overflow-hidden rounded-[17px] border border-hairline/80 bg-card/90 shadow-2xl backdrop-blur-2xl">
           <BorderBeam size={320} duration={12} delay={0} colorFrom="#3b82f6" colorTo="#a855f7" />
           {/* soft environmental reflection across the glass */}
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(160deg,oklch(1_0_0/0.09)_0%,transparent_30%,transparent_78%,oklch(1_0_0/0.05)_100%)]" />
           <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(to_right,transparent,oklch(1_0_0/0.5),transparent)]" />
 
           {/* window chrome */}
-          <div className="flex items-center gap-3 border-b border-hairline px-3 py-2">
+          <div className="flex items-center gap-3 border-b border-hairline/70 bg-secondary/20 px-3.5 py-2.5">
             <span className="flex gap-1.5">
-              <span className="size-2 rounded-full bg-foreground/25" />
-              <span className="size-2 rounded-full bg-foreground/25" />
-              <span className="size-2 rounded-full bg-foreground/25" />
+              <span className="size-2.5 rounded-full bg-rose-500/70" />
+              <span className="size-2.5 rounded-full bg-amber-500/70" />
+              <span className="size-2.5 rounded-full bg-emerald-500/70" />
             </span>
-            <span className="rounded-md border border-hairline px-3 py-1 text-[10.5px] text-foreground/80">
+            <span className="rounded-md border border-hairline/60 bg-secondary/40 px-3 py-0.5 text-[10.5px] font-medium text-foreground/85 shadow-xs">
               Ask NeroxaAI
             </span>
-            <span className="ml-auto flex items-center gap-1.5 text-[9px] tracking-wide text-muted-foreground uppercase">
+            <span className="ml-auto flex items-center gap-1.5 text-[9.5px] tracking-wide text-muted-foreground uppercase font-semibold">
               Illustrative preview
-              <Lock className="size-3" />
+              <Lock className="size-3 text-emerald-400" />
             </span>
           </div>
 
-          <div key={feature} className="animate-in fade-in-0 space-y-3 p-3.5 duration-500 sm:p-4">
+          <div key={feature} className="animate-in fade-in-0 space-y-3 p-4 duration-500">
             {/* user query */}
-            <div className="rounded-lg border border-hairline bg-card/60 px-3 py-2.5 text-[11.5px] text-foreground/85">
+            <div className="rounded-xl border border-primary/25 bg-primary/[0.08] px-3.5 py-2.5 text-[12px] font-medium text-foreground">
               {data.query}
             </div>
 

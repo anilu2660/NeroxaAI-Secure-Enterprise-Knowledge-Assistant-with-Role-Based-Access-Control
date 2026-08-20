@@ -1,17 +1,7 @@
 import AnimatedGradientBackground from "@/shared/components/ui/animated-gradient-background";
+import { useTheme } from "@/shared/components/ui/ThemeToggle";
 
-/**
- * SHARED AUTHENTICATED BACKGROUND — the single source of truth for the
- * atmospheric dark-to-blue environment behind every signed-in NeroxaAI surface
- * (Account, Dashboard, Assistant, Documents, and all admin pages).
- *
- * The values below are exactly the treatment the Account page established:
- * breathing radial gradient anchored high (50% 20%) so the lighting falls from
- * the top, near-black base deepening into workspace blue, low animation speed
- * so it never competes with the UI. Change it here only — never per route, or
- * pages drift into different environments again.
- */
-const WORKSPACE_GRADIENT_COLORS = [
+const DARK_GRADIENT_COLORS = [
   "#08090E",
   "#0B1224",
   "#0E2148",
@@ -21,17 +11,30 @@ const WORKSPACE_GRADIENT_COLORS = [
   "#1F4CAC",
 ];
 
+const SUNNY_GRADIENT_COLORS = [
+  "#FFFFFF",
+  "#F8FAFC",
+  "#F1F5F9",
+  "#E2E8F0",
+  "#CBD5E1",
+  "#E2E8F0",
+  "#F8FAFC",
+];
+
 const WORKSPACE_GRADIENT_STOPS = [12, 25, 42, 58, 73, 88, 100];
 
 export function WorkspaceBackground() {
+  const { isSunny } = useTheme();
+
   return (
     <AnimatedGradientBackground
+      key={isSunny ? "sunny-bg" : "dark-bg"}
       Breathing
       startingGap={65}
       breathingRange={15}
-      animationSpeed={0.05}
+      animationSpeed={0.04}
       topOffset={0}
-      gradientColors={WORKSPACE_GRADIENT_COLORS}
+      gradientColors={isSunny ? SUNNY_GRADIENT_COLORS : DARK_GRADIENT_COLORS}
       gradientStops={WORKSPACE_GRADIENT_STOPS}
     />
   );

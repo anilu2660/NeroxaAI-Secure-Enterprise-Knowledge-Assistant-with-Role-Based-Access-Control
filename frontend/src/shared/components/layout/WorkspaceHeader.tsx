@@ -21,6 +21,7 @@ import { useAuth } from "@/auth/auth-context";
 import { useUserProfile } from "@/auth/use-user-profile";
 import { useSidebar } from "@/shared/context/sidebar-context";
 import { WorkspaceCommandPalette } from "./WorkspaceCommandPalette";
+import { ThemeToggle } from "@/shared/components/ui/ThemeToggle";
 
 const PAGE_LABELS: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -214,6 +215,9 @@ export function WorkspaceHeader() {
         <div className="flex items-center gap-2">
           {/* Command Palette Search Trigger */}
           <WorkspaceCommandPalette />
+
+          {/* Theme Toggle (Sunny / Dark) */}
+          <ThemeToggle />
 
           {/* Sidebar Toggle Button */}
           <Button
